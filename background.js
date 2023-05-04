@@ -42,5 +42,55 @@ function checkStreams() {
   // 4. Open a new tab or window for each channel that started streaming.
 }
 
+async function openOnlineStream(channelName) {
+  const settings = await chrome.storage.sync.get(["clientId", "accessToken"]);
+  const clientId = settings.clientId;
+  const accessToken = settings.accessToken;
+
+  const userId = await getUserId(clientId, accessToken, channelName);
+  const requestUrl = `https://api.twitch.tv/helix/streams?user_id=${userId}`;
+  const response = await fetch(requestUrl, {
+    headers: {
+      "Client-ID": clientId,
+      "Authorization": `Bearer ${accessToken}`
+    }
+  });
+  const data = await response.json();
+
+  if (data.data.length > 0) {
+    // Stream is online
+    console.log("online", channelName);
+		const url = `https://wwww.twitch.tv/${channelName}`;
+		chrome.tabs.create({ url });
+    return true;
+  } else {
+    // offline
+    return false;
+  }
+}
+
+function getUserId(clientId, accessToken, username) {
+  const requestUrl = `https://api.twitch.tv/helix/users?login=${username}`;
+
+  return fetch(requestUrl, {
+    headers: {
+      "Client-ID": clientId,
+      "Authorization": `Bearer ${accessToken}`
+    }
+  })
+    .then((response) => response.json())
+    .then((data) => {
+      if (data.data.length > 0) {
+        return data.data[0].id;
+      } else {
+        throw new Error("User not found");
+      }
+    })
+    .catch((error) => {
+      console.error("Error fetching user ID:", error);
+      console.error("username", username)
+    });
+}
+
 // Check streams every minute.
 setInterval(checkStreams, 60 * 1000);
