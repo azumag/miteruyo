@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Twitch Auto Opener</title>
+  <style>
+    .channel-item {
+  	  display: flex;
+  	  align-items: center;
+  	}
+  
+  	.channel-item input {
+  	  margin-left: 5px;
+  	}
+  </style>
+</head>
+<body>
+  <h1>Twitch Auto Opener</h1>
+  <div>
+    <label for="channelInput">Add Channel:</label>
+    <input type="text" id="channelInput" placeholder="Channel name">
+    <button id="addChannelBtn">Add</button>
+  </div>
+  <div id="channelList">
+    <h2>Channel List</h2>
+    <ul id="channelListItems">
+			<li class="channel-item">
+			</li>
+    </ul>
+  </div>
+  <div>
+    <label for="enableSwitch">Enable:</label>
+    <input type="checkbox" id="enableSwitch">
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
