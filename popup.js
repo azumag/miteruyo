@@ -2,6 +2,7 @@ const channelInput = document.getElementById("channelInput");
 const addChannelBtn = document.getElementById("addChannelBtn");
 const channelListItems = document.getElementById("channelListItems");
 const enableSwitch = document.getElementById("enableSwitch");
+const loginTwitch = document.getElementById("loginTwitch");
 
 // Load the saved values from storage and display them in the UI
 chrome.storage.sync.get(
@@ -15,6 +16,15 @@ chrome.storage.sync.get(
     enableSwitch.checked = data.isEnabled;
   }
 );
+
+chrome.storage.sync.get("oauth_token", (data) => {
+  console.log(data);
+  if (data.oauth_token) {
+    checkTwitchConnection(data.oauth_token);
+  } else {
+    rewriteNeedsLoginButton(false);
+  }
+});
 
 function addChannelToList(channel) {
   const li = document.createElement('li');
@@ -120,3 +130,68 @@ enableSwitch.addEventListener("change", () => {
   // Save the current state of the switch to storage
   chrome.storage.sync.set({ isEnabled: enableSwitch.checked });
 });
+
+loginTwitch.addEventListener("click", () => {
+  console.log(chrome.identity.getRedirectURL());
+  chrome.identity.launchWebAuthFlow({
+    url: `https://id.twitch.tv/oauth2/authorize?` +
+      `client_id=vzlsgu6bdv9tbad1uroc9v8tz813cx&` +
+      `redirect_uri=${chrome.identity.getRedirectURL()}&` +
+      `response_type=token&` +
+      `scope=user:read:email`,
+    interactive: true
+  }, responseUrl => {
+    if (responseUrl) {
+      let hash = new URL(responseUrl).hash;
+      let result = parseHashToObj(hash);
+      let oauth_token = { oauth_token: result.access_token };
+      chrome.storage.sync.set({ oauth_token });
+      checkTwitchConnection(oauth_token);
+      console.log(oauth_token);
+    } else {
+      console.error("Invalid response URL:", responseUrl);
+      loginTwitch.text = 'login fail: please login twitch';
+      loginTwitch.enable = true;
+    }
+  });
+});
+
+function parseHashToObj(hash) {
+  return hash.replace("#", "").split('&').reduce((res, item) => {
+    const parts = item.split('=');
+    res[parts[0]] = parts[1];
+    return res;
+  }, {});
+}
+
+function checkTwitchConnection(oauthToken) {
+  console.log('checkTwitch');
+  const token = oauthToken.oauth_token;
+  var url = "https://api.twitch.tv/helix/users?login=azumagbanjo";
+  var headers = {
+    "Client-Id": 'vzlsgu6bdv9tbad1uroc9v8tz813cx',
+    "Authorization": "Bearer " + token,
+  };
+  var options = {
+    "method": "GET",
+    "headers": headers,
+  };
+  return fetch(url, options)
+    .then(response => {
+      console.log(response);
+      rewriteNeedsLoginButton(response.ok)
+    })
+    .catch(error => {
+      console.error(error);
+      rewriteNeedsLoginButton(false);
+    });
+}
+
+function rewriteNeedsLoginButton(isOk) {
+  if (isOk) {
+    loginTwitch.textContent = 'connected';
+  } else {
+    loginTwitch.textContent = 'please login twitch';
+  }
+  loginTwitch.disabled = isOk;
+}

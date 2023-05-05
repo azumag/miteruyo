@@ -1,95 +1,57 @@
 let isEnabled = false;
-let filterCategory = "";
-let filterTags = "";
+let channels = [];
+let oauth_token;
 
-chrome.storage.sync.get(["isEnabled", "filterCategory", "filterTags"], function(data) {
+const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx';
+
+chrome.storage.sync.get(["isEnabled", "channels", "oauth_token"], function (data) {
   isEnabled = data.isEnabled;
-  filterCategory = data.filterCategory;
-  filterTags = data.filterTags;
+  channels = data.channels;
+  oauth_token = data.oauth_token;
+  console.log(channels);
 });
 
 chrome.storage.onChanged.addListener(function(changes) {
   if (changes.isEnabled) {
     isEnabled = changes.isEnabled.newValue;
+    console.log(isEnabled);
   }
-  if (changes.filterCategory) {
-    filterCategory = changes.filterCategory.newValue;
+  if (changes.channels) {
+    channels = changes.channels.newValue;
+    console.log(channels);
   }
-  if (changes.filterTags) {
-    filterTags = changes.filterTags.newValue;
+  if (changes.oauth_token) {
+    oauth_token = changes.oauth_token.newValue;
   }
 });
 
-chrome.storage.sync.get(
-  {
-    isEnabled: false,
-    filterCategory: "",
-    filterTags: "",
-  },
-  function (data) {
-    isEnabled = data.isEnabled;
-		filterCategory = data.filterCategory;
-    filterTags = data.filterTags;
-  }
-);
-
 function checkStreams() {
   if (!isEnabled) return;
-
-  // 1. Fetch registered channels.
-  // 2. Use Twitch API to check their streaming status.
-  // 3. Filter channels based on category and tags.
-  // 4. Open a new tab or window for each channel that started streaming.
+  channels.forEach((channel) => {
+    console.log(channel);
+    checkStream(channel);
+  })
 }
 
-async function openOnlineStream(channelName) {
-  const settings = await chrome.storage.sync.get(["clientId", "accessToken"]);
-  const clientId = settings.clientId;
-  const accessToken = settings.accessToken;
-
-  const userId = await getUserId(clientId, accessToken, channelName);
-  const requestUrl = `https://api.twitch.tv/helix/streams?user_id=${userId}`;
-  const response = await fetch(requestUrl, {
+async function checkStream(channel) {
+  const url = `https://api.twitch.tv/helix/streams?user_login=${channel.name}`;
+  const options = {
     headers: {
-      "Client-ID": clientId,
-      "Authorization": `Bearer ${accessToken}`
-    }
-  });
+      'Client-ID': clientId,
+      'Accept': 'application/vnd.twitchtv.v5+json',
+      "Authorization": "Bearer " + oauth_token.oauth_token,
+    },
+  };
+
+  const response = await fetch(url, options);
   const data = await response.json();
 
+  console.log(data);
   if (data.data.length > 0) {
-    // Stream is online
-    console.log("online", channelName);
-		const url = `https://wwww.twitch.tv/${channelName}`;
-		chrome.tabs.create({ url });
-    return true;
+    console.log("online", data.data);
   } else {
-    // offline
-    return false;
+    console.log("offline", channel.name);
   }
-}
-
-function getUserId(clientId, accessToken, username) {
-  const requestUrl = `https://api.twitch.tv/helix/users?login=${username}`;
-
-  return fetch(requestUrl, {
-    headers: {
-      "Client-ID": clientId,
-      "Authorization": `Bearer ${accessToken}`
-    }
-  })
-    .then((response) => response.json())
-    .then((data) => {
-      if (data.data.length > 0) {
-        return data.data[0].id;
-      } else {
-        throw new Error("User not found");
-      }
-    })
-    .catch((error) => {
-      console.error("Error fetching user ID:", error);
-      console.error("username", username)
-    });
 }
 
 // Check streams every minute.

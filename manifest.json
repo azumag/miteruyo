@@ -5,7 +5,8 @@
   "description": "Automatically opens Twitch channels when they start streaming.",
   "permissions": [
     "tabs",
-    "storage"
+    "storage",
+    "identity"
   ],
   "action": {
     "default_icon": "icon.png",
