@@ -2,6 +2,7 @@ const channelInput = document.getElementById("channelInput");
 const addChannelBtn = document.getElementById("addChannelBtn");
 const channelListItems = document.getElementById("channelListItems");
 const enableSwitch = document.getElementById("enableSwitch");
+const openNewWindow = document.getElementById("openNewWindow");
 const loginTwitch = document.getElementById("loginTwitch");
 
 // Load the saved values from storage and display them in the UI
@@ -9,11 +10,13 @@ chrome.storage.sync.get(
   {
     channels: [],
     isEnabled: false,
+    isOpenNewWindow: false,
   },
   (data) => {
     console.log(data.channels);
     data.channels.forEach((channel) => addChannelToList(channel));
     enableSwitch.checked = data.isEnabled;
+    openNewWindow.checked = data.isOpenNewWindow;
   }
 );
 
@@ -29,7 +32,19 @@ chrome.storage.sync.get("oauth_token", (data) => {
 function addChannelToList(channel) {
   const li = document.createElement('li');
   li.classList.add('channel-item');
-  
+
+  const removeButton = document.createElement('button');
+  removeButton.textContent = 'DEL';
+  removeButton.addEventListener('click', () => {
+    li.remove();
+
+    chrome.storage.sync.get('channels', (data) => {
+      const newChannels = data.channels.filter((c) => c.name !== channel.name);
+      chrome.storage.sync.set({ channels: newChannels });
+    });
+  });
+  li.appendChild(removeButton);
+
   const channelNameTag = document.createElement('span');
   channelNameTag.textContent = channel.name;
   li.appendChild(channelNameTag);
@@ -39,14 +54,14 @@ function addChannelToList(channel) {
   categoriesInput.type = 'text';
   categoriesInput.placeholder = 'category';
   categoriesInput.value = channel.categoriesFilter;
-  li.appendChild(categoriesInput);
+  // li.appendChild(categoriesInput);
   
   const tagsInput = document.createElement('input');
   tagsInput.id = channel.name + '|tag';
   tagsInput.type = 'text';
   tagsInput.placeholder = 'tag';
   tagsInput.value = channel.tagsFilter;
-  li.appendChild(tagsInput);
+  // li.appendChild(tagsInput);
 
   const saveButton = document.createElement('button');
   saveButton.setAttribute('data-id', channel.name);
@@ -66,19 +81,9 @@ function addChannelToList(channel) {
 
     saveChannelToList(targetChannel);
   });
-  li.appendChild(saveButton);
+  // li.appendChild(saveButton);
 
-  const removeButton = document.createElement('button');
-  removeButton.textContent = 'Remove';
-  removeButton.addEventListener('click', () => {
-    li.remove();
 
-    chrome.storage.sync.get('channels', (data) => {
-      const newChannels = data.channels.filter((c) => c.name !== channel.name);
-      chrome.storage.sync.set({ channels: newChannels });
-    });
-  });
-  li.appendChild(removeButton);
 
   channelListItems.appendChild(li);
 }
@@ -129,6 +134,11 @@ function saveChannelToList(channel) {
 enableSwitch.addEventListener("change", () => {
   // Save the current state of the switch to storage
   chrome.storage.sync.set({ isEnabled: enableSwitch.checked });
+});
+
+openNewWindow.addEventListener("change", () => {
+  // Save the current state of the switch to storage
+  chrome.storage.sync.set({ isOpenNewWindow: openNewWindow.checked });
 });
 
 loginTwitch.addEventListener("click", () => {
