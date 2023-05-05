@@ -3,7 +3,11 @@ const addChannelBtn = document.getElementById("addChannelBtn");
 const channelListItems = document.getElementById("channelListItems");
 const enableSwitch = document.getElementById("enableSwitch");
 const openNewWindow = document.getElementById("openNewWindow");
+const openMultiTwitch = document.getElementById("openMultiTwitch");
 const loginTwitch = document.getElementById("loginTwitch");
+const openAll = document.getElementById("openAll");
+const openMultiTwitchButton = document.getElementById("openMultiTwitchButton");
+const twitchDomain = 'https://www.twitch.tv';
 
 // Load the saved values from storage and display them in the UI
 chrome.storage.sync.get(
@@ -11,17 +15,17 @@ chrome.storage.sync.get(
     channels: [],
     isEnabled: false,
     isOpenNewWindow: false,
+    isOpenMultiTwitch: false
   },
   (data) => {
-    console.log(data.channels);
     data.channels.forEach((channel) => addChannelToList(channel));
     enableSwitch.checked = data.isEnabled;
     openNewWindow.checked = data.isOpenNewWindow;
+    openMultiTwitch.checked = data.isOpenMultiTwitch;
   }
 );
 
 chrome.storage.sync.get("oauth_token", (data) => {
-  console.log(data);
   if (data.oauth_token) {
     checkTwitchConnection(data.oauth_token);
   } else {
@@ -31,7 +35,21 @@ chrome.storage.sync.get("oauth_token", (data) => {
 
 function addChannelToList(channel) {
   const li = document.createElement('li');
+  li.id = channel.name + '|li'
   li.classList.add('channel-item');
+
+  if (channel.onLive) {
+    const liveStatus = document.createElement('span');
+    liveStatus.textContent = 'Live';
+    li.appendChild(liveStatus);
+
+    const openButton = document.createElement('button');
+    openButton.textContent = 'Open';
+    openButton.addEventListener('click', (event) => {
+      chrome.tabs.create({ url: twitchDomain + "/" + channel.name });
+    });
+    li.appendChild(openButton);
+  }
 
   const removeButton = document.createElement('button');
   removeButton.textContent = 'DEL';
@@ -83,8 +101,6 @@ function addChannelToList(channel) {
   });
   // li.appendChild(saveButton);
 
-
-
   channelListItems.appendChild(li);
 }
 
@@ -132,13 +148,36 @@ function saveChannelToList(channel) {
 }
 
 enableSwitch.addEventListener("change", () => {
-  // Save the current state of the switch to storage
   chrome.storage.sync.set({ isEnabled: enableSwitch.checked });
 });
 
 openNewWindow.addEventListener("change", () => {
-  // Save the current state of the switch to storage
   chrome.storage.sync.set({ isOpenNewWindow: openNewWindow.checked });
+});
+
+openMultiTwitch.addEventListener("change", () => {
+  chrome.storage.sync.set({ isOpenMultiTwitch: openMultiTwitch.checked });
+});
+
+openAll.addEventListener("click", async () => {
+  const channels = (await chrome.storage.sync.get('channels')).channels;
+  channels.forEach(channel => {
+    if (channel.onLive) {
+      const url = twitchDomain + '/' + channel.name;
+      chrome.tabs.create({ url });
+    }
+  });
+});
+
+openMultiTwitchButton.addEventListener("click", async () => {
+  const channels = (await chrome.storage.sync.get('channels')).channels;
+  let url = 'https://www.multitwitch.tv/'
+  channels.forEach(channel => {
+    if (channel.onLive) {
+      url += channel.name + "/";
+    }
+  });
+  chrome.tabs.create({ url });
 });
 
 loginTwitch.addEventListener("click", () => {

@@ -1,20 +1,20 @@
 let isEnabled = false;
 let isOpenNewWindow = false;
-let channels = [];
+let isOpenMultiTwitch = false;
 let oauth_token;
-let openQueue = [];
+let channelQueue = [];
 let lastOpenWindowId;
 
 const twitchDomain = 'https://www.twitch.tv';
+const multiTwitchURL = 'https://www.multitwitch.tv/'
 
 const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx';
 
-chrome.storage.sync.get(["isEnabled", "channels", "oauth_token", "isOpenNewWindow"], function (data) {
+chrome.storage.sync.get(["isEnabled", "oauth_token", "isOpenNewWindow"], function (data) {
   isEnabled = data.isEnabled;
-  channels = data.channels;
   oauth_token = data.oauth_token;
   isOpenNewWindow = data.isOpenNewWindow;
-  console.log(channels);
+  isOpenMultiTwitch = data.isOpenMultiTwitch;
 });
 
 chrome.storage.onChanged.addListener(function(changes) {
@@ -22,57 +22,77 @@ chrome.storage.onChanged.addListener(function(changes) {
     isEnabled = changes.isEnabled.newValue;
     console.log(isEnabled);
   }
-  if (changes.channels) {
-    channels = changes.channels.newValue;
-    console.log(channels);
-  }
   if (changes.oauth_token) {
     oauth_token = changes.oauth_token.newValue;
   }
   if (changes.isOpenNewWindow) {
     isOpenNewWindow = changes.isOpenNewWindow.newValue;
   }
+  if (changes.isOpenMultiTwitch) {
+    isOpenMultiTwitch = changes.isOpenMultiTwitch.newValue;
+  }
 });
 
 async function checkStreams() {
-  if (!isEnabled) return;
+  const channels = (await chrome.storage.sync.get('channels')).channels;
   for (const channel of channels) {
     console.log(channel);
     await checkStream(channel);
   }
-  openQueuedStreams();
+  for (const channel of channels) {
+    await saveChannel(channel);
+  }
+  if (isEnabled) {
+    if (isOpenMultiTwitch) {
+      channelQueuedStreamsInMultiTwitch();
+    } else {
+      channelQueuedStreams();
+    }
+  } else {
+    channelQueue = [];
+  };
 }
 
-async function openQueuedStreams() {
-  console.log({ isOpenNewWindow });
+async function channelQueuedStreamsInMultiTwitch() {
+}
+
+async function channelQueuedStreams() {
   if (isOpenNewWindow) {
-    while (openQueue.length > 0) {
-      const firstUrl = openQueue.shift();
+    while (channelQueue.length > 0) {
+      const firstChannel = channelQueue.shift();
+      if (!firstChannel.onLive) continue;
+
       const tabs = await chrome.tabs.query({});
-      const matchingTabs = tabs.filter(tab => tab.url === firstUrl);
+      const targetURL = channelURL(firstChannel);
+      const matchingTabs = tabs.filter(tab => tab.url === targetURL);
 
       if (matchingTabs.length === 0) {
         let windowId;
         if (lastOpenWindowId && await checkWindowExists(lastOpenWindowId)) {
           windowId = lastOpenWindowId;
         } else {
-          const newWindow = await chrome.windows.create({ url: firstUrl });
+          const newWindow = await chrome.windows.create({ url: targetURL });
           windowId = newWindow.id
         }
         lastOpenWindowId = windowId;
 
-        openQueue.forEach(url => {
-          openTabIfNotExists(url, windowId);
+        console.log({ channelQueue });
+        channelQueue.forEach(channel => {
+          openTabIfNotExists(channel, windowId);
         });
-        openQueue = [];
+        channelQueue = [];
       }
     }
   } else {
-    openQueue.forEach(url => {
-      openTabIfNotExists(url);
+    channelQueue.forEach(channel => {
+      openTabIfNotExists(channel);
     });
-    openQueue = [];
+    channelQueue = [];
   }
+}
+
+function channelURL(channel) {
+  return twitchDomain + '/' + channel.name;
 }
 
 async function checkWindowExists(windowId) {
@@ -102,17 +122,31 @@ async function checkStream(channel) {
   const response = await fetch(url, options);
   const data = await response.json();
 
-  console.log(data);
   if (data.data.length > 0) {
     console.log("online", data.data[0]);
-    const targetURL = twitchDomain + '/' + channel.name;
-    openQueue.push(targetURL);
+    channel.onLive = true;
   } else {
     console.log("offline", channel.name);
+    channel.onLive = false;
   }
+  channelQueue.push(channel);
 }
 
-function openTabIfNotExists(targetURL, windowId = null) {
+async function saveChannel(channel) {
+  const channels = (await chrome.storage.sync.get('channels')).channels;
+  const index = channels.findIndex((c) => c.name === channel.name);
+
+  if (index !== -1) {
+    channels.splice(index, 1);
+  }
+
+  const newChannels = [...channels, channel];
+  await chrome.storage.sync.set({ channels: newChannels });
+}
+
+function openTabIfNotExists(channel, windowId = null) {
+  if (!channel.onLive) return;
+  const targetURL = channelURL(channel);
   chrome.tabs.query({}, tabs => {
     const matchingTabs = tabs.filter(tab => tab.url === targetURL);
 
@@ -122,6 +156,4 @@ function openTabIfNotExists(targetURL, windowId = null) {
   });
 }
 
-
-// Check streams every minute.
-setInterval(checkStreams, 6 * 1000);
+setInterval(checkStreams, 60 * 1000);
