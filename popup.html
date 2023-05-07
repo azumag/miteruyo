@@ -1,52 +1,74 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Twitch Auto Opener</title>
-  <style>
-    .channel-item {
-      display: flex;
-      align-items: left;
-    }
-  
-    .channel-item input {
-      margin-left: 5px;
-    }
-  </style>
+  <title>Miteruyo</title>
+  <link rel="stylesheet" href="bootstrap/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 </head>
 <body>
-  <h1>Twitch Auto Opener</h1>
-  <div>
-    <label for="channelInput">Add Channel:</label>
-    <input type="text" id="channelInput" placeholder="Channel name">
-    <button id="addChannelBtn">Add</button>
-  </div>
-  <div id="channelList">
-    <h2>Channel List</h2>
-    <ul id="channelListItems"></ul>
-  </div>
-  <button id="openAll">
-    Open all channel on live
-  </button>
-  <button id="openMultiTwitchButton">
-    Open in multitwitch on live
-  </button>
-  <div>
-    <label for="enableSwitch">Open Automatically:</label>
-    <input type="checkbox" id="enableSwitch">
-  </div>
-  <div style="margin-left:10px">
-    <label for="openNewWindow">in new window:</label>
-    <input type="checkbox" id="openNewWindow">
-  </div>
-  <div style="margin-left:10px">
-    <label for="openMultiTwitch">in multiTwitch:</label>
-    <input type="checkbox" id="openMultiTwitch">
-  </div>
-  <button id="loginTwitch">
-    Login Twitch
-  </button>
+  <div id="main" class="container">
+    <div class="mb-3 mt-3">
+      <div class="input-group">
+        <input type="text" class="form-control" id="channelInput" aria-describedby="basic-addon3 basic-addon4"
+          placeholder="Channel name">
+        <button id="addChannelBtn" class="btn btn-primary">Add</button>
+      </div>
+      <div>
+        <table id="channelTable" class="table table-striped" style="min-width: 300px">
+          <div class="d-flex justify-content-center">
+            <div class="spinner-border text-info mt-3" role="status" id="loading">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+          <thead>
+            <tr>
+              <th scope="col"></th>
+              <th scope="col"></th>
+              <th scope="col"></th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody id="channelTableBody"></tbody>
+          </table>
+          </div>
+          <div class="d-grid gap-2 mb-3">
+            <button id="openAll" class="btn btn-info btn-sm">
+              Open all channels on live
+            </button>
+        <button id="openMultiTwitchButton" class="btn btn-info btn-sm">
+          Open in multitwitch on live
+        </button>
+        <button id="openAllCheck" class="btn btn-info btn-sm">
+          Open cheked channels on live
+        </button>
+        <button id="openCheckedMultiTwitchButton" class="btn btn-info btn-sm">
+          Open in multitwitch on checked live
+        </button>
+        </div>
+      <div>
+        Auto-open checked channel(s):
+        </div>
+        <div class="ms-3">
+          <input type="checkbox" id="enableSwitch" class="form-check-input" role="switch" />
+          <label class="form-check-label" for="enableSwitch">Enable</label>
+        </div>
+        <div class="ms-3">
+          <input type="checkbox" id="openNewWindow" class="form-check-input">
+          <label for="openNewWindow">Open in new window</label>
+        </div>
+        <div style="margin-left:10px">
+        <!-- <label for="openMultiTwitch">multiTwitch:</label> -->
+        <input type="checkbox" id="openMultiTwitch">
+        </div>
+      </div>
+      </div>
+      <div class="d-grid gap-2 mb-3 mt-3 ms-3 me-3" style="min-width: 200px">
+        <button id="loginTwitch" class="btn btn-primary">
+          Login Twitch
+        </button>
+      </div>
   <script src="popup.js"></script>
 </body>
 </html>

@@ -1,71 +1,95 @@
+const loading = document.getElementById("loading");
 const channelInput = document.getElementById("channelInput");
 const addChannelBtn = document.getElementById("addChannelBtn");
-const channelListItems = document.getElementById("channelListItems");
+const channelTable = document.getElementById("channelTableBody");
 const enableSwitch = document.getElementById("enableSwitch");
 const openNewWindow = document.getElementById("openNewWindow");
 const openMultiTwitch = document.getElementById("openMultiTwitch");
 const loginTwitch = document.getElementById("loginTwitch");
 const openAll = document.getElementById("openAll");
 const openMultiTwitchButton = document.getElementById("openMultiTwitchButton");
-const twitchDomain = 'https://www.twitch.tv';
+const openAllChecked = document.getElementById("openAllCheck");
+const openCheckedMultiTwitchButton = document.getElementById("openCheckedMultiTwitchButton");
 
-// Load the saved values from storage and display them in the UI
+openMultiTwitch.hidden = true;
+
+const twitchDomain = 'https://www.twitch.tv';
+const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx';
+
 chrome.storage.sync.get(
   {
     channels: [],
     isEnabled: false,
     isOpenNewWindow: false,
-    isOpenMultiTwitch: false
+    isOpenMultiTwitch: false,
+    oauth_token: null
   },
-  (data) => {
-    data.channels.forEach((channel) => addChannelToList(channel));
+  async (data) => {
+    loading.hidden = false;
+    if (data.oauth_token) {
+      await checkTwitchConnection(data.oauth_token);
+      const updateChannels = [];
+      for (const _channel of data.channels) {
+        const channel = await checkStream(_channel);
+        if (channel) updateChannels.push(channel);
+      }
+      await chrome.storage.sync.set({ channels: updateChannels });
+      for (const channel of updateChannels) {
+        await addChannelToList(channel);
+      }
+    } else {
+      rewriteNeedsLoginButton(false);
+    }
     enableSwitch.checked = data.isEnabled;
     openNewWindow.checked = data.isOpenNewWindow;
     openMultiTwitch.checked = data.isOpenMultiTwitch;
+    loading.hidden = true;
   }
 );
 
-chrome.storage.sync.get("oauth_token", (data) => {
-  if (data.oauth_token) {
-    checkTwitchConnection(data.oauth_token);
-  } else {
-    rewriteNeedsLoginButton(false);
-  }
-});
+async function addChannelToList(channel) {
+  const tr = document.createElement('tr');
+  tr.classList.add('channel-tr');
 
-function addChannelToList(channel) {
-  const li = document.createElement('li');
-  li.id = channel.name + '|li'
-  li.classList.add('channel-item');
+  const liveStatus = document.createElement('td');
+  tr.appendChild(liveStatus);
 
   if (channel.onLive) {
-    const liveStatus = document.createElement('span');
-    liveStatus.textContent = 'Live';
-    li.appendChild(liveStatus);
-
     const openButton = document.createElement('button');
-    openButton.textContent = 'Open';
+    liveStatus.appendChild(openButton);
+    openButton.textContent = 'Live';
+    openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
     openButton.addEventListener('click', (event) => {
       chrome.tabs.create({ url: twitchDomain + "/" + channel.name });
     });
-    li.appendChild(openButton);
   }
 
-  const removeButton = document.createElement('button');
-  removeButton.textContent = 'DEL';
-  removeButton.addEventListener('click', () => {
-    li.remove();
-
+  const onliveswitchtd = document.createElement('td');
+  const onLiveOpenSwitch = document.createElement('input');
+  onLiveOpenSwitch.setAttribute('class', 'text-center align-middle form-check-input mt-0')
+  onLiveOpenSwitch.type = 'checkbox';
+  onLiveOpenSwitch.checked = channel.onLiveOpen;
+  onLiveOpenSwitch.addEventListener('change', () => {
+    channel.onLiveOpen = onLiveOpenSwitch.checked;
     chrome.storage.sync.get('channels', (data) => {
       const newChannels = data.channels.filter((c) => c.name !== channel.name);
-      chrome.storage.sync.set({ channels: newChannels });
+
+      chrome.storage.sync.set({ channels: [...newChannels, channel] });
     });
   });
-  li.appendChild(removeButton);
+  onliveswitchtd.appendChild(onLiveOpenSwitch);
+  tr.appendChild(onliveswitchtd);
 
+  const cntd = document.createElement('td');
   const channelNameTag = document.createElement('span');
   channelNameTag.textContent = channel.name;
-  li.appendChild(channelNameTag);
+  cntd.appendChild(channelNameTag);
+  // if (channel.onLive && channel.title) {
+  //   const desc = document.createElement('div');
+  //   desc.textContent = channel.title;
+  //   cntd.appendChild(desc);
+  // }
+  tr.appendChild(cntd);
   
   const categoriesInput = document.createElement('input');
   categoriesInput.id = channel.name + '|category';
@@ -101,7 +125,26 @@ function addChannelToList(channel) {
   });
   // li.appendChild(saveButton);
 
-  channelListItems.appendChild(li);
+  const removetd = document.createElement('td');
+  const removeButton = document.createElement('i');
+  removeButton.setAttribute('class', 'bi bi-trash')
+  // const removeButton = document.createElement('button');
+  // removeButton.textContent = 'DEL';
+  removeButton.addEventListener('click', () => {
+    tr.remove();
+    removeChannel(channel);
+  });
+  removetd.appendChild(removeButton);
+  tr.appendChild(removetd);
+
+  channelTable.appendChild(tr);
+}
+
+function removeChannel(channel) {
+  chrome.storage.sync.get('channels', (data) => {
+    const newChannels = data.channels.filter((c) => c.name !== channel.name);
+    chrome.storage.sync.set({ channels: newChannels });
+  });
 }
 
 addChannelBtn.addEventListener("click", async () => {
@@ -180,6 +223,27 @@ openMultiTwitchButton.addEventListener("click", async () => {
   chrome.tabs.create({ url });
 });
 
+openAllChecked.addEventListener("click", async () => {
+  const channels = (await chrome.storage.sync.get('channels')).channels;
+  channels.forEach(channel => {
+    if (channel.onLive && channel.onLiveOpen) {
+      const url = twitchDomain + '/' + channel.name;
+      chrome.tabs.create({ url });
+    }
+  });
+});
+
+openCheckedMultiTwitchButton.addEventListener("click", async () => {
+  const channels = (await chrome.storage.sync.get('channels')).channels;
+  let url = 'https://www.multitwitch.tv/'
+  channels.forEach(channel => {
+    if (channel.onLive && channel.onLiveOpen) {
+      url += channel.name + "/";
+    }
+  });
+  chrome.tabs.create({ url });
+});
+
 loginTwitch.addEventListener("click", () => {
   console.log(chrome.identity.getRedirectURL());
   chrome.identity.launchWebAuthFlow({
@@ -237,10 +301,60 @@ function checkTwitchConnection(oauthToken) {
 }
 
 function rewriteNeedsLoginButton(isOk) {
+  const mainElements = document.getElementById("main");
   if (isOk) {
     loginTwitch.textContent = 'connected';
   } else {
     loginTwitch.textContent = 'please login twitch';
   }
   loginTwitch.disabled = isOk;
+  mainElements.hidden = !isOk;
+}
+
+async function checkStream(channel) {
+  const oauth_token = (await chrome.storage.sync.get("oauth_token")).oauth_token;
+
+  const url = `https://api.twitch.tv/helix/streams?user_login=${channel.name}`;
+  const options = {
+    headers: {
+      'Client-ID': clientId,
+      'Accept': 'application/vnd.twitchtv.v5+json',
+      "Authorization": "Bearer " + oauth_token.oauth_token,
+    },
+  };
+
+  const response = await fetch(url, options);
+  const data = await response.json();
+
+  if (data.data === undefined) {
+    removeChannel(channel);
+    return;
+  }
+
+  if (data.data.length > 0) {
+    console.log("online", data.data[0]);
+    const stream = data.data[0];
+    channel.onLive = true;
+    channel.game_name = stream.game_name;
+    channel.tags = stream.tags;
+    channel.title = stream.title;
+    channel.viewer_count = stream.viewer_count;
+  } else {
+    console.log("offline", channel.name);
+    channel.onLive = false;
+  }
+
+  return channel;
+}
+
+async function saveChannel(channel) {
+  const channels = (await chrome.storage.sync.get('channels')).channels;
+  const index = channels.findIndex((c) => c.name === channel.name);
+
+  if (index !== -1) {
+    channels.splice(index, 1);
+  }
+
+  const newChannels = [...channels, channel];
+  await chrome.storage.sync.set({ channels: newChannels });
 }

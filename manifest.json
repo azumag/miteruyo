@@ -1,13 +1,16 @@
 {
   "manifest_version": 3,
-  "name": "Twitch Auto Opener",
+  "name": "Miteruyo",
   "version": "1.0",
-  "description": "Automatically opens Twitch channels when they start streaming.",
+  "description": "Twitch channel list and automatically opens specified channels when they start streaming.",
   "permissions": [
     "tabs",
     "storage",
     "identity"
   ],
+  "icons": {
+    "48": "icon.png"
+  },
   "action": {
     "default_icon": "icon.png",
     "default_popup": "popup.html"
