@@ -27,15 +27,23 @@ chrome.storage.sync.get(
   async (data) => {
     loading.hidden = false;
     if (data.oauth_token) {
-      await checkTwitchConnection(data.oauth_token);
-      const updateChannels = [];
-      for (const _channel of data.channels) {
-        const channel = await checkStream(_channel);
-        if (channel) updateChannels.push(channel);
-      }
-      await chrome.storage.sync.set({ channels: updateChannels });
-      for (const channel of updateChannels) {
-        await addChannelToList(channel);
+      const connected = await checkTwitchConnection(data.oauth_token);
+      if (connected) {
+        const checkStreams = [];
+        for (const _channel of data.channels) {
+          checkStreams.push(
+            checkStream(_channel)
+              .then((channel) => {
+                if (channel) {
+                  addChannelToList(channel);
+                  return channel;
+                }
+              })
+          );
+        }
+        Promise.all(checkStreams).then((channels) => {
+          chrome.storage.sync.set({ channels });
+        })
       }
     } else {
       rewriteNeedsLoginButton(false);
@@ -254,6 +262,7 @@ loginTwitch.addEventListener("click", () => {
       `scope=user:read:email`,
     interactive: true
   }, responseUrl => {
+    console.log({ responseUrl });
     if (responseUrl) {
       let hash = new URL(responseUrl).hash;
       let result = parseHashToObj(hash);
@@ -293,10 +302,12 @@ function checkTwitchConnection(oauthToken) {
     .then(response => {
       console.log(response);
       rewriteNeedsLoginButton(response.ok)
+      return true;
     })
     .catch(error => {
       console.error(error);
       rewriteNeedsLoginButton(false);
+      return false;
     });
 }
 
