@@ -9,7 +9,8 @@ let lastOpenWindowId;
 
 const twitchDomain = 'https://www.twitch.tv';
 const multiTwitchURL = 'https://www.multitwitch.tv/'
-const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx';
+// const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx'; // for prod
+const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
 
 chrome.storage.sync.get(["isEnabled", "oauth_token", "isOpenNewWindow"], function (data) {
   isEnabled = data.isEnabled;

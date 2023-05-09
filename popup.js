@@ -14,7 +14,8 @@ const openCheckedMultiTwitchButton = document.getElementById("openCheckedMultiTw
 openMultiTwitch.hidden = true;
 
 const twitchDomain = 'https://www.twitch.tv';
-const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx';
+// const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx'; // for prod
+const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
 
 chrome.storage.sync.get(
   {
@@ -256,7 +257,7 @@ loginTwitch.addEventListener("click", () => {
   console.log(chrome.identity.getRedirectURL());
   chrome.identity.launchWebAuthFlow({
     url: `https://id.twitch.tv/oauth2/authorize?` +
-      `client_id=vzlsgu6bdv9tbad1uroc9v8tz813cx&` +
+      `client_id=${clientId}&` +
       `redirect_uri=${chrome.identity.getRedirectURL()}&` +
       `response_type=token&` +
       `scope=user:read:email`,
@@ -290,8 +291,9 @@ function checkTwitchConnection(oauthToken) {
   console.log('checkTwitch');
   const token = oauthToken.oauth_token;
   var url = "https://api.twitch.tv/helix/users?login=azumagbanjo";
+  // var url = "https://api.twitch.tv/helix/users?login=azumagdev";
   var headers = {
-    "Client-Id": 'vzlsgu6bdv9tbad1uroc9v8tz813cx',
+    "Client-Id": clientId,
     "Authorization": "Bearer " + token,
   };
   var options = {
