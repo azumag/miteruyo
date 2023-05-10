@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Miteruyo",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Twitch channel list and automatically opens specified channels when they start streaming.",
   "permissions": [
     "tabs",
     "storage",
-    "identity"
+    "identity",
+    "alarms"
   ],
   "icons": {
     "48": "icon.png"
