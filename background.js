@@ -4,7 +4,6 @@ let isEnabled = false;
 let isOpenNewWindow = false;
 let isOpenMultiTwitch = false;
 let oauth_token;
-let channelQueue = [];
 let lastOpenWindowId;
 
 const twitchDomain = 'https://www.twitch.tv';
@@ -39,32 +38,35 @@ async function checkStreams() {
   if (!isEnabled) return;
   const channels = (await chrome.storage.sync.get('channels')).channels;
   for (const channel of channels) {
+    await checkStream(channel);
     console.log(channel);
-    const queueChannel = await checkStream(channel);
-    channelQueue.push(queueChannel);
   }
-  for (const channel of channelQueue) {
+  for (const channel of channels) {
     await saveChannel(channel);
   }
   if (isOpenMultiTwitch) {
     channelQueuedStreamsInMultiTwitch();
   } else {
-    channelQueuedStreams();
+    channelQueuedStreams(channels);
   }
 }
 
 async function channelQueuedStreamsInMultiTwitch() {
 }
 
-async function channelQueuedStreams() {
+async function channelQueuedStreams(channelQueue) {
+  console.log('channelQueueStreams', { isOpenNewWindow });
   if (isOpenNewWindow) {
     while (channelQueue.length > 0) {
       const firstChannel = channelQueue.shift();
+      console.log(firstChannel);
       if (!firstChannel.onLive || !firstChannel.onLiveOpen) continue;
 
       const tabs = await chrome.tabs.query({});
       const targetURL = channelURL(firstChannel);
       const matchingTabs = tabs.filter(tab => tab.url === targetURL);
+
+      console.log({ targetURL });
 
       if (matchingTabs.length === 0) {
         let windowId;

@@ -13,7 +13,12 @@ async function checkStream(channel) {
 
   if (data.data.length > 0) {
     console.log("online", data.data[0]);
+    const stream = data.data[0];
     channel.onLive = true;
+    channel.game_name = stream.game_name;
+    channel.tags = stream.tags;
+    channel.title = stream.title;
+    channel.viewer_count = stream.viewer_count;
   } else {
     console.log("offline", channel.name);
     channel.onLive = false;
