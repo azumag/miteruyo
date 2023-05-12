@@ -10,6 +10,7 @@ const openAll = document.getElementById("openAll");
 const openMultiTwitchButton = document.getElementById("openMultiTwitchButton");
 const openAllChecked = document.getElementById("openAllCheck");
 const openCheckedMultiTwitchButton = document.getElementById("openCheckedMultiTwitchButton");
+const liveFilterSwitch = document.getElementById("liveFilterSwitch");
 
 openMultiTwitch.hidden = true;
 
@@ -23,40 +24,51 @@ chrome.storage.sync.get(
     isEnabled: false,
     isOpenNewWindow: false,
     isOpenMultiTwitch: false,
+    isLiveFilter: false,
     oauth_token: null
   },
   async (data) => {
     loading.hidden = false;
-    if (data.oauth_token) {
-      const connected = await checkTwitchConnection(data.oauth_token);
-      if (connected) {
-        const checkStreams = [];
-        for (const _channel of data.channels) {
-          checkStreams.push(
-            checkStream(_channel)
-              .then((channel) => {
-                if (channel) {
-                  addChannelToList(channel);
-                  return channel;
-                }
-              })
-          );
-        }
-        Promise.all(checkStreams).then((channels) => {
-          chrome.storage.sync.set({ channels });
-        })
-      }
-    } else {
-      rewriteNeedsLoginButton(false);
-    }
+
     enableSwitch.checked = data.isEnabled;
     openNewWindow.checked = data.isOpenNewWindow;
     openMultiTwitch.checked = data.isOpenMultiTwitch;
+    liveFilterSwitch.checked = data.isLiveFilter;
+
+    if (data.oauth_token) {
+      const connected = await checkTwitchConnection(data.oauth_token);
+      if (connected) updateList(data.channels);
+    } else {
+      rewriteNeedsLoginButton(false);
+    }
+
+
+
     loading.hidden = true;
   }
 );
 
+async function updateList(dchannels) {
+  const checkStreams = [];
+  for (const _channel of dchannels) {
+    checkStreams.push(
+      checkStream(_channel)
+        .then((channel) => {
+          if (channel) {
+            addChannelToList(channel);
+            return channel;
+          }
+        })
+    );
+  }
+  Promise.all(checkStreams).then((channels) => {
+    chrome.storage.sync.set({ channels });
+  })
+}
+
 async function addChannelToList(channel) {
+  if (liveFilterSwitch.checked && !channel.onLive) return;
+
   const tr = document.createElement('tr');
   tr.classList.add('channel-tr');
 
@@ -201,6 +213,16 @@ function saveChannelToList(channel) {
 
 enableSwitch.addEventListener("change", () => {
   chrome.storage.sync.set({ isEnabled: enableSwitch.checked });
+});
+
+liveFilterSwitch.addEventListener("change", async () => {
+  await chrome.storage.sync.set({ isLiveFilter: liveFilterSwitch.checked })
+  const list = document.getElementsByClassName('channel-tr');
+  while (list.length > 0) {
+    list[0].remove();
+  }
+  const data = await chrome.storage.sync.get('channels');
+  updateList(data.channels);
 });
 
 openNewWindow.addEventListener("change", () => {
