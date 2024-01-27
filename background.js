@@ -14,12 +14,12 @@ chrome.alarms.onAlarm.addListener(function (alarm) {
 
 async function checkStreams() {
   console.log('checkStreams');
-  const isEnabled = (await chrome.storage.sync.get("isEnabled")).isEnabled;
-  const isOpenMultiTwitch = (await chrome.storage.sync.get("isOpenMultiTwitch")).isOpenMultiTwitch;
+  const isEnabled = (await chrome.storage.local.get("isEnabled")).isEnabled;
+  const isOpenMultiTwitch = (await chrome.storage.local.get("isOpenMultiTwitch")).isOpenMultiTwitch;
 
   if (!isEnabled) return;
-  const channels = (await chrome.storage.sync.get('channels')).channels;
-  const oauth_token = (await chrome.storage.sync.get("oauth_token")).oauth_token;
+  const channels = (await chrome.storage.local.get('channels')).channels;
+  const oauth_token = (await chrome.storage.local.get("oauth_token")).oauth_token;
 
   for (const channel of channels) {
     await checkStream(channel, oauth_token);
@@ -41,10 +41,10 @@ async function channelQueuedStreamsInMultiTwitch() {
 }
 
 async function channelQueuedStreams(channelQueue) {
-  const isOpenNewWindow = (await chrome.storage.sync.get("isOpenNewWindow")).isOpenNewWindow;
+  const isOpenNewWindow = (await chrome.storage.local.get("isOpenNewWindow")).isOpenNewWindow;
   console.log('channelQueueStreams', { isOpenNewWindow });
   if (isOpenNewWindow) {
-    const lastOpenWindowId = (await chrome.storage.sync.get("lastOpenWindowId")).lastOpenWindowId;
+    const lastOpenWindowId = (await chrome.storage.local.get("lastOpenWindowId")).lastOpenWindowId;
     for (const channel of channelQueue) {
       if (channel.onLive && channel.onLiveOpen) {
         if (lastOpenWindowId && await checkWindowExists(lastOpenWindowId)) {
@@ -55,7 +55,7 @@ async function channelQueuedStreams(channelQueue) {
           const matchingTabs = tabs.filter(tab => tab.url === targetURL);
           if (matchingTabs.length === 0) {
             const newWindow = await chrome.windows.create({ url: targetURL });
-            await chrome.storage.sync.set({ lastOpenWindowId: newWindow.id });
+            await chrome.storage.local.set({ lastOpenWindowId: newWindow.id });
           }
         }
       }
@@ -88,7 +88,7 @@ async function checkWindowExists(windowId) {
 }
 
 async function saveChannel(channel) {
-  const channels = (await chrome.storage.sync.get('channels')).channels;
+  const channels = (await chrome.storage.local.get('channels')).channels;
   const index = channels.findIndex((c) => c.name === channel.name);
 
   if (index !== -1) {
@@ -96,7 +96,7 @@ async function saveChannel(channel) {
   }
 
   const newChannels = [...channels, channel];
-  await chrome.storage.sync.set({ channels: newChannels });
+  await chrome.storage.local.set({ channels: newChannels });
 }
 
 function openTabIfNotExists(channel, windowId = null) {
@@ -136,3 +136,24 @@ async function checkStream(channel, oauth_token) {
   }
   return channel;
 }
+
+// アップデート時に旧データがある場合のみデータを引き継ぐ
+// 引き継ぎ後は share のデータを削除
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'update') {
+    // アップデート時に既存の設定を取得
+    chrome.storage.sync.get(null, (data) => {
+      if (Object.keys(data).length > 0) { // データが存在する場合
+        // 新しいデータストレージ形式にデータを移行
+        chrome.storage.local.set(data, () => {
+          console.log('Data has been transferred to local storage.');
+
+          // 移行後、旧データを削除
+          chrome.storage.sync.clear(() => {
+            console.log('Old shared data has been cleared.');
+          });
+        });
+      }
+    });
+  }
+});

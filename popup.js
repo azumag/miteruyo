@@ -18,7 +18,15 @@ const twitchDomain = 'https://www.twitch.tv';
 // const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx'; // for prod
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
 
-chrome.storage.sync.get(
+// For debugging
+chrome.storage.local.get(null, (data) => {
+  console.log({ local: data });
+});
+// chrome.storage.sync.get(null, (data) => {
+//   console.log({ sync: data });
+// });
+
+chrome.storage.local.get(
   {
     channels: [],
     isEnabled: false,
@@ -62,7 +70,7 @@ async function updateList(dchannels) {
     );
   }
   Promise.all(checkStreams).then((channels) => {
-    chrome.storage.sync.set({ channels });
+    chrome.storage.local.set({ channels });
   })
 }
 
@@ -92,10 +100,10 @@ async function addChannelToList(channel) {
   onLiveOpenSwitch.checked = channel.onLiveOpen;
   onLiveOpenSwitch.addEventListener('change', () => {
     channel.onLiveOpen = onLiveOpenSwitch.checked;
-    chrome.storage.sync.get('channels', (data) => {
+    chrome.storage.local.get('channels', (data) => {
       const newChannels = data.channels.filter((c) => c.name !== channel.name);
 
-      chrome.storage.sync.set({ channels: [...newChannels, channel] });
+      chrome.storage.local.set({ channels: [...newChannels, channel] });
     });
   });
   onliveswitchtd.appendChild(onLiveOpenSwitch);
@@ -162,9 +170,9 @@ async function addChannelToList(channel) {
 }
 
 function removeChannel(channel) {
-  chrome.storage.sync.get('channels', (data) => {
+  chrome.storage.local.get('channels', (data) => {
     const newChannels = data.channels.filter((c) => c.name !== channel.name);
-    chrome.storage.sync.set({ channels: newChannels });
+    chrome.storage.local.set({ channels: newChannels });
   });
 }
 
@@ -189,15 +197,15 @@ addChannelBtn.addEventListener("click", async () => {
 });
 
 async function duplicatedChannel(channel) {
-  const data = await chrome.storage.sync.get("channels");
+  const data = await chrome.storage.local.get("channels");
   return (data.channels.findIndex((c) => c.name === channel.name) !== -1);
 }
 
 function saveChannelToList(channel) {
-  chrome.storage.sync.get("channels", (data) => {
+  chrome.storage.local.get("channels", (data) => {
     if (Object.keys(data).length === 0) {
       const newChannels = [channel];
-      chrome.storage.sync.set({ channels: newChannels });
+      chrome.storage.local.set({ channels: newChannels });
     } else {
       const index = data.channels.findIndex((c) => c.name === channel.name);
 
@@ -206,35 +214,35 @@ function saveChannelToList(channel) {
       }
 
       const newChannels = [...data.channels, channel];
-      chrome.storage.sync.set({ channels: newChannels });
+      chrome.storage.local.set({ channels: newChannels });
     }
   });
 }
 
 enableSwitch.addEventListener("change", () => {
-  chrome.storage.sync.set({ isEnabled: enableSwitch.checked });
+  chrome.storage.local.set({ isEnabled: enableSwitch.checked });
 });
 
 liveFilterSwitch.addEventListener("change", async () => {
-  await chrome.storage.sync.set({ isLiveFilter: liveFilterSwitch.checked })
+  await chrome.storage.local.set({ isLiveFilter: liveFilterSwitch.checked })
   const list = document.getElementsByClassName('channel-tr');
   while (list.length > 0) {
     list[0].remove();
   }
-  const data = await chrome.storage.sync.get('channels');
+  const data = await chrome.storage.local.get('channels');
   updateList(data.channels);
 });
 
 openNewWindow.addEventListener("change", () => {
-  chrome.storage.sync.set({ isOpenNewWindow: openNewWindow.checked });
+  chrome.storage.local.set({ isOpenNewWindow: openNewWindow.checked });
 });
 
 openMultiTwitch.addEventListener("change", () => {
-  chrome.storage.sync.set({ isOpenMultiTwitch: openMultiTwitch.checked });
+  chrome.storage.local.set({ isOpenMultiTwitch: openMultiTwitch.checked });
 });
 
 openAll.addEventListener("click", async () => {
-  const channels = (await chrome.storage.sync.get('channels')).channels;
+  const channels = (await chrome.storage.local.get('channels')).channels;
   channels.forEach(channel => {
     if (channel.onLive) {
       const url = twitchDomain + '/' + channel.name;
@@ -244,7 +252,7 @@ openAll.addEventListener("click", async () => {
 });
 
 openMultiTwitchButton.addEventListener("click", async () => {
-  const channels = (await chrome.storage.sync.get('channels')).channels;
+  const channels = (await chrome.storage.local.get('channels')).channels;
   let url = 'https://www.multitwitch.tv/'
   channels.forEach(channel => {
     if (channel.onLive) {
@@ -255,7 +263,7 @@ openMultiTwitchButton.addEventListener("click", async () => {
 });
 
 openAllChecked.addEventListener("click", async () => {
-  const channels = (await chrome.storage.sync.get('channels')).channels;
+  const channels = (await chrome.storage.local.get('channels')).channels;
   channels.forEach(channel => {
     if (channel.onLive && channel.onLiveOpen) {
       const url = twitchDomain + '/' + channel.name;
@@ -265,7 +273,7 @@ openAllChecked.addEventListener("click", async () => {
 });
 
 openCheckedMultiTwitchButton.addEventListener("click", async () => {
-  const channels = (await chrome.storage.sync.get('channels')).channels;
+  const channels = (await chrome.storage.local.get('channels')).channels;
   let url = 'https://www.multitwitch.tv/'
   channels.forEach(channel => {
     if (channel.onLive && channel.onLiveOpen) {
@@ -290,7 +298,7 @@ loginTwitch.addEventListener("click", () => {
       let hash = new URL(responseUrl).hash;
       let result = parseHashToObj(hash);
       let oauth_token = { oauth_token: result.access_token };
-      chrome.storage.sync.set({ oauth_token });
+      chrome.storage.local.set({ oauth_token });
       checkTwitchConnection(oauth_token);
       console.log(oauth_token);
     } else {
@@ -347,7 +355,7 @@ function rewriteNeedsLoginButton(isOk) {
 }
 
 async function checkStream(channel) {
-  const oauth_token = (await chrome.storage.sync.get("oauth_token")).oauth_token;
+  const oauth_token = (await chrome.storage.local.get("oauth_token")).oauth_token;
 
   const url = `https://api.twitch.tv/helix/streams?user_login=${channel.name}`;
   const options = {
@@ -362,7 +370,7 @@ async function checkStream(channel) {
   const data = await response.json();
 
   if (data.data === undefined) {
-    removeChannel(channel);
+    // removeChannel(channel);
     return;
   }
 
@@ -383,7 +391,7 @@ async function checkStream(channel) {
 }
 
 async function saveChannel(channel) {
-  const channels = (await chrome.storage.sync.get('channels')).channels;
+  const channels = (await chrome.storage.local.get('channels')).channels;
   const index = channels.findIndex((c) => c.name === channel.name);
 
   if (index !== -1) {
@@ -391,5 +399,5 @@ async function saveChannel(channel) {
   }
 
   const newChannels = [...channels, channel];
-  await chrome.storage.sync.set({ channels: newChannels });
+  await chrome.storage.local.set({ channels: newChannels });
 }
