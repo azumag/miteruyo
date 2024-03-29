@@ -16,16 +16,24 @@
         <button id="addChannelBtn" class="btn btn-primary">Add</button>
       </div>
       <div>
-        <div class="mt-3 text-center">
-          <input type="checkbox" id="liveFilterSwitch" class="form-check-input" role="switch" />
-          <label class="form-check-label" for="liveFilterSwitch">Display only live channels</label>
-        </div>
-        <table id="channelTable" class="table table-striped" style="min-width: 300px">
-          <div class="d-flex justify-content-center">
-            <div class="spinner-border text-info mt-3" role="status" id="loading">
-              <span class="visually-hidden">Loading...</span>
+        <div class="container mt-3">
+          <div class="row form-switch">
+            <div class="col-4">
+              <input type="checkbox" id="enableSwitch" class="form-check-input" role="switch" />
+              <label class="form-check-label" for="enableSwitch">有効</label>
+            </div>
+            <div class="col-8 text-end">
+              <input type="checkbox" id="liveFilterSwitch" class="form-check-input" role="switch" />
+              <label class="form-check-label" for="liveFilterSwitch">配信中のみ表示</label>
             </div>
           </div>
+        </div>
+        <div class="d-flex justify-content-center">
+          <div class="spinner-border text-info mt-3" role="status" id="loading">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+        </div>
+        <table id="channelTable" class="table table-striped" style="min-width: 300px">
           <thead>
             <tr>
               <th scope="col"></th>
@@ -35,44 +43,67 @@
             </tr>
           </thead>
           <tbody id="channelTableBody"></tbody>
-          </table>
-          </div>
-          <div class="d-grid gap-2 mb-3 visually-hidden">
-            <button id="openAll" class="btn btn-info btn-sm">
-              Open all channels on live
+        </table>
+      </div>
+      <div class="accordion" id="configAccordion">
+        <div class="accordion-item">
+          <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseConfig"
+              aria-expanded="false" aria-controls="collapseConfig">
+              設定
             </button>
-            <button id="openMultiTwitchButton" class="btn btn-info btn-sm">
-              Open in multitwitch on live
-            </button>
-            <button id="openAllCheck" class="btn btn-info btn-sm">
-              Open cheked channels on live
-            </button>
-            <button id="openCheckedMultiTwitchButton" class="btn btn-info btn-sm">
-              Open in multitwitch on checked live
-            </button>
+          </h2>
+          <div id="collapseConfig" class="accordion-collapse collapse" data-bs-parent="#configAccordion">
+            <div class="accordion-body m-0 p-0 pt-1">
+              <table id="tbl" class="table table-striped mb-0 pb-0">
+                <tbody>
+                  <tr>
+                    <td scope="col">
+                      <input type="checkbox" id="openNewWindow" class="form-check-input" />
+                    </td>
+                    <td class="text-center">
+                      <label for="openNewWindow" class="form-check-label">新しいウィンドウで開く</label>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td scope="col">
+                      <input type="checkbox" id="enableTabRotation" class="form-check-input" />
+                    </td>
+                    <td class="text-center">
+                      <label for="enableTabRotation" class="form-check-label">タブ自動切り替え（分）</label>
+                      <input type="number" id="tabRotationInterval" class="form-control small-input" />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <input type="checkbox" id="enableTabMute" class="form-check-input" />
+                    </td>
+                    <td class="text-center">
+                      <label for="enableTabMute">非アクティブタブ自動ミュート</label>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <input type="checkbox" id="enableAutoClose" class="form-check-input" />
+                    </td>
+                    <td class="text-center">
+                      <label for="enableAutoClose">オフラインチャネル自動閉じ</label>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-      <div>
-        Auto-open checked channel(s):
-        </div>
-        <div class="ms-3">
-          <input type="checkbox" id="enableSwitch" class="form-check-input" role="switch" />
-          <label class="form-check-label" for="enableSwitch">Enable</label>
-        </div>
-        <div class="ms-3">
-          <input type="checkbox" id="openNewWindow" class="form-check-input">
-          <label for="openNewWindow">Open in new window</label>
-        </div>
-        <div style="margin-left:10px">
-        <!-- <label for="openMultiTwitch">multiTwitch:</label> -->
-        <input type="checkbox" id="openMultiTwitch">
+          </div>
         </div>
       </div>
-      </div>
-      <div class="d-grid gap-2 mb-3 mt-3 ms-3 me-3" style="min-width: 200px">
-        <button id="loginTwitch" class="btn btn-primary">
-          Login Twitch
-        </button>
-      </div>
+    </div>
+  </div>
+  <div class="d-grid gap-2 mb-3 mt-3 ms-3 me-3" style="min-width: 200px">
+    <button id="loginTwitch" class="btn btn-primary">
+      Login Twitch
+    </button>
+  </div>
+  <script src="bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

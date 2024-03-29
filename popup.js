@@ -4,24 +4,23 @@ const addChannelBtn = document.getElementById("addChannelBtn");
 const channelTable = document.getElementById("channelTableBody");
 const enableSwitch = document.getElementById("enableSwitch");
 const openNewWindow = document.getElementById("openNewWindow");
-const openMultiTwitch = document.getElementById("openMultiTwitch");
-const loginTwitch = document.getElementById("loginTwitch");
-const openAll = document.getElementById("openAll");
-const openMultiTwitchButton = document.getElementById("openMultiTwitchButton");
-const openAllChecked = document.getElementById("openAllCheck");
-const openCheckedMultiTwitchButton = document.getElementById("openCheckedMultiTwitchButton");
-const liveFilterSwitch = document.getElementById("liveFilterSwitch");
+const enableTabRotation = document.getElementById("enableTabRotation");
+const enableTabMute = document.getElementById("enableTabMute");
+const enableAutoClose = document.getElementById("enableAutoClose");
+const tabRotationInterval = document.getElementById("tabRotationInterval");
 
-openMultiTwitch.hidden = true;
+const loginTwitch = document.getElementById("loginTwitch");
+
+const liveFilterSwitch = document.getElementById("liveFilterSwitch");
 
 const twitchDomain = 'https://www.twitch.tv';
 // const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx'; // for prod
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
 
 // For debugging
-chrome.storage.local.get(null, (data) => {
-  console.log({ local: data });
-});
+// chrome.storage.local.get(null, (data) => {
+//   console.log({ local: data });
+// });
 // chrome.storage.sync.get(null, (data) => {
 //   console.log({ sync: data });
 // });
@@ -33,15 +32,22 @@ chrome.storage.local.get(
     isOpenNewWindow: false,
     isOpenMultiTwitch: false,
     isLiveFilter: false,
-    oauth_token: null
+    oauth_token: null,
+    tabRotationInterval: 5,
+    isEnabledTabRotation: false,
+    isEnabledTabMute: false,
+    isEnabledAutoClose: false,
   },
   async (data) => {
     loading.hidden = false;
 
     enableSwitch.checked = data.isEnabled;
     openNewWindow.checked = data.isOpenNewWindow;
-    openMultiTwitch.checked = data.isOpenMultiTwitch;
     liveFilterSwitch.checked = data.isLiveFilter;
+    tabRotationInterval.value = data.tabRotationInterval;
+    enableTabMute.checked = data.isEnabledTabMute;
+    enableTabRotation.checked = data.isEnabledTabRotation;
+    enableAutoClose.checked = data.isEnabledAutoClose; 
 
     if (data.oauth_token) {
       const connected = await checkTwitchConnection(data.oauth_token);
@@ -49,8 +55,6 @@ chrome.storage.local.get(
     } else {
       rewriteNeedsLoginButton(false);
     }
-
-
 
     loading.hidden = true;
   }
@@ -74,8 +78,8 @@ async function updateList(dchannels) {
   })
 }
 
-async function addChannelToList(channel) {
-  if (liveFilterSwitch.checked && !channel.onLive) return;
+async function addChannelToList(channel, newAdded = false) {
+  if (!newAdded && channel.status !== 'error' && liveFilterSwitch.checked && !channel.onLive) return;
 
   const tr = document.createElement('tr');
   tr.classList.add('channel-tr');
@@ -83,30 +87,59 @@ async function addChannelToList(channel) {
   const liveStatus = document.createElement('td');
   tr.appendChild(liveStatus);
 
+  const openButton = document.createElement('button');
+  liveStatus.appendChild(openButton);
   if (channel.onLive) {
-    const openButton = document.createElement('button');
-    liveStatus.appendChild(openButton);
-    openButton.textContent = 'Live';
-    openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
+    openButton.textContent = channel.onLiveOpen ? 'LIVE' : 'Pause';
+    openButton.setAttribute('class', 'btn btn-outline-success btn-sm min-width-');
+    openButton.style.width = '60px';
     openButton.addEventListener('click', (event) => {
       chrome.tabs.create({ url: twitchDomain + "/" + channel.name });
     });
+  } else {
+    openButton.textContent = channel.onLiveOpen ? 'OFFLINE' : 'Pause';
+    openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
+  }
+
+  if (channel.status === 'error') {
+    openButton.textContent = 'NOT FOUND';
+    openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
   }
 
   const onliveswitchtd = document.createElement('td');
-  const onLiveOpenSwitch = document.createElement('input');
-  onLiveOpenSwitch.setAttribute('class', 'text-center align-middle form-check-input mt-0')
-  onLiveOpenSwitch.type = 'checkbox';
-  onLiveOpenSwitch.checked = channel.onLiveOpen;
-  onLiveOpenSwitch.addEventListener('change', () => {
-    channel.onLiveOpen = onLiveOpenSwitch.checked;
+  // const onLiveOpenSwitch = document.createElement('input');
+  const onLiveOpenSwitch = document.createElement('button');
+  const pauseIcon = document.createElement('i');
+  // onLiveOpenSwitch.setAttribute('class', 'text-center align-middle form-check-input mt-0')
+  onLiveOpenSwitch.setAttribute('class', channel.onLiveOpen ? 'btn btn-outline-primary btn-sm' : 'btn btn-outline-danger btn-sm'); 
+  pauseIcon.setAttribute('class', channel.onLiveOpen ? 'bi bi-pause' : 'bi bi-play');
+  // onLiveOpenSwitch.type = 'checkbox';
+  // onLiveOpenSwitch.checked = channel.onLiveOpen;
+  onLiveOpenSwitch.appendChild(pauseIcon);
+  onLiveOpenSwitch.addEventListener('click', () => {
+    channel.onLiveOpen = !channel.onLiveOpen;
+    pauseIcon.setAttribute('class', channel.onLiveOpen ? 'bi bi-pause' : 'bi bi-play');
+    onLiveOpenSwitch.setAttribute('class', channel.onLiveOpen ? 'btn btn-outline-primary btn-sm' : 'btn btn-outline-danger btn-sm'); 
     chrome.storage.local.get('channels', (data) => {
       const newChannels = data.channels.filter((c) => c.name !== channel.name);
 
       chrome.storage.local.set({ channels: [...newChannels, channel] });
     });
+    if (channel.onLive) {
+      openButton.textContent = channel.onLiveOpen ? 'LIVE' : 'Pause';
+      openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
+      openButton.style.width = '60px';
+      openButton.addEventListener('click', (event) => {
+        chrome.tabs.create({ url: twitchDomain + "/" + channel.name });
+      });
+    } else {
+      openButton.textContent = channel.onLiveOpen ? 'OFFLINE' : 'Pause';
+      openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
+    }
   });
-  onliveswitchtd.appendChild(onLiveOpenSwitch);
+  if (channel.status !== 'error') {
+    onliveswitchtd.appendChild(onLiveOpenSwitch);
+  }
   tr.appendChild(onliveswitchtd);
 
   const cntd = document.createElement('td');
@@ -180,7 +213,8 @@ addChannelBtn.addEventListener("click", async () => {
   const channel = {
     name: channelInput.value.trim(),
     categoriesFilter: '',
-    tagsFilter: ''
+    tagsFilter: '',
+    onLiveOpen: true,
   }
 
   if (!channel.name) return;
@@ -198,7 +232,7 @@ addChannelBtn.addEventListener("click", async () => {
 
 async function duplicatedChannel(channel) {
   const data = await chrome.storage.local.get("channels");
-  return (data.channels.findIndex((c) => c.name === channel.name) !== -1);
+  return (data.channels.findIndex((c) => c?.name === channel.name) !== -1);
 }
 
 function saveChannelToList(channel) {
@@ -207,13 +241,15 @@ function saveChannelToList(channel) {
       const newChannels = [channel];
       chrome.storage.local.set({ channels: newChannels });
     } else {
-      const index = data.channels.findIndex((c) => c.name === channel.name);
+      const index = data.channels.findIndex((c) => c?.name === channel.name);
 
       if (index !== -1) {
         data.channels.splice(index, 1);
       }
 
-      const newChannels = [...data.channels, channel];
+      // nullを削除
+      const filteredChannels = data.channels.filter(c => c !== null);
+      const newChannels = [...filteredChannels, channel];
       chrome.storage.local.set({ channels: newChannels });
     }
   });
@@ -223,65 +259,41 @@ enableSwitch.addEventListener("change", () => {
   chrome.storage.local.set({ isEnabled: enableSwitch.checked });
 });
 
+enableTabRotation.addEventListener("change", () => {
+  chrome.storage.local.set({ isEnabledTabRotation: enableTabRotation.checked });
+});
+
+enableTabMute.addEventListener("change", () => {
+  chrome.storage.local.set({ isEnabledTabMute: enableTabMute.checked });
+});
+
+tabRotationInterval.addEventListener("change", () => {
+  chrome.storage.local.set({ tabRotationInterval: tabRotationInterval.value });
+});
+
+enableAutoClose.addEventListener("change", () => {
+  chrome.storage.local.set({ isEnabledAutoClose: enableAutoClose.checked });
+});
+
 liveFilterSwitch.addEventListener("change", async () => {
   await chrome.storage.local.set({ isLiveFilter: liveFilterSwitch.checked })
-  const list = document.getElementsByClassName('channel-tr');
-  while (list.length > 0) {
-    list[0].remove();
-  }
-  const data = await chrome.storage.local.get('channels');
-  updateList(data.channels);
+  refreshList();
 });
 
 openNewWindow.addEventListener("change", () => {
   chrome.storage.local.set({ isOpenNewWindow: openNewWindow.checked });
 });
 
-openMultiTwitch.addEventListener("change", () => {
-  chrome.storage.local.set({ isOpenMultiTwitch: openMultiTwitch.checked });
-});
+async function refreshList() {
+  const list = document.getElementsByClassName('channel-tr');
+  while (list.length > 0) {
+    list[0].remove();
+  }
 
-openAll.addEventListener("click", async () => {
-  const channels = (await chrome.storage.local.get('channels')).channels;
-  channels.forEach(channel => {
-    if (channel.onLive) {
-      const url = twitchDomain + '/' + channel.name;
-      chrome.tabs.create({ url });
-    }
-  });
-});
+  const data = await chrome.storage.local.get('channels');
+  updateList(data.channels);
+}
 
-openMultiTwitchButton.addEventListener("click", async () => {
-  const channels = (await chrome.storage.local.get('channels')).channels;
-  let url = 'https://www.multitwitch.tv/'
-  channels.forEach(channel => {
-    if (channel.onLive) {
-      url += channel.name + "/";
-    }
-  });
-  chrome.tabs.create({ url });
-});
-
-openAllChecked.addEventListener("click", async () => {
-  const channels = (await chrome.storage.local.get('channels')).channels;
-  channels.forEach(channel => {
-    if (channel.onLive && channel.onLiveOpen) {
-      const url = twitchDomain + '/' + channel.name;
-      chrome.tabs.create({ url });
-    }
-  });
-});
-
-openCheckedMultiTwitchButton.addEventListener("click", async () => {
-  const channels = (await chrome.storage.local.get('channels')).channels;
-  let url = 'https://www.multitwitch.tv/'
-  channels.forEach(channel => {
-    if (channel.onLive && channel.onLiveOpen) {
-      url += channel.name + "/";
-    }
-  });
-  chrome.tabs.create({ url });
-});
 
 loginTwitch.addEventListener("click", () => {
   console.log(chrome.identity.getRedirectURL());
@@ -355,6 +367,8 @@ function rewriteNeedsLoginButton(isOk) {
 }
 
 async function checkStream(channel) {
+  if (!channel) return;
+
   const oauth_token = (await chrome.storage.local.get("oauth_token")).oauth_token;
 
   const url = `https://api.twitch.tv/helix/streams?user_login=${channel.name}`;
@@ -371,7 +385,9 @@ async function checkStream(channel) {
 
   if (data.data === undefined) {
     // removeChannel(channel);
-    return;
+    // console.log(data);
+    channel.status = 'error';
+    return channel;
   }
 
   if (data.data.length > 0) {
@@ -392,12 +408,21 @@ async function checkStream(channel) {
 
 async function saveChannel(channel) {
   const channels = (await chrome.storage.local.get('channels')).channels;
-  const index = channels.findIndex((c) => c.name === channel.name);
+  const index = channels.findIndex((c) => c?.name === channel.name);
 
   if (index !== -1) {
     channels.splice(index, 1);
   }
 
-  const newChannels = [...channels, channel];
+  // nullを削除
+  const filteredChannels = channels.filter(c => c !== null);
+  const newChannels = [...filteredChannels, channel];
   await chrome.storage.local.set({ channels: newChannels });
+}
+
+function deleteNullChannel() {
+  chrome.storage.local.get('channels', (data) => {
+    const newChannels = data.channels.filter(c => c !== null);
+    chrome.storage.local.set({ channels: newChannels });
+  });
 }
