@@ -461,3 +461,7 @@ function deleteNullChannel() {
     chrome.storage.local.set({ channels: newChannels });
   });
 }
+
+function flushAuthToken() {
+  chrome.storage.local.set({ oauth_token: null });
+}
