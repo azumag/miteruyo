@@ -220,8 +220,10 @@ addChannelBtn.addEventListener("click", async () => {
   if (!channel.name) return;
   if (await duplicatedChannel(channel)) return;
 
+  await checkStream(channel);
+
   // Add the new channel to the list
-  addChannelToList(channel);
+  addChannelToList(channel, newAdded = true);
 
   // Save the new channel to storage
   saveChannelToList(channel);

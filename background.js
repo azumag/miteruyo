@@ -340,3 +340,9 @@ async function checkStream(channel, oauth_token) {
 //     });
 //   }
 // });
+
+
+// TODO
+// -
+// - i18n
+// - list消えないかテスト
