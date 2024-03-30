@@ -25,6 +25,37 @@ const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
 //   console.log({ sync: data });
 // });
 
+// i18n
+document.addEventListener('DOMContentLoaded', function() {
+  const enableOpenMessage = chrome.i18n.getMessage("enableOpen");
+  const channelPlaceholderMessage = chrome.i18n.getMessage("channelAddPlaceholder");
+  const addChannelBtnMessage = chrome.i18n.getMessage("channelAddBtn");
+  const showOnlyLiveMessage = chrome.i18n.getMessage("showOnlyLive");
+  const settingsMessage = chrome.i18n.getMessage("settings");
+
+  document.querySelector('label[for="enableSwitch"]').textContent = enableOpenMessage;
+  document.getElementById('channelInput').placeholder = channelPlaceholderMessage;
+  document.getElementById('addChannelBtn').textContent = addChannelBtnMessage;
+  document.querySelector('label[for="liveFilterSwitch"]').textContent = showOnlyLiveMessage;
+  document.querySelector('button[aria-controls="collapseConfig"]').textContent = settingsMessage;
+
+  // 新しいウィンドウで開く
+  const openNewWindowMessage = chrome.i18n.getMessage("openNewWindow");
+  document.querySelector('label[for="openNewWindow"]').textContent = openNewWindowMessage;
+  // 複数タブ自動切り替え
+  const enableTabRotationMessage = chrome.i18n.getMessage("enableTabRotation");
+  document.querySelector('label[for="enableTabRotation"]').textContent = enableTabRotationMessage;
+  // 分
+  const minutesMessage = chrome.i18n.getMessage("minutes");
+  document.querySelector('div.col-2.mt-2').textContent = minutesMessage;
+  // 非アクティブタブ自動ミュート
+  const enableTabMuteMessage = chrome.i18n.getMessage("enableTabMute");
+  document.querySelector('label[for="enableTabMute"]').textContent = enableTabMuteMessage;
+  // オフラインチャネル自動閉じ
+  const enableAutoCloseMessage = chrome.i18n.getMessage("enableAutoClose");
+  document.querySelector('label[for="enableAutoClose"]').textContent = enableAutoCloseMessage;
+});
+
 chrome.storage.local.get(
   {
     channels: [],
@@ -81,6 +112,8 @@ async function updateList(dchannels) {
 async function addChannelToList(channel, newAdded = false) {
   if (!newAdded && channel.status !== 'error' && liveFilterSwitch.checked && !channel.onLive) return;
 
+  const pauseMsg = chrome.i18n.getMessage("pause");
+
   const tr = document.createElement('tr');
   tr.classList.add('channel-tr');
 
@@ -97,7 +130,7 @@ async function addChannelToList(channel, newAdded = false) {
       chrome.tabs.create({ url: twitchDomain + "/" + channel.name });
     });
   } else {
-    openButton.textContent = channel.onLiveOpen ? 'OFFLINE' : 'Pause';
+    openButton.textContent = channel.onLiveOpen ? 'OFFLINE' : pauseMsg;
     openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
   }
 
@@ -126,14 +159,14 @@ async function addChannelToList(channel, newAdded = false) {
       chrome.storage.local.set({ channels: [...newChannels, channel] });
     });
     if (channel.onLive) {
-      openButton.textContent = channel.onLiveOpen ? 'LIVE' : 'Pause';
+      openButton.textContent = channel.onLiveOpen ? 'LIVE' : pauseMsg;
       openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
       openButton.style.width = '60px';
       openButton.addEventListener('click', (event) => {
         chrome.tabs.create({ url: twitchDomain + "/" + channel.name });
       });
     } else {
-      openButton.textContent = channel.onLiveOpen ? 'OFFLINE' : 'Pause';
+      openButton.textContent = channel.onLiveOpen ? 'OFFLINE' : pauseMsg;
       openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
     }
   });
@@ -334,13 +367,13 @@ function parseHashToObj(hash) {
 function checkTwitchConnection(oauthToken) {
   console.log('checkTwitch');
   const token = oauthToken.oauth_token;
-  var url = "https://api.twitch.tv/helix/users?login=azumagbanjo";
-  // var url = "https://api.twitch.tv/helix/users?login=azumagdev";
-  var headers = {
+  const url = "https://api.twitch.tv/helix/users?login=azumagbanjo";
+  // const url = "https://api.twitch.tv/helix/users?login=azumagdev";
+  const headers = {
     "Client-Id": clientId,
     "Authorization": "Bearer " + token,
   };
-  var options = {
+  const options = {
     "method": "GET",
     "headers": headers,
   };

@@ -1,0 +1,46 @@
+{
+	"channelAddPlaceholder": {
+		"message": "Enter channel",
+		"description": "Add a channel."
+	},
+	"channelAddBtn": {
+		"message": "Add",
+		"description": "Add a channel."
+	},
+	"enableOpen": {
+		"message": "Open automatically",
+		"description": "Set whether to open automatically or not."
+	},
+	"showOnlyLive": {
+		"message": "Show only live",
+		"description": "Option label to display only channels that are currently live."
+	},
+	"settings": {
+		"message": "Settings",
+		"description": ""
+	},
+	"openNewWindow": {
+		"message": "Open in a new window",
+		"description": "Label for the option to open in a new window."
+	},
+	"enableTabRotation": {
+		"message": "Auto-switch between tabs",
+		"description": "Label for the option to auto-switch between multiple tabs."
+	},
+	"minutes": {
+		"message": "minutes",
+		"description": "Unit of time (minutes)."
+	},
+	"enableTabMute": {
+		"message": "Auto-mute inactive tabs",
+		"description": "Label for the option to automatically mute inactive tabs."
+	},
+	"enableAutoClose": {
+		"message": "Auto-close offline channels",
+		"description": "Label for the option to automatically close offline channels."
+	},
+	"pause": {
+		"message": "Pause",
+		"description": "Label for pause button."
+	}
+}
