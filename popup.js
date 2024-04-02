@@ -433,9 +433,11 @@ async function checkStream(channel) {
     channel.tags = stream.tags;
     channel.title = stream.title;
     channel.viewer_count = stream.viewer_count;
+    channel.status = 'online';
   } else {
     console.log("offline", channel.name);
     channel.onLive = false;
+    channel.status = 'offline';
   }
 
   return channel;

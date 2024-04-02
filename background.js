@@ -1,5 +1,6 @@
 const twitchDomain = 'https://www.twitch.tv';
 const multiTwitchURL = 'https://www.multitwitch.tv/'
+
 // const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx'; // for prod
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
 
@@ -91,18 +92,33 @@ async function checkTabRotate() {
           // chrome.tabs.update(tabs[currentTabIndex].id, { url: suspendedUrl });
 
           // Close duplicate tabs
+          // タブURLからクエリパラメータを削除
           const urls = tabs.map(tab => {
             const url = new URL(tab.url);
             url.search = ''; // クエリパラメータを削除
             return url.toString();
           });
-          const uniqueUrls = [...new Set(urls)]; // Get unique URLs
-          if (urls.length !== uniqueUrls.length) { // If there are duplicate URLs
-            const tabsToRemove = tabs.filter((tab, index) => urls.indexOf(tab.url) !== index); // Get duplicate tabs
-            for (let i = 0; i < tabsToRemove.length; i++) {
-              chrome.tabs.remove(tabsToRemove[i].id); // Remove duplicate tabs
+
+          // 重複しないURLを識別
+          const uniqueUrls = [...new Set(urls)];
+
+          // 最初に見つかったタブのみを保持し、重複するタブを削除
+          const tabsToRemove = [];
+          tabs = tabs.filter((tab, index) => {
+            const url = new URL(tab.url);
+            url.search = '';
+            const urlString = url.toString();
+            // URLが最初に登場する位置が現在のインデックスと異なる場合、これは重複タブと見なし削除リストに追加
+            if (urls.indexOf(urlString) !== index) {
+              tabsToRemove.push(tab);
+              return false;
             }
-            tabs = tabs.filter(tab => urls.indexOf(tab.url) === urls.lastIndexOf(tab.url)); // Remove duplicate tabs from tabs array
+            return true;
+          });
+
+          // 重複するタブを削除
+          for (let i = 0; i < tabsToRemove.length; i++) {
+            chrome.tabs.remove(tabsToRemove[i].id);
           }
         }
       });
@@ -209,7 +225,12 @@ function openTabIfNotExists(channel, windowId = null) {
   const targetURL = channelURL(channel);
   console.log('openTabIfNotExists', { targetURL, windowId })
   chrome.tabs.query({}, tabs => {
-    const matchingTabs = tabs.filter(tab => tab.url === targetURL);
+    const matchingTabs = tabs.filter(tab => {
+      // 既存のタブのURLからクエリパラメータを除去
+      const tabURLWithoutQuery = new URL(tab.url);
+      tabURLWithoutQuery.search = '';
+      return tabURLWithoutQuery.toString() === targetURL; // クエリパラメータを除去したURLで比較
+    });
 
     if (matchingTabs.length === 0) {
       chrome.tabs.create({ url: targetURL, windowId });
@@ -313,9 +334,11 @@ async function checkStream(channel, oauth_token) {
     channel.tags = stream.tags;
     channel.title = stream.title;
     channel.viewer_count = stream.viewer_count;
+    channel.status = 'online';
   } else {
     console.log("offline", channel.name);
     channel.onLive = false;
+    channel.status = 'offline';
   }
   return channel;
 }
