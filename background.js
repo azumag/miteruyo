@@ -55,6 +55,10 @@ chrome.tabs.onActivated.addListener(async activeInfo => {
         });
       });
     }
+    
+    // Apply volume setting for the activated tab
+    applyVolumeSettingForActivatedTab(activeInfo.tabId);
+    
     if (enableAutoClose) {
       if (await checkOfflineWithTab(activeInfo.tabId)) {
         console.log('close tab', activeInfo.tabId);
@@ -63,6 +67,33 @@ chrome.tabs.onActivated.addListener(async activeInfo => {
     }
   }
 });
+
+// Function to find and apply the appropriate volume setting for an activated tab
+async function applyVolumeSettingForActivatedTab(tabId) {
+  try {
+    // Get tab URL
+    const tab = await chrome.tabs.get(tabId);
+    if (!tab.url.includes("twitch.tv")) return; // Skip if not a Twitch tab
+    
+    // Extract channel name from URL
+    const url = new URL(tab.url);
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    if (pathParts.length === 0) return; // No channel name found
+    
+    const channelName = pathParts[0];
+    
+    // Find matching channel in storage
+    const data = await chrome.storage.local.get('channels');
+    if (!data.channels) return;
+    
+    const channel = data.channels.find(c => c.name === channelName);
+    if (channel && channel.volume !== undefined) {
+      applyVolumeSettingToTab(tabId, channel);
+    }
+  } catch (error) {
+    console.error('Error in applyVolumeSettingForActivatedTab:', error);
+  }
+}
 
 async function checkTabRotate() {
   const isEnabledTabRotation = (await chrome.storage.local.get("isEnabledTabRotation")).isEnabledTabRotation;
@@ -86,6 +117,9 @@ async function checkTabRotate() {
 
           chrome.tabs.update(tabs[currentTabIndex].id, { muted: enableTabMute });
           chrome.tabs.update(tabs[nextTabIndex].id, { active: true, muted: false });
+          
+          // Apply volume setting for the newly activated tab
+          applyVolumeSettingForActivatedTab(tabs[nextTabIndex].id);
 
           // suspend previous tab
           // const suspendedUrl = "chrome-extension://" + chrome.runtime.id + "/suspended.html#" + encodeURIComponent(tabs[currentTabIndex].url);
@@ -233,9 +267,51 @@ function openTabIfNotExists(channel, windowId = null) {
     });
 
     if (matchingTabs.length === 0) {
-      chrome.tabs.create({ url: targetURL, windowId });
+      chrome.tabs.create({ url: targetURL, windowId }, (tab) => {
+        // Apply volume setting when tab is created
+        applyVolumeSettingToTab(tab.id, channel);
+      });
+    } else {
+      // Apply volume setting to existing tab
+      applyVolumeSettingToTab(matchingTabs[0].id, channel);
     }
   });
+}
+
+// Function to apply volume setting to a specific tab
+async function applyVolumeSettingToTab(tabId, channel) {
+  // Only apply if the channel has a volume setting
+  if (channel.volume !== undefined) {
+    try {
+      // Wait a moment to let the page load before injecting
+      setTimeout(() => {
+        chrome.tabs.sendMessage(tabId, {
+          action: 'setVolume',
+          volume: channel.volume
+        }, (response) => {
+          // Handle any errors with message sending (e.g., content script not yet loaded)
+          if (chrome.runtime.lastError) {
+            console.log('Will inject content script first');
+            // If the content script isn't loaded, inject it and try again
+            chrome.scripting.executeScript({
+              target: { tabId: tabId },
+              files: ['contentScript.js']
+            }).then(() => {
+              // Try sending the message again after script is injected
+              setTimeout(() => {
+                chrome.tabs.sendMessage(tabId, {
+                  action: 'setVolume',
+                  volume: channel.volume
+                });
+              }, 500);
+            }).catch(err => console.error('Error injecting content script:', err));
+          }
+        });
+      }, 1000);
+    } catch (error) {
+      console.error('Error applying volume setting:', error);
+    }
+  }
 }
 
 function getUserId(clientId, accessToken, username) {

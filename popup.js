@@ -186,6 +186,44 @@ async function addChannelToList(channel, newAdded = false) {
   // }
   tr.appendChild(cntd);
   
+  // Volume control
+  const volumeTd = document.createElement('td');
+  const volumeContainer = document.createElement('div');
+  volumeContainer.className = 'volume-container d-flex align-items-center';
+  
+  // Volume icon
+  const volumeIcon = document.createElement('i');
+  volumeIcon.className = 'bi bi-volume-up me-1';
+  volumeContainer.appendChild(volumeIcon);
+  
+  // Volume slider
+  const volumeSlider = document.createElement('input');
+  volumeSlider.type = 'range';
+  volumeSlider.min = '0';
+  volumeSlider.max = '100';
+  volumeSlider.value = channel.volume || 100; // Default to 100 if not set
+  volumeSlider.className = 'form-range';
+  volumeSlider.style.width = '60px';
+  
+  volumeSlider.addEventListener('change', () => {
+    channel.volume = parseInt(volumeSlider.value);
+    // Update the volume icon based on volume level
+    updateVolumeIcon(volumeIcon, channel.volume);
+    
+    // Save the updated channel with new volume setting
+    chrome.storage.local.get('channels', (data) => {
+      const newChannels = data.channels.filter((c) => c.name !== channel.name);
+      chrome.storage.local.set({ channels: [...newChannels, channel] });
+    });
+  });
+  
+  // Set initial volume icon
+  updateVolumeIcon(volumeIcon, channel.volume || 100);
+  
+  volumeContainer.appendChild(volumeSlider);
+  volumeTd.appendChild(volumeContainer);
+  tr.appendChild(volumeTd);
+  
   const categoriesInput = document.createElement('input');
   categoriesInput.id = channel.name + '|category';
   categoriesInput.type = 'text';
@@ -206,17 +244,25 @@ async function addChannelToList(channel, newAdded = false) {
   saveButton.addEventListener('click', (event) => {
     const targetButton = event.target;
     const targetChannelName = targetButton.getAttribute('data-id');
-    const targetChannel = {
-      name: targetChannelName,
-    };
+    
+    // Get existing channel data first to preserve other properties
+    chrome.storage.local.get('channels', (data) => {
+      const existingChannel = data.channels.find(c => c.name === targetChannelName);
+      
+      const targetChannel = {
+        name: targetChannelName,
+        volume: existingChannel?.volume || 100, // Preserve volume setting
+        onLiveOpen: existingChannel?.onLiveOpen || true,
+      };
 
-    const categoriesInput = document.getElementById(targetChannelName+'|category');
-    const tagsInput = document.getElementById(targetChannelName+'|tag');
+      const categoriesInput = document.getElementById(targetChannelName+'|category');
+      const tagsInput = document.getElementById(targetChannelName+'|tag');
 
-    targetChannel.categoriesFilter = categoriesInput.value;
-    targetChannel.tagsFilter = tagsInput.value;
+      targetChannel.categoriesFilter = categoriesInput.value;
+      targetChannel.tagsFilter = tagsInput.value;
 
-    saveChannelToList(targetChannel);
+      saveChannelToList(targetChannel);
+    });
   });
   // li.appendChild(saveButton);
 
@@ -235,6 +281,17 @@ async function addChannelToList(channel, newAdded = false) {
   channelTable.appendChild(tr);
 }
 
+// Helper function to update volume icon based on volume level
+function updateVolumeIcon(iconElement, volume) {
+  if (volume === 0) {
+    iconElement.className = 'bi bi-volume-mute me-1';
+  } else if (volume < 50) {
+    iconElement.className = 'bi bi-volume-down me-1';
+  } else {
+    iconElement.className = 'bi bi-volume-up me-1';
+  }
+}
+
 function removeChannel(channel) {
   chrome.storage.local.get('channels', (data) => {
     const newChannels = data.channels.filter((c) => c.name !== channel.name);
@@ -248,6 +305,7 @@ addChannelBtn.addEventListener("click", async () => {
     categoriesFilter: '',
     tagsFilter: '',
     onLiveOpen: true,
+    volume: 100, // Default volume (100%)
   }
 
   if (!channel.name) return;
