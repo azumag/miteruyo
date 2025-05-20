@@ -224,7 +224,7 @@ async function saveChannel(channel) {
 function openTabIfNotExists(channel, windowId = null) {
   const targetURL = channelURL(channel);
   console.log('openTabIfNotExists', { targetURL, windowId })
-  chrome.tabs.query({}, tabs => {
+  chrome.tabs.query({}, async tabs => {
     const matchingTabs = tabs.filter(tab => {
       // 既存のタブのURLからクエリパラメータを除去
       const tabURLWithoutQuery = new URL(tab.url);
@@ -233,7 +233,8 @@ function openTabIfNotExists(channel, windowId = null) {
     });
 
     if (matchingTabs.length === 0) {
-      chrome.tabs.create({ url: targetURL, windowId });
+      const enableOpenWithMute = (await chrome.storage.local.get("isEnabledOpenWithMute")).isEnabledOpenWithMute;
+      chrome.tabs.create({ url: targetURL, windowId, muted: enableOpenWithMute });
     }
   });
 }

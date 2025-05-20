@@ -7,6 +7,7 @@ const openNewWindow = document.getElementById("openNewWindow");
 const enableTabRotation = document.getElementById("enableTabRotation");
 const enableTabMute = document.getElementById("enableTabMute");
 const enableAutoClose = document.getElementById("enableAutoClose");
+const enableOpenWithMute = document.getElementById("enableOpenWithMute");
 const tabRotationInterval = document.getElementById("tabRotationInterval");
 
 const loginTwitch = document.getElementById("loginTwitch");
@@ -54,6 +55,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // オフラインチャネル自動閉じ
   const enableAutoCloseMessage = chrome.i18n.getMessage("enableAutoClose");
   document.querySelector('label[for="enableAutoClose"]').textContent = enableAutoCloseMessage;
+  // ミュートで開く
+  const enableOpenWithMuteMessage = chrome.i18n.getMessage("enableOpenWithMute");
+  document.querySelector('label[for="enableOpenWithMute"]').textContent = enableOpenWithMuteMessage;
 });
 
 chrome.storage.local.get(
@@ -68,6 +72,7 @@ chrome.storage.local.get(
     isEnabledTabRotation: false,
     isEnabledTabMute: false,
     isEnabledAutoClose: false,
+    isEnabledOpenWithMute: false,
   },
   async (data) => {
     loading.hidden = false;
@@ -79,6 +84,7 @@ chrome.storage.local.get(
     enableTabMute.checked = data.isEnabledTabMute;
     enableTabRotation.checked = data.isEnabledTabRotation;
     enableAutoClose.checked = data.isEnabledAutoClose; 
+    enableOpenWithMute.checked = data.isEnabledOpenWithMute;
 
     if (data.oauth_token) {
       const connected = await checkTwitchConnection(data.oauth_token);
@@ -308,6 +314,10 @@ tabRotationInterval.addEventListener("change", () => {
 
 enableAutoClose.addEventListener("change", () => {
   chrome.storage.local.set({ isEnabledAutoClose: enableAutoClose.checked });
+});
+
+enableOpenWithMute.addEventListener("change", () => {
+  chrome.storage.local.set({ isEnabledOpenWithMute: enableOpenWithMute.checked });
 });
 
 liveFilterSwitch.addEventListener("change", async () => {

@@ -39,6 +39,10 @@
     "message": "オフラインチャネル自動閉じ",
     "description": "オフラインのチャネルを自動的に閉じるオプションのラベル"
   },
+  "enableOpenWithMute": {
+    "message": "ミュートで開く",
+    "description": "タブをミュート状態で開くオプションのラベル"
+  },
 	"pause": {
 		"message": "停止",
 		"description": "停止ボタンのラベル"

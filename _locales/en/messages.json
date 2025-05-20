@@ -39,6 +39,10 @@
 		"message": "Auto-close offline channels",
 		"description": "Label for the option to automatically close offline channels."
 	},
+	"enableOpenWithMute": {
+		"message": "Open with mute",
+		"description": "Label for the option to open tabs in muted state."
+	},
 	"pause": {
 		"message": "Pause",
 		"description": "Label for pause button."
