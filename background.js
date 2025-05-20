@@ -166,7 +166,7 @@ async function channelQueuedStreams(channelQueue) {
   if (isOpenNewWindow) {
     const lastOpenWindowId = (await chrome.storage.local.get("lastOpenWindowId")).lastOpenWindowId;
     for (const channel of channelQueue) {
-      if (channel.onLive && channel.onLiveOpen) {
+      if (channel.onLive && channel.onLiveOpen && channelMatchesFilters(channel)) {
         console.log('channelQueueStreams', { lastOpenWindowId });
         if (lastOpenWindowId && await checkWindowExists(lastOpenWindowId)) {
           openTabIfNotExists(channel, lastOpenWindowId);
@@ -184,11 +184,37 @@ async function channelQueuedStreams(channelQueue) {
     }
   } else {
     for (const channel of channelQueue) {
-      if (channel.onLive && channel.onLiveOpen) {
+      if (channel.onLive && channel.onLiveOpen && channelMatchesFilters(channel)) {
         openTabIfNotExists(channel);
       }
     }
   }
+}
+
+function channelMatchesFilters(channel) {
+  // If the channel doesn't have game_name or tags info, don't filter it
+  if (!channel.game_name && !channel.tags) return true;
+  
+  // Check category filter
+  if (channel.categoriesFilter && channel.categoriesFilter.trim() !== '') {
+    const categoryFilter = channel.categoriesFilter.toLowerCase();
+    const gameName = (channel.game_name || '').toLowerCase();
+    if (!gameName.includes(categoryFilter)) {
+      return false;
+    }
+  }
+  
+  // Check tag filter
+  if (channel.tagsFilter && channel.tagsFilter.trim() !== '') {
+    const tagFilter = channel.tagsFilter.toLowerCase();
+    const tags = channel.tags || [];
+    // Check if any tag includes the filter text
+    if (!tags.some(tag => tag.toLowerCase().includes(tagFilter))) {
+      return false;
+    }
+  }
+  
+  return true;
 }
 
 function channelURL(channel) {

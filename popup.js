@@ -186,23 +186,28 @@ async function addChannelToList(channel, newAdded = false) {
   // }
   tr.appendChild(cntd);
   
+  const filtertd = document.createElement('td');
+  
   const categoriesInput = document.createElement('input');
   categoriesInput.id = channel.name + '|category';
   categoriesInput.type = 'text';
   categoriesInput.placeholder = 'category';
-  categoriesInput.value = channel.categoriesFilter;
-  // li.appendChild(categoriesInput);
+  categoriesInput.className = 'form-control form-control-sm mb-1';
+  categoriesInput.value = channel.categoriesFilter || '';
+  filtertd.appendChild(categoriesInput);
   
   const tagsInput = document.createElement('input');
   tagsInput.id = channel.name + '|tag';
   tagsInput.type = 'text';
   tagsInput.placeholder = 'tag';
-  tagsInput.value = channel.tagsFilter;
-  // li.appendChild(tagsInput);
+  tagsInput.className = 'form-control form-control-sm mb-1';
+  tagsInput.value = channel.tagsFilter || '';
+  filtertd.appendChild(tagsInput);
 
   const saveButton = document.createElement('button');
   saveButton.setAttribute('data-id', channel.name);
   saveButton.textContent = 'Save';
+  saveButton.className = 'btn btn-sm btn-outline-primary';
   saveButton.addEventListener('click', (event) => {
     const targetButton = event.target;
     const targetChannelName = targetButton.getAttribute('data-id');
@@ -218,7 +223,9 @@ async function addChannelToList(channel, newAdded = false) {
 
     saveChannelToList(targetChannel);
   });
-  // li.appendChild(saveButton);
+  filtertd.appendChild(saveButton);
+  
+  tr.appendChild(filtertd);
 
   const removetd = document.createElement('td');
   const removeButton = document.createElement('i');
