@@ -39,6 +39,10 @@
 		"message": "Auto-close offline channels",
 		"description": "Label for the option to automatically close offline channels."
 	},
+	"enableScheduling": {
+		"message": "Schedule",
+		"description": "Label for the option to enable automatic opening only during specific time periods."
+	},
 	"pause": {
 		"message": "Pause",
 		"description": "Label for pause button."

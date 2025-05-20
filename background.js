@@ -134,6 +134,35 @@ async function checkStreams() {
   const isOpenMultiTwitch = (await chrome.storage.local.get("isOpenMultiTwitch")).isOpenMultiTwitch;
 
   if (!isEnabled) return;
+
+  // Check scheduling
+  const isEnabledScheduling = (await chrome.storage.local.get("isEnabledScheduling")).isEnabledScheduling;
+  if (isEnabledScheduling) {
+    const schedulingStartTime = (await chrome.storage.local.get("schedulingStartTime")).schedulingStartTime;
+    const schedulingEndTime = (await chrome.storage.local.get("schedulingEndTime")).schedulingEndTime;
+    
+    // Check if current time is within the scheduled time
+    const currentTime = new Date();
+    const currentTimeStr = currentTime.getHours().toString().padStart(2, '0') + ":" + 
+                           currentTime.getMinutes().toString().padStart(2, '0');
+    
+    // Handle time comparison (considering day wrap-around)
+    if (schedulingStartTime <= schedulingEndTime) {
+      // Normal case: start time before end time (e.g., 08:00 to 17:00)
+      if (currentTimeStr < schedulingStartTime || currentTimeStr > schedulingEndTime) {
+        console.log('Outside scheduled time', { currentTimeStr, schedulingStartTime, schedulingEndTime });
+        return;
+      }
+    } else {
+      // Overnight case: start time after end time (e.g., 22:00 to 06:00)
+      if (currentTimeStr < schedulingStartTime && currentTimeStr > schedulingEndTime) {
+        console.log('Outside scheduled time (overnight)', { currentTimeStr, schedulingStartTime, schedulingEndTime });
+        return;
+      }
+    }
+    console.log('Within scheduled time', { currentTimeStr, schedulingStartTime, schedulingEndTime });
+  }
+
   const channels = (await chrome.storage.local.get('channels')).channels;
   const oauth_token = (await chrome.storage.local.get("oauth_token")).oauth_token;
 

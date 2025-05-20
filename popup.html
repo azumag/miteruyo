@@ -100,6 +100,28 @@
                       <label for="enableAutoClose">オフラインチャネル自動閉じ</label>
                     </td>
                   </tr>
+                  <tr>
+                    <td>
+                      <input type="checkbox" id="enableScheduling" class="form-check-input" />
+                    </td>
+                    <td class="text-center">
+                      <div class="row">
+                        <div class="col-12">
+                          <label for="enableScheduling" class="form-check-label">時間指定</label>
+                        </div>
+                        <div class="col-2"></div>
+                        <div class="col-4">
+                          <input type="time" id="schedulingStartTime" class="form-control"/>
+                        </div>
+                        <div class="col-1 text-center mt-1">
+                          ~
+                        </div>
+                        <div class="col-4">
+                          <input type="time" id="schedulingEndTime" class="form-control"/>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>

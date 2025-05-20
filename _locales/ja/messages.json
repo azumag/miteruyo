@@ -39,6 +39,10 @@
     "message": "オフラインチャネル自動閉じ",
     "description": "オフラインのチャネルを自動的に閉じるオプションのラベル"
   },
+  "enableScheduling": {
+    "message": "時間指定",
+    "description": "特定の時間帯のみ自動開閉を有効にするオプションのラベル"
+  },
 	"pause": {
 		"message": "停止",
 		"description": "停止ボタンのラベル"

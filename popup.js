@@ -8,6 +8,9 @@ const enableTabRotation = document.getElementById("enableTabRotation");
 const enableTabMute = document.getElementById("enableTabMute");
 const enableAutoClose = document.getElementById("enableAutoClose");
 const tabRotationInterval = document.getElementById("tabRotationInterval");
+const enableScheduling = document.getElementById("enableScheduling");
+const schedulingStartTime = document.getElementById("schedulingStartTime");
+const schedulingEndTime = document.getElementById("schedulingEndTime");
 
 const loginTwitch = document.getElementById("loginTwitch");
 
@@ -54,6 +57,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // オフラインチャネル自動閉じ
   const enableAutoCloseMessage = chrome.i18n.getMessage("enableAutoClose");
   document.querySelector('label[for="enableAutoClose"]').textContent = enableAutoCloseMessage;
+  // 時間指定
+  const enableSchedulingMessage = chrome.i18n.getMessage("enableScheduling");
+  document.querySelector('label[for="enableScheduling"]').textContent = enableSchedulingMessage;
 });
 
 chrome.storage.local.get(
@@ -68,6 +74,9 @@ chrome.storage.local.get(
     isEnabledTabRotation: false,
     isEnabledTabMute: false,
     isEnabledAutoClose: false,
+    isEnabledScheduling: false,
+    schedulingStartTime: "00:00",
+    schedulingEndTime: "23:59",
   },
   async (data) => {
     loading.hidden = false;
@@ -79,6 +88,9 @@ chrome.storage.local.get(
     enableTabMute.checked = data.isEnabledTabMute;
     enableTabRotation.checked = data.isEnabledTabRotation;
     enableAutoClose.checked = data.isEnabledAutoClose; 
+    enableScheduling.checked = data.isEnabledScheduling;
+    schedulingStartTime.value = data.schedulingStartTime;
+    schedulingEndTime.value = data.schedulingEndTime;
 
     if (data.oauth_token) {
       const connected = await checkTwitchConnection(data.oauth_token);
@@ -308,6 +320,18 @@ tabRotationInterval.addEventListener("change", () => {
 
 enableAutoClose.addEventListener("change", () => {
   chrome.storage.local.set({ isEnabledAutoClose: enableAutoClose.checked });
+});
+
+enableScheduling.addEventListener("change", () => {
+  chrome.storage.local.set({ isEnabledScheduling: enableScheduling.checked });
+});
+
+schedulingStartTime.addEventListener("change", () => {
+  chrome.storage.local.set({ schedulingStartTime: schedulingStartTime.value });
+});
+
+schedulingEndTime.addEventListener("change", () => {
+  chrome.storage.local.set({ schedulingEndTime: schedulingEndTime.value });
 });
 
 liveFilterSwitch.addEventListener("change", async () => {
