@@ -227,6 +227,12 @@ async function addChannelToList(channel, newAdded = false) {
     };
 
     saveChannelToList(targetChannel);
+    
+    // Give visual feedback that filters were saved
+    saveButton.textContent = 'Saved!';
+    setTimeout(() => {
+      saveButton.textContent = 'Save';
+    }, 1000);
   });
   filtertd.appendChild(saveButton);
   
