@@ -208,18 +208,23 @@ async function addChannelToList(channel, newAdded = false) {
   saveButton.setAttribute('data-id', channel.name);
   saveButton.textContent = 'Save';
   saveButton.className = 'btn btn-sm btn-outline-primary';
-  saveButton.addEventListener('click', (event) => {
+  saveButton.addEventListener('click', async (event) => {
     const targetButton = event.target;
     const targetChannelName = targetButton.getAttribute('data-id');
-    const targetChannel = {
-      name: targetChannelName,
-    };
-
+    
+    // Get existing channel data to preserve other properties
+    const data = await chrome.storage.local.get('channels');
+    const existingChannel = data.channels.find(c => c?.name === targetChannelName) || { name: targetChannelName };
+    
     const categoriesInput = document.getElementById(targetChannelName+'|category');
     const tagsInput = document.getElementById(targetChannelName+'|tag');
 
-    targetChannel.categoriesFilter = categoriesInput.value;
-    targetChannel.tagsFilter = tagsInput.value;
+    // Update only the filter properties
+    const targetChannel = {
+      ...existingChannel,
+      categoriesFilter: categoriesInput.value,
+      tagsFilter: tagsInput.value
+    };
 
     saveChannelToList(targetChannel);
   });
