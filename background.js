@@ -162,13 +162,14 @@ async function channelQueuedStreamsInMultiTwitch() {
 
 async function channelQueuedStreams(channelQueue) {
   const isOpenNewWindow = (await chrome.storage.local.get("isOpenNewWindow")).isOpenNewWindow;
-  console.log('channelQueueStreams', { isOpenNewWindow });
+  const isPreventReopenWindow = (await chrome.storage.local.get("isPreventReopenWindow")).isPreventReopenWindow;
+  console.log('channelQueueStreams', { isOpenNewWindow, isPreventReopenWindow });
   if (isOpenNewWindow) {
     const lastOpenWindowId = (await chrome.storage.local.get("lastOpenWindowId")).lastOpenWindowId;
     for (const channel of channelQueue) {
       if (channel.onLive && channel.onLiveOpen) {
         console.log('channelQueueStreams', { lastOpenWindowId });
-        if (lastOpenWindowId && await checkWindowExists(lastOpenWindowId)) {
+        if (lastOpenWindowId && await checkWindowExists(lastOpenWindowId) && !isPreventReopenWindow) {
           openTabIfNotExists(channel, lastOpenWindowId);
         } else {
           const tabs = await chrome.tabs.query({});

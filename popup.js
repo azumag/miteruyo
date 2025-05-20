@@ -4,6 +4,7 @@ const addChannelBtn = document.getElementById("addChannelBtn");
 const channelTable = document.getElementById("channelTableBody");
 const enableSwitch = document.getElementById("enableSwitch");
 const openNewWindow = document.getElementById("openNewWindow");
+const preventReopenWindow = document.getElementById("preventReopenWindow");
 const enableTabRotation = document.getElementById("enableTabRotation");
 const enableTabMute = document.getElementById("enableTabMute");
 const enableAutoClose = document.getElementById("enableAutoClose");
@@ -42,6 +43,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // 新しいウィンドウで開く
   const openNewWindowMessage = chrome.i18n.getMessage("openNewWindow");
   document.querySelector('label[for="openNewWindow"]').textContent = openNewWindowMessage;
+  // 拡張経由で開いたウィンドウは再オープンしない
+  const preventReopenWindowMessage = chrome.i18n.getMessage("preventReopenWindow");
+  document.querySelector('label[for="preventReopenWindow"]').textContent = preventReopenWindowMessage || "拡張経由で開いたウィンドウは再オープンしない";
   // 複数タブ自動切り替え
   const enableTabRotationMessage = chrome.i18n.getMessage("enableTabRotation");
   document.querySelector('label[for="enableTabRotation"]').textContent = enableTabRotationMessage;
@@ -61,6 +65,7 @@ chrome.storage.local.get(
     channels: [],
     isEnabled: false,
     isOpenNewWindow: false,
+    isPreventReopenWindow: false,
     isOpenMultiTwitch: false,
     isLiveFilter: false,
     oauth_token: null,
@@ -74,6 +79,7 @@ chrome.storage.local.get(
 
     enableSwitch.checked = data.isEnabled;
     openNewWindow.checked = data.isOpenNewWindow;
+    preventReopenWindow.checked = data.isPreventReopenWindow;
     liveFilterSwitch.checked = data.isLiveFilter;
     tabRotationInterval.value = data.tabRotationInterval;
     enableTabMute.checked = data.isEnabledTabMute;
@@ -317,6 +323,10 @@ liveFilterSwitch.addEventListener("change", async () => {
 
 openNewWindow.addEventListener("change", () => {
   chrome.storage.local.set({ isOpenNewWindow: openNewWindow.checked });
+});
+
+preventReopenWindow.addEventListener("change", () => {
+  chrome.storage.local.set({ isPreventReopenWindow: preventReopenWindow.checked });
 });
 
 async function refreshList() {
