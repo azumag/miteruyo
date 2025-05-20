@@ -89,8 +89,10 @@ chrome.storage.local.get(
     enableTabRotation.checked = data.isEnabledTabRotation;
     enableAutoClose.checked = data.isEnabledAutoClose; 
     enableScheduling.checked = data.isEnabledScheduling;
-    schedulingStartTime.value = data.schedulingStartTime;
-    schedulingEndTime.value = data.schedulingEndTime;
+    
+    // Set default times if they're empty
+    schedulingStartTime.value = data.schedulingStartTime || "00:00";
+    schedulingEndTime.value = data.schedulingEndTime || "23:59";
 
     if (data.oauth_token) {
       const connected = await checkTwitchConnection(data.oauth_token);
@@ -327,10 +329,18 @@ enableScheduling.addEventListener("change", () => {
 });
 
 schedulingStartTime.addEventListener("change", () => {
+  // Ensure the value is not empty
+  if (!schedulingStartTime.value) {
+    schedulingStartTime.value = "00:00";
+  }
   chrome.storage.local.set({ schedulingStartTime: schedulingStartTime.value });
 });
 
 schedulingEndTime.addEventListener("change", () => {
+  // Ensure the value is not empty
+  if (!schedulingEndTime.value) {
+    schedulingEndTime.value = "23:59";
+  }
   chrome.storage.local.set({ schedulingEndTime: schedulingEndTime.value });
 });
 

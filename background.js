@@ -155,7 +155,11 @@ async function checkStreams() {
       }
     } else {
       // Overnight case: start time after end time (e.g., 22:00 to 06:00)
-      if (currentTimeStr < schedulingStartTime && currentTimeStr > schedulingEndTime) {
+      // In this case, the valid time is from start time to midnight AND from midnight to end time
+      if (currentTimeStr < schedulingEndTime || currentTimeStr >= schedulingStartTime) {
+        // Within scheduled time during overnight schedule
+        console.log('Within scheduled time (overnight)', { currentTimeStr, schedulingStartTime, schedulingEndTime });
+      } else {
         console.log('Outside scheduled time (overnight)', { currentTimeStr, schedulingStartTime, schedulingEndTime });
         return;
       }
