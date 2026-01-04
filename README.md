@@ -184,6 +184,11 @@ See LICENSE file (if present)
 - Add error handling and 10s timeout for API calls
 - Add GitHub Actions CI/CD with automated testing
 - Add Vitest unit tests and ESLint configuration
+- Fix multiple windows opening when no existing window exists
+  - Now first channel creates window, subsequent channels open as tabs
+- Fix Invalid URL errors when filtering tabs
+  - Handle non-http URLs (chrome://, about:blank, etc.)
+  - Add try-catch protection in URL parsing
 
 ### v1.0.10 and earlier
 - Initial features and functionality
