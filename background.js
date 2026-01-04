@@ -125,28 +125,39 @@ async function checkTabRotate() {
           // chrome.tabs.update(tabs[currentTabIndex].id, { url: suspendedUrl });
 
           // Close duplicate tabs
-          // タブURLからクエリパラメータを削除
+          // タブURLからクエリパラメータを削除（無効なURLはスキップ）
           const urls = tabs.map(tab => {
-            const url = new URL(tab.url);
-            url.search = ''; // クエリパラメータを削除
-            return url.toString();
+            if (!tab.url || !tab.url.startsWith('http')) {
+              return tab.url || '';
+            }
+            try {
+              const url = new URL(tab.url);
+              url.search = ''; // クエリパラメータを削除
+              return url.toString();
+            } catch {
+              return tab.url || '';
+            }
           });
-
-          // 重複しないURLを識別
-          const uniqueUrls = [...new Set(urls)];
 
           // 最初に見つかったタブのみを保持し、重複するタブを削除
           const tabsToRemove = [];
           tabs = tabs.filter((tab, index) => {
-            const url = new URL(tab.url);
-            url.search = '';
-            const urlString = url.toString();
-            // URLが最初に登場する位置が現在のインデックスと異なる場合、これは重複タブと見なし削除リストに追加
-            if (urls.indexOf(urlString) !== index) {
-              tabsToRemove.push(tab);
-              return false;
+            if (!tab.url || !tab.url.startsWith('http')) {
+              return true; // 無効なURLはスキップ
             }
-            return true;
+            try {
+              const url = new URL(tab.url);
+              url.search = '';
+              const urlString = url.toString();
+              // URLが最初に登場する位置が現在のインデックスと異なる場合、これは重複タブと見なし削除リストに追加
+              if (urls.indexOf(urlString) !== index) {
+                tabsToRemove.push(tab);
+                return false;
+              }
+              return true;
+            } catch {
+              return true; // 無効なURLはスキップ
+            }
           });
 
           // 重複するタブを削除
@@ -284,10 +295,19 @@ function openTabIfNotExists(channel, windowId = null) {
   console.log('openTabIfNotExists', { targetURL, windowId });
   chrome.tabs.query({}, tabs => {
     const matchingTabs = tabs.filter(tab => {
-      // 既存のタブのURLからクエリパラメータを除去
-      const tabURLWithoutQuery = new URL(tab.url);
-      tabURLWithoutQuery.search = '';
-      return tabURLWithoutQuery.toString() === targetURL; // クエリパラメータを除去したURLで比較
+      // タブのURLが無効な場合はスキップ（chrome://、about:blank など）
+      if (!tab.url || !tab.url.startsWith('http')) {
+        return false;
+      }
+      try {
+        // 既存のタブのURLからクエリパラメータを除去
+        const tabURLWithoutQuery = new URL(tab.url);
+        tabURLWithoutQuery.search = '';
+        return tabURLWithoutQuery.toString() === targetURL; // クエリパラメータを除去したURLで比較
+      } catch {
+        // 無効なURLの場合はスキップ
+        return false;
+      }
     });
 
     if (matchingTabs.length === 0) {
