@@ -1,23 +1,56 @@
 const twitchDomain = 'https://www.twitch.tv';
-const multiTwitchURL = 'https://www.multitwitch.tv/'
+const multiTwitchURL = 'https://www.multitwitch.tv/';
 
 // const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx'; // for prod
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
 
-chrome.alarms.create("periodicalUpdate", { periodInMinutes: 1 });
+// Service Workerの再起動に備えてアラームを確認・作成する関数
+async function ensureAlarmsExist() {
+  console.log('ensureAlarmsExist called');
 
-chrome.storage.local.get('tabRotateInterval', (data) => {
-  if (data.tabRotationInterval) {
-    const interval = parseInt(data.tabRotationInterval, 10);
-    chrome.alarms.create("tabRotationAlarm", { periodInMinutes: interval });
+  // periodicalUpdate アラームの確認
+  const existingAlarm = await chrome.alarms.get('periodicalUpdate');
+  if (!existingAlarm) {
+    console.log('Creating periodicalUpdate alarm');
+    chrome.alarms.create('periodicalUpdate', { periodInMinutes: 1 });
+  } else {
+    console.log('periodicalUpdate alarm already exists');
   }
+
+  // tabRotationAlarm アラームの確認
+  const tabRotationAlarm = await chrome.alarms.get('tabRotationAlarm');
+  if (!tabRotationAlarm) {
+    const data = await chrome.storage.local.get('tabRotationInterval');
+    if (data.tabRotationInterval) {
+      const interval = parseInt(data.tabRotationInterval, 10);
+      console.log('Creating tabRotationAlarm with interval:', interval);
+      chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
+    }
+  } else {
+    console.log('tabRotationAlarm already exists');
+  }
+}
+
+// Chrome起動時にアラームを確認
+chrome.runtime.onStartup.addListener(() => {
+  console.log('onStartup event');
+  ensureAlarmsExist();
 });
 
+// 拡張機能のインストール/アップデート時にアラームを確認
+chrome.runtime.onInstalled.addListener((details) => {
+  console.log('onInstalled event:', details.reason);
+  ensureAlarmsExist();
+});
+
+// Service Worker起動時にもアラームを確認（フォールバック）
+ensureAlarmsExist();
+
 chrome.alarms.onAlarm.addListener(function (alarm) {
-  if (alarm.name === "periodicalUpdate") {
+  if (alarm.name === 'periodicalUpdate') {
     checkStreams();
   }
-  if (alarm.name === "tabRotationAlarm") {
+  if (alarm.name === 'tabRotationAlarm') {
     checkTabRotate();
   }
 });
@@ -27,18 +60,18 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
   for (let key in changes) {
     if (key === 'tabRotationInterval') {
       // アラームを一度削除
-      chrome.alarms.clear("tabRotationAlarm");
+      chrome.alarms.clear('tabRotationAlarm');
       // 新しい間隔でアラームを作成
       const interval = parseInt(changes[key].newValue, 10);
-      chrome.alarms.create("tabRotationAlarm", { periodInMinutes: interval });
+      chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
     }
   }
 });
 
 chrome.tabs.onActivated.addListener(async activeInfo => {
-  const targetWindowId = (await chrome.storage.local.get("lastOpenWindowId")).lastOpenWindowId;
-  const enableTabMute = (await chrome.storage.local.get("isEnabledTabMute")).isEnabledTabMute;
-  const enableAutoClose = (await chrome.storage.local.get("isEnabledAutoClose")).isEnabledAutoClose;
+  const targetWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
+  const enableTabMute = (await chrome.storage.local.get('isEnabledTabMute')).isEnabledTabMute;
+  const enableAutoClose = (await chrome.storage.local.get('isEnabledAutoClose')).isEnabledAutoClose;
 
   if (activeInfo.windowId === targetWindowId) {
     console.log('activated', activeInfo, enableTabMute, enableAutoClose);
@@ -65,12 +98,12 @@ chrome.tabs.onActivated.addListener(async activeInfo => {
 });
 
 async function checkTabRotate() {
-  const isEnabledTabRotation = (await chrome.storage.local.get("isEnabledTabRotation")).isEnabledTabRotation;
-  const targetWindowId = (await chrome.storage.local.get("lastOpenWindowId")).lastOpenWindowId;
+  const isEnabledTabRotation = (await chrome.storage.local.get('isEnabledTabRotation')).isEnabledTabRotation;
+  const targetWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
   if (!isEnabledTabRotation) return;
   if (!targetWindowId) return;
 
-  const enableTabMute = (await chrome.storage.local.get("isEnabledTabMute")).isEnabledTabMute;
+  const enableTabMute = (await chrome.storage.local.get('isEnabledTabMute')).isEnabledTabMute;
 
   chrome.windows.get(targetWindowId, (window) => {
     if (chrome.runtime.lastError) {
@@ -129,31 +162,56 @@ async function checkTabRotate() {
 }
 
 async function checkStreams() {
-  console.log('checkStreams');
-  const isEnabled = (await chrome.storage.local.get("isEnabled")).isEnabled;
-  const isOpenMultiTwitch = (await chrome.storage.local.get("isOpenMultiTwitch")).isOpenMultiTwitch;
+  console.log('checkStreams started at:', new Date().toISOString());
 
-  if (!isEnabled) return;
-  const channels = (await chrome.storage.local.get('channels')).channels;
-  const oauth_token = (await chrome.storage.local.get("oauth_token")).oauth_token;
+  try {
+    const isEnabled = (await chrome.storage.local.get('isEnabled')).isEnabled;
+    const isOpenMultiTwitch = (await chrome.storage.local.get('isOpenMultiTwitch')).isOpenMultiTwitch;
 
-  if (!oauth_token) {
-    return;
-  }
+    if (!isEnabled) {
+      console.log('checkStreams: extension is disabled');
+      return;
+    }
 
-  for (const channel of channels) {
-    await checkStream(channel, oauth_token);
-    console.log(channel);
-  }
+    const channels = (await chrome.storage.local.get('channels')).channels;
+    const oauth_token = (await chrome.storage.local.get('oauth_token')).oauth_token;
 
-  for (const channel of channels) {
-    await saveChannel(channel);
-  }
+    if (!oauth_token) {
+      console.log('checkStreams: no oauth_token');
+      return;
+    }
 
-  if (isOpenMultiTwitch) {
-    channelQueuedStreamsInMultiTwitch();
-  } else {
-    channelQueuedStreams(channels);
+    if (!channels || channels.length === 0) {
+      console.log('checkStreams: no channels');
+      return;
+    }
+
+    // 並列でチャンネルをチェック（30秒制限対策）
+    console.log(`checkStreams: checking ${channels.length} channels in parallel`);
+    const updatedChannels = await Promise.all(
+      channels.map(channel =>
+        checkStream(channel, oauth_token)
+          .catch(error => {
+            console.error(`Error checking channel ${channel.name}:`, error);
+            // エラー時は既存のチャンネル情報を返す（statusをerrorに設定）
+            return { ...channel, status: 'error' };
+          })
+      )
+    );
+
+    // 一括でストレージに保存（個別保存より効率的）
+    await chrome.storage.local.set({ channels: updatedChannels });
+    console.log('checkStreams: channels saved');
+
+    if (isOpenMultiTwitch) {
+      channelQueuedStreamsInMultiTwitch();
+    } else {
+      channelQueuedStreams(updatedChannels);
+    }
+
+    console.log('checkStreams completed at:', new Date().toISOString());
+  } catch (error) {
+    console.error('checkStreams error:', error);
   }
 }
 
@@ -161,10 +219,10 @@ async function channelQueuedStreamsInMultiTwitch() {
 }
 
 async function channelQueuedStreams(channelQueue) {
-  const isOpenNewWindow = (await chrome.storage.local.get("isOpenNewWindow")).isOpenNewWindow;
+  const isOpenNewWindow = (await chrome.storage.local.get('isOpenNewWindow')).isOpenNewWindow;
   console.log('channelQueueStreams', { isOpenNewWindow });
   if (isOpenNewWindow) {
-    const lastOpenWindowId = (await chrome.storage.local.get("lastOpenWindowId")).lastOpenWindowId;
+    const lastOpenWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
     for (const channel of channelQueue) {
       if (channel.onLive && channel.onLiveOpen) {
         console.log('channelQueueStreams', { lastOpenWindowId });
@@ -209,21 +267,9 @@ async function checkWindowExists(windowId) {
   });
 }
 
-async function saveChannel(channel) {
-  const channels = (await chrome.storage.local.get('channels')).channels;
-  const index = channels.findIndex((c) => c.name === channel.name);
-
-  if (index !== -1) {
-    channels.splice(index, 1);
-  }
-
-  const newChannels = [...channels, channel];
-  await chrome.storage.local.set({ channels: newChannels });
-}
-
 function openTabIfNotExists(channel, windowId = null) {
   const targetURL = channelURL(channel);
-  console.log('openTabIfNotExists', { targetURL, windowId })
+  console.log('openTabIfNotExists', { targetURL, windowId });
   chrome.tabs.query({}, tabs => {
     const matchingTabs = tabs.filter(tab => {
       // 既存のタブのURLからクエリパラメータを除去
@@ -243,8 +289,8 @@ function getUserId(clientId, accessToken, username) {
 
   return fetch(requestUrl, {
     headers: {
-      "Client-ID": clientId,
-      "Authorization": `Bearer ${accessToken}`
+      'Client-ID': clientId,
+      'Authorization': `Bearer ${accessToken}`
     }
   })
     .then((response) => response.json())
@@ -253,12 +299,12 @@ function getUserId(clientId, accessToken, username) {
       if (data.data.length > 0) {
         return data.data[0].id;
       } else {
-        throw new Error("User not found");
+        throw new Error('User not found');
       }
     })
     .catch((error) => {
-      console.error("Error fetching user ID:", error);
-      console.error("username", username)
+      console.error('Error fetching user ID:', error);
+      console.error('username', username);
     });
 }
 
@@ -272,17 +318,17 @@ async function checkOfflineWithTab(tabId) {
   const tabUrl = (await getTabUrl(tabId));
 
   console.log('check offline', tabUrl);
-  if (!tabUrl.includes("twitch")) {
+  if (!tabUrl.includes('twitch')) {
     console.log('tab is not twitch', tabUrl);
     return;
   }
 
   let channelName;
-  const splittedUrl = tabUrl.split("/");
-  channelName = splittedUrl[splittedUrl.length - 1].split("?")[0];
+  const splittedUrl = tabUrl.split('/');
+  channelName = splittedUrl[splittedUrl.length - 1].split('?')[0];
   console.log('channelName', channelName);
 
-  const accessToken = (await chrome.storage.local.get("oauth_token")).oauth_token.oauth_token;
+  const accessToken = (await chrome.storage.local.get('oauth_token')).oauth_token.oauth_token;
 
   if (!accessToken) {
     return;
@@ -292,8 +338,8 @@ async function checkOfflineWithTab(tabId) {
   const requestUrl = `https://api.twitch.tv/helix/streams?user_id=${userId}`;
   const response = await fetch(requestUrl, {
     headers: {
-      "Client-ID": clientId,
-      "Authorization": `Bearer ${accessToken}`
+      'Client-ID': clientId,
+      'Authorization': `Bearer ${accessToken}`
     }
   });
   const data = await response.json();
@@ -308,39 +354,70 @@ async function checkOfflineWithTab(tabId) {
 }
 
 async function checkStream(channel, oauth_token) {
-  if (!channel) return;
+  if (!channel) return null;
 
   const url = `https://api.twitch.tv/helix/streams?user_login=${channel.name}`;
   const options = {
     headers: {
-      'Client-ID': clientId, 'Accept': 'application/vnd.twitchtv.v5+json',
-      "Authorization": "Bearer " + oauth_token.oauth_token,
+      'Client-ID': clientId,
+      'Accept': 'application/vnd.twitchtv.v5+json',
+      'Authorization': 'Bearer ' + oauth_token.oauth_token,
     },
   };
 
-  const response = await fetch(url, options);
-  const data = await response.json();
+  try {
+    // タイムアウト付きfetch（10秒）
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-  if (data.data === undefined) {
-    channel.status = 'error';
-    return channel;
-  }
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
 
-  if (data.data.length > 0) {
-    console.log("online", data.data[0]);
-    const stream = data.data[0];
-    channel.onLive = true;
-    channel.game_name = stream.game_name;
-    channel.tags = stream.tags;
-    channel.title = stream.title;
-    channel.viewer_count = stream.viewer_count;
-    channel.status = 'online';
-  } else {
-    console.log("offline", channel.name);
-    channel.onLive = false;
-    channel.status = 'offline';
+    if (!response.ok) {
+      console.error(`checkStream: HTTP error ${response.status} for ${channel.name}`);
+      return { ...channel, status: 'error', lastError: `HTTP ${response.status}` };
+    }
+
+    const data = await response.json();
+
+    if (data.data === undefined) {
+      console.error(`checkStream: Invalid response for ${channel.name}`, data);
+      return { ...channel, status: 'error', lastError: 'Invalid response' };
+    }
+
+    if (data.data.length > 0) {
+      console.log('online', data.data[0]);
+      const stream = data.data[0];
+      return {
+        ...channel,
+        onLive: true,
+        game_name: stream.game_name,
+        tags: stream.tags,
+        title: stream.title,
+        viewer_count: stream.viewer_count,
+        status: 'online',
+        lastChecked: Date.now()
+      };
+    } else {
+      console.log('offline', channel.name);
+      return {
+        ...channel,
+        onLive: false,
+        status: 'offline',
+        lastChecked: Date.now()
+      };
+    }
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error(`checkStream: Timeout for ${channel.name}`);
+      return { ...channel, status: 'error', lastError: 'Timeout' };
+    }
+    console.error(`checkStream: Error for ${channel.name}:`, error);
+    return { ...channel, status: 'error', lastError: error.message };
   }
-  return channel;
 }
 
 // アップデート時に旧データがある場合のみデータを引き継ぐ

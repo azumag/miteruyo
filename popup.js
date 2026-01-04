@@ -1,17 +1,17 @@
-const loading = document.getElementById("loading");
-const channelInput = document.getElementById("channelInput");
-const addChannelBtn = document.getElementById("addChannelBtn");
-const channelTable = document.getElementById("channelTableBody");
-const enableSwitch = document.getElementById("enableSwitch");
-const openNewWindow = document.getElementById("openNewWindow");
-const enableTabRotation = document.getElementById("enableTabRotation");
-const enableTabMute = document.getElementById("enableTabMute");
-const enableAutoClose = document.getElementById("enableAutoClose");
-const tabRotationInterval = document.getElementById("tabRotationInterval");
+const loading = document.getElementById('loading');
+const channelInput = document.getElementById('channelInput');
+const addChannelBtn = document.getElementById('addChannelBtn');
+const channelTable = document.getElementById('channelTableBody');
+const enableSwitch = document.getElementById('enableSwitch');
+const openNewWindow = document.getElementById('openNewWindow');
+const enableTabRotation = document.getElementById('enableTabRotation');
+const enableTabMute = document.getElementById('enableTabMute');
+const enableAutoClose = document.getElementById('enableAutoClose');
+const tabRotationInterval = document.getElementById('tabRotationInterval');
 
-const loginTwitch = document.getElementById("loginTwitch");
+const loginTwitch = document.getElementById('loginTwitch');
 
-const liveFilterSwitch = document.getElementById("liveFilterSwitch");
+const liveFilterSwitch = document.getElementById('liveFilterSwitch');
 
 const twitchDomain = 'https://www.twitch.tv';
 // const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx'; // for prod
@@ -27,11 +27,11 @@ const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
 
 // i18n
 document.addEventListener('DOMContentLoaded', function() {
-  const enableOpenMessage = chrome.i18n.getMessage("enableOpen");
-  const channelPlaceholderMessage = chrome.i18n.getMessage("channelAddPlaceholder");
-  const addChannelBtnMessage = chrome.i18n.getMessage("channelAddBtn");
-  const showOnlyLiveMessage = chrome.i18n.getMessage("showOnlyLive");
-  const settingsMessage = chrome.i18n.getMessage("settings");
+  const enableOpenMessage = chrome.i18n.getMessage('enableOpen');
+  const channelPlaceholderMessage = chrome.i18n.getMessage('channelAddPlaceholder');
+  const addChannelBtnMessage = chrome.i18n.getMessage('channelAddBtn');
+  const showOnlyLiveMessage = chrome.i18n.getMessage('showOnlyLive');
+  const settingsMessage = chrome.i18n.getMessage('settings');
 
   document.querySelector('label[for="enableSwitch"]').textContent = enableOpenMessage;
   document.getElementById('channelInput').placeholder = channelPlaceholderMessage;
@@ -40,19 +40,19 @@ document.addEventListener('DOMContentLoaded', function() {
   document.querySelector('button[aria-controls="collapseConfig"]').textContent = settingsMessage;
 
   // 新しいウィンドウで開く
-  const openNewWindowMessage = chrome.i18n.getMessage("openNewWindow");
+  const openNewWindowMessage = chrome.i18n.getMessage('openNewWindow');
   document.querySelector('label[for="openNewWindow"]').textContent = openNewWindowMessage;
   // 複数タブ自動切り替え
-  const enableTabRotationMessage = chrome.i18n.getMessage("enableTabRotation");
+  const enableTabRotationMessage = chrome.i18n.getMessage('enableTabRotation');
   document.querySelector('label[for="enableTabRotation"]').textContent = enableTabRotationMessage;
   // 分
-  const minutesMessage = chrome.i18n.getMessage("minutes");
+  const minutesMessage = chrome.i18n.getMessage('minutes');
   document.querySelector('div.col-2.mt-2').textContent = minutesMessage;
   // 非アクティブタブ自動ミュート
-  const enableTabMuteMessage = chrome.i18n.getMessage("enableTabMute");
+  const enableTabMuteMessage = chrome.i18n.getMessage('enableTabMute');
   document.querySelector('label[for="enableTabMute"]').textContent = enableTabMuteMessage;
   // オフラインチャネル自動閉じ
-  const enableAutoCloseMessage = chrome.i18n.getMessage("enableAutoClose");
+  const enableAutoCloseMessage = chrome.i18n.getMessage('enableAutoClose');
   document.querySelector('label[for="enableAutoClose"]').textContent = enableAutoCloseMessage;
 });
 
@@ -106,13 +106,13 @@ async function updateList(dchannels) {
   }
   Promise.all(checkStreams).then((channels) => {
     chrome.storage.local.set({ channels });
-  })
+  });
 }
 
 async function addChannelToList(channel, newAdded = false) {
   if (!newAdded && channel.status !== 'error' && liveFilterSwitch.checked && !channel.onLive) return;
 
-  const pauseMsg = chrome.i18n.getMessage("pause");
+  const pauseMsg = chrome.i18n.getMessage('pause');
 
   const tr = document.createElement('tr');
   tr.classList.add('channel-tr');
@@ -127,7 +127,7 @@ async function addChannelToList(channel, newAdded = false) {
     openButton.setAttribute('class', 'btn btn-outline-success btn-sm min-width-');
     openButton.style.width = '60px';
     openButton.addEventListener('click', (event) => {
-      chrome.tabs.create({ url: twitchDomain + "/" + channel.name });
+      chrome.tabs.create({ url: twitchDomain + '/' + channel.name });
     });
   } else {
     openButton.textContent = channel.onLiveOpen ? 'OFFLINE' : pauseMsg;
@@ -163,7 +163,7 @@ async function addChannelToList(channel, newAdded = false) {
       openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
       openButton.style.width = '60px';
       openButton.addEventListener('click', (event) => {
-        chrome.tabs.create({ url: twitchDomain + "/" + channel.name });
+        chrome.tabs.create({ url: twitchDomain + '/' + channel.name });
       });
     } else {
       openButton.textContent = channel.onLiveOpen ? 'OFFLINE' : pauseMsg;
@@ -222,7 +222,7 @@ async function addChannelToList(channel, newAdded = false) {
 
   const removetd = document.createElement('td');
   const removeButton = document.createElement('i');
-  removeButton.setAttribute('class', 'bi bi-trash')
+  removeButton.setAttribute('class', 'bi bi-trash');
   // const removeButton = document.createElement('button');
   // removeButton.textContent = 'DEL';
   removeButton.addEventListener('click', () => {
@@ -242,13 +242,13 @@ function removeChannel(channel) {
   });
 }
 
-addChannelBtn.addEventListener("click", async () => {
+addChannelBtn.addEventListener('click', async () => {
   const channel = {
     name: channelInput.value.trim(),
     categoriesFilter: '',
     tagsFilter: '',
     onLiveOpen: true,
-  }
+  };
 
   if (!channel.name) return;
   if (await duplicatedChannel(channel)) return;
@@ -256,22 +256,22 @@ addChannelBtn.addEventListener("click", async () => {
   await checkStream(channel);
 
   // Add the new channel to the list
-  addChannelToList(channel, newAdded = true);
+  addChannelToList(channel, true);
 
   // Save the new channel to storage
   saveChannelToList(channel);
   
   // Clear the input field
-  channelInput.value = "";
+  channelInput.value = '';
 });
 
 async function duplicatedChannel(channel) {
-  const data = await chrome.storage.local.get("channels");
+  const data = await chrome.storage.local.get('channels');
   return (data.channels.findIndex((c) => c?.name === channel.name) !== -1);
 }
 
 function saveChannelToList(channel) {
-  chrome.storage.local.get("channels", (data) => {
+  chrome.storage.local.get('channels', (data) => {
     if (Object.keys(data).length === 0) {
       const newChannels = [channel];
       chrome.storage.local.set({ channels: newChannels });
@@ -290,32 +290,32 @@ function saveChannelToList(channel) {
   });
 }
 
-enableSwitch.addEventListener("change", () => {
+enableSwitch.addEventListener('change', () => {
   chrome.storage.local.set({ isEnabled: enableSwitch.checked });
 });
 
-enableTabRotation.addEventListener("change", () => {
+enableTabRotation.addEventListener('change', () => {
   chrome.storage.local.set({ isEnabledTabRotation: enableTabRotation.checked });
 });
 
-enableTabMute.addEventListener("change", () => {
+enableTabMute.addEventListener('change', () => {
   chrome.storage.local.set({ isEnabledTabMute: enableTabMute.checked });
 });
 
-tabRotationInterval.addEventListener("change", () => {
+tabRotationInterval.addEventListener('change', () => {
   chrome.storage.local.set({ tabRotationInterval: tabRotationInterval.value });
 });
 
-enableAutoClose.addEventListener("change", () => {
+enableAutoClose.addEventListener('change', () => {
   chrome.storage.local.set({ isEnabledAutoClose: enableAutoClose.checked });
 });
 
-liveFilterSwitch.addEventListener("change", async () => {
-  await chrome.storage.local.set({ isLiveFilter: liveFilterSwitch.checked })
+liveFilterSwitch.addEventListener('change', async () => {
+  await chrome.storage.local.set({ isLiveFilter: liveFilterSwitch.checked });
   refreshList();
 });
 
-openNewWindow.addEventListener("change", () => {
+openNewWindow.addEventListener('change', () => {
   chrome.storage.local.set({ isOpenNewWindow: openNewWindow.checked });
 });
 
@@ -330,14 +330,14 @@ async function refreshList() {
 }
 
 
-loginTwitch.addEventListener("click", () => {
+loginTwitch.addEventListener('click', () => {
   console.log(chrome.identity.getRedirectURL());
   chrome.identity.launchWebAuthFlow({
-    url: `https://id.twitch.tv/oauth2/authorize?` +
+    url: 'https://id.twitch.tv/oauth2/authorize?' +
       `client_id=${clientId}&` +
       `redirect_uri=${chrome.identity.getRedirectURL()}&` +
-      `response_type=token&` +
-      `scope=user:read:email`,
+      'response_type=token&' +
+      'scope=user:read:email',
     interactive: true
   }, responseUrl => {
     console.log({ responseUrl });
@@ -349,7 +349,7 @@ loginTwitch.addEventListener("click", () => {
       checkTwitchConnection(oauth_token);
       console.log(oauth_token);
     } else {
-      console.error("Invalid response URL:", responseUrl);
+      console.error('Invalid response URL:', responseUrl);
       loginTwitch.text = 'login fail: please login twitch';
       loginTwitch.enable = true;
     }
@@ -357,7 +357,7 @@ loginTwitch.addEventListener("click", () => {
 });
 
 function parseHashToObj(hash) {
-  return hash.replace("#", "").split('&').reduce((res, item) => {
+  return hash.replace('#', '').split('&').reduce((res, item) => {
     const parts = item.split('=');
     res[parts[0]] = parts[1];
     return res;
@@ -367,20 +367,20 @@ function parseHashToObj(hash) {
 function checkTwitchConnection(oauthToken) {
   console.log('checkTwitch');
   const token = oauthToken.oauth_token;
-  const url = "https://api.twitch.tv/helix/users?login=azumagbanjo";
+  const url = 'https://api.twitch.tv/helix/users?login=azumagbanjo';
   // const url = "https://api.twitch.tv/helix/users?login=azumagdev";
   const headers = {
-    "Client-Id": clientId,
-    "Authorization": "Bearer " + token,
+    'Client-Id': clientId,
+    'Authorization': 'Bearer ' + token,
   };
   const options = {
-    "method": "GET",
-    "headers": headers,
+    'method': 'GET',
+    'headers': headers,
   };
   return fetch(url, options)
     .then(response => {
       console.log(response);
-      rewriteNeedsLoginButton(response.ok)
+      rewriteNeedsLoginButton(response.ok);
       return true;
     })
     .catch(error => {
@@ -391,7 +391,7 @@ function checkTwitchConnection(oauthToken) {
 }
 
 function rewriteNeedsLoginButton(isOk) {
-  const mainElements = document.getElementById("main");
+  const mainElements = document.getElementById('main');
   if (isOk) {
     loginTwitch.textContent = 'connected';
   } else {
@@ -404,14 +404,14 @@ function rewriteNeedsLoginButton(isOk) {
 async function checkStream(channel) {
   if (!channel) return;
 
-  const oauth_token = (await chrome.storage.local.get("oauth_token")).oauth_token;
+  const oauth_token = (await chrome.storage.local.get('oauth_token')).oauth_token;
 
   const url = `https://api.twitch.tv/helix/streams?user_login=${channel.name}`;
   const options = {
     headers: {
       'Client-ID': clientId,
       'Accept': 'application/vnd.twitchtv.v5+json',
-      "Authorization": "Bearer " + oauth_token.oauth_token,
+      'Authorization': 'Bearer ' + oauth_token.oauth_token,
     },
   };
 
@@ -426,7 +426,7 @@ async function checkStream(channel) {
   }
 
   if (data.data.length > 0) {
-    console.log("online", data.data[0]);
+    console.log('online', data.data[0]);
     const stream = data.data[0];
     channel.onLive = true;
     channel.game_name = stream.game_name;
@@ -435,7 +435,7 @@ async function checkStream(channel) {
     channel.viewer_count = stream.viewer_count;
     channel.status = 'online';
   } else {
-    console.log("offline", channel.name);
+    console.log('offline', channel.name);
     channel.onLive = false;
     channel.status = 'offline';
   }
