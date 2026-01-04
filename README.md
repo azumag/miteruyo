@@ -189,6 +189,9 @@ See LICENSE file (if present)
 - Fix Invalid URL errors when filtering tabs
   - Handle non-http URLs (chrome://, about:blank, etc.)
   - Add try-catch protection in URL parsing
+- Fix auto-close not working with single tab
+  - Check for offline channels during every polling cycle
+  - No longer depends on tab activation event
 
 ### v1.0.10 and earlier
 - Initial features and functionality
