@@ -222,20 +222,32 @@ async function channelQueuedStreams(channelQueue) {
   const isOpenNewWindow = (await chrome.storage.local.get('isOpenNewWindow')).isOpenNewWindow;
   console.log('channelQueueStreams', { isOpenNewWindow });
   if (isOpenNewWindow) {
-    const lastOpenWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
+    // ループ内で更新するためにletで宣言
+    let currentWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
+
     for (const channel of channelQueue) {
       if (channel.onLive && channel.onLiveOpen) {
-        console.log('channelQueueStreams', { lastOpenWindowId });
-        if (lastOpenWindowId && await checkWindowExists(lastOpenWindowId)) {
-          openTabIfNotExists(channel, lastOpenWindowId);
+        console.log('channelQueueStreams', { currentWindowId });
+
+        // 現在のウィンドウIDが有効かチェック
+        const windowExists = currentWindowId && await checkWindowExists(currentWindowId);
+
+        if (windowExists) {
+          // 既存のウィンドウにタブを追加
+          openTabIfNotExists(channel, currentWindowId);
         } else {
+          // 新しいウィンドウを作成する必要がある
           const tabs = await chrome.tabs.query({});
           const targetURL = channelURL(channel);
           const matchingTabs = tabs.filter(tab => tab.url === targetURL);
+
           if (matchingTabs.length === 0) {
             console.log('openNewWindow', { targetURL, matchingTabs: matchingTabs.length });
             const newWindow = await chrome.windows.create({ url: targetURL });
-            await chrome.storage.local.set({ lastOpenWindowId: newWindow.id });
+            // 新しいウィンドウIDを保存し、ループ内で再利用
+            currentWindowId = newWindow.id;
+            await chrome.storage.local.set({ lastOpenWindowId: currentWindowId });
+            console.log('New window created, ID:', currentWindowId);
           }
         }
       }
