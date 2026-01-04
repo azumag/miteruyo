@@ -178,7 +178,7 @@ See LICENSE file (if present)
 
 ## Version History
 
-### v1.0.11
+### v1.0.12
 - Fix Service Worker polling reliability with proper alarm initialization
 - Parallelize channel checking to avoid 30s timeout limit
 - Add error handling and 10s timeout for API calls
