@@ -220,9 +220,55 @@ async function checkStreams() {
       channelQueuedStreams(updatedChannels);
     }
 
+    // オフラインになったチャンネルのタブを自動で閉じる
+    const enableAutoClose = (await chrome.storage.local.get('isEnabledAutoClose')).isEnabledAutoClose;
+    if (enableAutoClose) {
+      await closeOfflineTabs(updatedChannels);
+    }
+
     console.log('checkStreams completed at:', new Date().toISOString());
   } catch (error) {
     console.error('checkStreams error:', error);
+  }
+}
+
+// オフラインになったチャンネルのタブを閉じる
+async function closeOfflineTabs(channels) {
+  const targetWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
+  if (!targetWindowId) return;
+
+  // ウィンドウが存在するか確認
+  const windowExists = await checkWindowExists(targetWindowId);
+  if (!windowExists) return;
+
+  // オフラインのチャンネル名リストを作成
+  const offlineChannelNames = channels
+    .filter(ch => !ch.onLive)
+    .map(ch => ch.name.toLowerCase());
+
+  if (offlineChannelNames.length === 0) return;
+
+  // 対象ウィンドウのタブを取得
+  const tabs = await chrome.tabs.query({ windowId: targetWindowId });
+
+  for (const tab of tabs) {
+    if (!tab.url || !tab.url.includes('twitch.tv')) continue;
+
+    try {
+      const url = new URL(tab.url);
+      // URLからチャンネル名を抽出（例: /channelname または /channelname?...）
+      const pathParts = url.pathname.split('/').filter(p => p);
+      if (pathParts.length === 0) continue;
+
+      const channelName = pathParts[0].toLowerCase();
+
+      if (offlineChannelNames.includes(channelName)) {
+        console.log('closeOfflineTabs: closing tab for offline channel:', channelName);
+        await chrome.tabs.remove(tab.id);
+      }
+    } catch {
+      // URLパース失敗時はスキップ
+    }
   }
 }
 
