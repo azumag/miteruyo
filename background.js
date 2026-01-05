@@ -396,8 +396,12 @@ async function shouldOpenChannel(channel) {
   // カテゴリフィルター（カテゴリ名で比較）
   const blockedCategoryNames = (await chrome.storage.local.get('blockedCategoryNames')).blockedCategoryNames || '';
   if (blockedCategoryNames && channel.game_name) {
-    // カンマ区切りの文字列を配列に変換し、小文字で比較
-    const blockedList = blockedCategoryNames.split(',').map(c => c.trim().toLowerCase()).filter(c => c);
+    // カンマ区切りの文字列を配列に変換し、小文字で比較（\, はエスケープとして扱う）
+    const blockedList = blockedCategoryNames
+      .replace(/\\,/g, '__M_COMMA__') // Escape \,
+      .split(',')
+      .map(c => c.trim().replace(/__M_COMMA__/g, ',').toLowerCase())
+      .filter(c => c);
     if (blockedList.includes(channel.game_name.toLowerCase())) {
       console.log('Skipping blocked category:', channel.name, channel.game_name);
       return false;
