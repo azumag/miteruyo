@@ -28,7 +28,7 @@ const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
 // });
 
 // i18n
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   const enableOpenMessage = chrome.i18n.getMessage('enableOpen');
   const channelPlaceholderMessage = chrome.i18n.getMessage('channelAddPlaceholder');
   const addChannelBtnMessage = chrome.i18n.getMessage('channelAddBtn');
@@ -62,6 +62,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // 開かないカテゴリ
   const blockedCategoriesMessage = chrome.i18n.getMessage('blockedCategories');
   document.querySelector('label[for="blockedCategories"]').textContent = blockedCategoriesMessage;
+  // カテゴリ別音量
+  // const categoryVolumesMessage = chrome.i18n.getMessage('categoryVolumes');
+  // document.querySelector('label[for="categoryVolumes"]').textContent = categoryVolumesMessage;
 });
 
 chrome.storage.local.get(
@@ -90,7 +93,7 @@ chrome.storage.local.get(
     enableTabRotation.checked = data.isEnabledTabRotation;
     enableAutoClose.checked = data.isEnabledAutoClose;
     skipBrandedContent.checked = data.isSkipBrandedContent;
-    blockedCategoriesInput.value = data.blockedCategoryNames; 
+    blockedCategoriesInput.value = data.blockedCategoryNames;
 
     if (data.oauth_token) {
       const connected = await checkTwitchConnection(data.oauth_token);
@@ -129,6 +132,7 @@ async function addChannelToList(channel, newAdded = false) {
   const tr = document.createElement('tr');
   tr.classList.add('channel-tr');
 
+  // 1. Live Status / Open Button
   const liveStatus = document.createElement('td');
   tr.appendChild(liveStatus);
 
@@ -151,25 +155,19 @@ async function addChannelToList(channel, newAdded = false) {
     openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
   }
 
+  // 2. On/Off Switch
   const onliveswitchtd = document.createElement('td');
-  // const onLiveOpenSwitch = document.createElement('input');
   const onLiveOpenSwitch = document.createElement('button');
   const pauseIcon = document.createElement('i');
-  // onLiveOpenSwitch.setAttribute('class', 'text-center align-middle form-check-input mt-0')
-  onLiveOpenSwitch.setAttribute('class', channel.onLiveOpen ? 'btn btn-outline-primary btn-sm' : 'btn btn-outline-danger btn-sm'); 
+  onLiveOpenSwitch.setAttribute('class', channel.onLiveOpen ? 'btn btn-outline-primary btn-sm' : 'btn btn-outline-danger btn-sm');
   pauseIcon.setAttribute('class', channel.onLiveOpen ? 'bi bi-pause' : 'bi bi-play');
-  // onLiveOpenSwitch.type = 'checkbox';
-  // onLiveOpenSwitch.checked = channel.onLiveOpen;
   onLiveOpenSwitch.appendChild(pauseIcon);
   onLiveOpenSwitch.addEventListener('click', () => {
     channel.onLiveOpen = !channel.onLiveOpen;
     pauseIcon.setAttribute('class', channel.onLiveOpen ? 'bi bi-pause' : 'bi bi-play');
-    onLiveOpenSwitch.setAttribute('class', channel.onLiveOpen ? 'btn btn-outline-primary btn-sm' : 'btn btn-outline-danger btn-sm'); 
-    chrome.storage.local.get('channels', (data) => {
-      const newChannels = data.channels.filter((c) => c.name !== channel.name);
+    onLiveOpenSwitch.setAttribute('class', channel.onLiveOpen ? 'btn btn-outline-primary btn-sm' : 'btn btn-outline-danger btn-sm');
+    saveChannelToList(channel); // create dedicated save function or use saveChannelToList
 
-      chrome.storage.local.set({ channels: [...newChannels, channel] });
-    });
     if (channel.onLive) {
       openButton.textContent = channel.onLiveOpen ? 'LIVE' : pauseMsg;
       openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
@@ -187,6 +185,7 @@ async function addChannelToList(channel, newAdded = false) {
   }
   tr.appendChild(onliveswitchtd);
 
+  // 3. Channel Name
   const cntd = document.createElement('td');
   const channelNameTag = document.createElement('span');
   channelNameTag.textContent = channel.name;
@@ -197,47 +196,33 @@ async function addChannelToList(channel, newAdded = false) {
   //   cntd.appendChild(desc);
   // }
   tr.appendChild(cntd);
-  
-  const categoriesInput = document.createElement('input');
-  categoriesInput.id = channel.name + '|category';
-  categoriesInput.type = 'text';
-  categoriesInput.placeholder = 'category';
-  categoriesInput.value = channel.categoriesFilter;
-  // li.appendChild(categoriesInput);
-  
-  const tagsInput = document.createElement('input');
-  tagsInput.id = channel.name + '|tag';
-  tagsInput.type = 'text';
-  tagsInput.placeholder = 'tag';
-  tagsInput.value = channel.tagsFilter;
-  // li.appendChild(tagsInput);
 
-  const saveButton = document.createElement('button');
-  saveButton.setAttribute('data-id', channel.name);
-  saveButton.textContent = 'Save';
-  saveButton.addEventListener('click', (event) => {
-    const targetButton = event.target;
-    const targetChannelName = targetButton.getAttribute('data-id');
-    const targetChannel = {
-      name: targetChannelName,
-    };
-
-    const categoriesInput = document.getElementById(targetChannelName+'|category');
-    const tagsInput = document.getElementById(targetChannelName+'|tag');
-
-    targetChannel.categoriesFilter = categoriesInput.value;
-    targetChannel.tagsFilter = tagsInput.value;
-
-    saveChannelToList(targetChannel);
-  });
-  // li.appendChild(saveButton);
-
+  // 4. Actions (Settings & Delete)
   const removetd = document.createElement('td');
+  removetd.className = 'text-end';
+
+  // Settings Button
+  const settingsBtn = document.createElement('i');
+  settingsBtn.className = 'bi bi-gear me-2';
+  settingsBtn.style.cursor = 'pointer';
+  settingsBtn.onclick = () => {
+    const nextRow = tr.nextSibling;
+    if (nextRow && nextRow.classList.contains('settings-tr')) {
+      nextRow.hidden = !nextRow.hidden;
+    }
+  };
+  removetd.appendChild(settingsBtn);
+
+  // Remove Button
   const removeButton = document.createElement('i');
-  removeButton.setAttribute('class', 'bi bi-trash');
-  // const removeButton = document.createElement('button');
-  // removeButton.textContent = 'DEL';
+  removeButton.className = 'bi bi-trash';
+  removeButton.style.cursor = 'pointer';
   removeButton.addEventListener('click', () => {
+    // Remove settings row if exists
+    const nextRow = tr.nextSibling;
+    if (nextRow && nextRow.classList.contains('settings-tr')) {
+      nextRow.remove();
+    }
     tr.remove();
     removeChannel(channel);
   });
@@ -245,6 +230,69 @@ async function addChannelToList(channel, newAdded = false) {
   tr.appendChild(removetd);
 
   channelTable.appendChild(tr);
+
+  // --- Settings Row ---
+  const settingsTr = document.createElement('tr');
+  settingsTr.classList.add('settings-tr');
+  settingsTr.hidden = true;
+
+  const settingsTd = document.createElement('td');
+  settingsTd.colSpan = 4;
+  settingsTd.className = 'bg-light p-2';
+
+  // Custom Volume Control
+  const volContainer = document.createElement('div');
+  volContainer.className = 'd-flex align-items-center';
+
+  const volCheck = document.createElement('input');
+  volCheck.type = 'checkbox';
+  volCheck.className = 'form-check-input me-2';
+  volCheck.id = `vol-check-${channel.name}`;
+  volCheck.checked = !!channel.enableCustomVolume;
+
+  const volLabel = document.createElement('label');
+  volLabel.className = 'form-check-label me-3 small';
+  volLabel.htmlFor = `vol-check-${channel.name}`;
+  volLabel.textContent = '個別の音量設定';
+
+  const volRange = document.createElement('input');
+  volRange.type = 'range';
+  volRange.className = 'form-range me-2';
+  volRange.style.width = '100px';
+  volRange.min = 0;
+  volRange.max = 100;
+  volRange.value = channel.customVolume !== undefined ? channel.customVolume : 50;
+  volRange.disabled = !volCheck.checked;
+
+  const volValue = document.createElement('span');
+  volValue.className = 'small';
+  volValue.textContent = `${volRange.value}%`;
+
+  // Event Listeners for Volume
+  volCheck.addEventListener('change', () => {
+    channel.enableCustomVolume = volCheck.checked;
+    volRange.disabled = !volCheck.checked;
+    saveChannelToList(channel);
+  });
+
+  volRange.addEventListener('input', () => {
+    volValue.textContent = `${volRange.value}%`;
+  });
+
+  volRange.addEventListener('change', () => {
+    channel.customVolume = parseInt(volRange.value, 10);
+    saveChannelToList(channel);
+  });
+
+  volContainer.appendChild(volCheck);
+  volContainer.appendChild(volLabel);
+  volContainer.appendChild(volRange);
+  volContainer.appendChild(volValue);
+
+  settingsTd.appendChild(volContainer);
+  settingsTr.appendChild(settingsTd);
+
+  channelTable.appendChild(settingsTr);
 }
 
 function removeChannel(channel) {
@@ -272,7 +320,7 @@ addChannelBtn.addEventListener('click', async () => {
 
   // Save the new channel to storage
   saveChannelToList(channel);
-  
+
   // Clear the input field
   channelInput.value = '';
 });
@@ -328,6 +376,7 @@ enableAutoClose.addEventListener('change', () => {
 skipBrandedContent.addEventListener('change', () => {
   chrome.storage.local.set({ isSkipBrandedContent: skipBrandedContent.checked });
 });
+
 
 blockedCategoriesInput.addEventListener('change', () => {
   chrome.storage.local.set({ blockedCategoryNames: blockedCategoriesInput.value });
