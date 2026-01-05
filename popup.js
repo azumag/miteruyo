@@ -10,7 +10,6 @@ const enableAutoClose = document.getElementById('enableAutoClose');
 const tabRotationInterval = document.getElementById('tabRotationInterval');
 const skipBrandedContent = document.getElementById('skipBrandedContent');
 const blockedCategoriesInput = document.getElementById('blockedCategories');
-const categoryVolumesInput = document.getElementById('categoryVolumes');
 
 const loginTwitch = document.getElementById('loginTwitch');
 
@@ -81,9 +80,7 @@ chrome.storage.local.get(
     isEnabledTabMute: false,
     isEnabledAutoClose: false,
     isSkipBrandedContent: false,
-    isSkipBrandedContent: false,
     blockedCategoryNames: '',
-    categoryVolumes: '',
   },
   async (data) => {
     loading.hidden = false;
@@ -96,9 +93,7 @@ chrome.storage.local.get(
     enableTabRotation.checked = data.isEnabledTabRotation;
     enableAutoClose.checked = data.isEnabledAutoClose;
     skipBrandedContent.checked = data.isSkipBrandedContent;
-    skipBrandedContent.checked = data.isSkipBrandedContent;
     blockedCategoriesInput.value = data.blockedCategoryNames;
-    categoryVolumesInput.value = data.categoryVolumes || '';
 
     if (data.oauth_token) {
       const connected = await checkTwitchConnection(data.oauth_token);
@@ -382,10 +377,6 @@ skipBrandedContent.addEventListener('change', () => {
   chrome.storage.local.set({ isSkipBrandedContent: skipBrandedContent.checked });
 });
 
-
-categoryVolumesInput.addEventListener('change', () => {
-  chrome.storage.local.set({ categoryVolumes: categoryVolumesInput.value });
-});
 
 blockedCategoriesInput.addEventListener('change', () => {
   chrome.storage.local.set({ blockedCategoryNames: blockedCategoriesInput.value });
