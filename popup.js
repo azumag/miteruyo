@@ -8,6 +8,8 @@ const enableTabRotation = document.getElementById('enableTabRotation');
 const enableTabMute = document.getElementById('enableTabMute');
 const enableAutoClose = document.getElementById('enableAutoClose');
 const tabRotationInterval = document.getElementById('tabRotationInterval');
+const skipBrandedContent = document.getElementById('skipBrandedContent');
+const blockedCategoriesInput = document.getElementById('blockedCategories');
 
 const loginTwitch = document.getElementById('loginTwitch');
 
@@ -54,6 +56,12 @@ document.addEventListener('DOMContentLoaded', function() {
   // オフラインチャネル自動閉じ
   const enableAutoCloseMessage = chrome.i18n.getMessage('enableAutoClose');
   document.querySelector('label[for="enableAutoClose"]').textContent = enableAutoCloseMessage;
+  // プロモーション配信を開かない
+  const skipBrandedContentMessage = chrome.i18n.getMessage('skipBrandedContent');
+  document.querySelector('label[for="skipBrandedContent"]').textContent = skipBrandedContentMessage;
+  // 開かないカテゴリ
+  const blockedCategoriesMessage = chrome.i18n.getMessage('blockedCategories');
+  document.querySelector('label[for="blockedCategories"]').textContent = blockedCategoriesMessage;
 });
 
 chrome.storage.local.get(
@@ -68,6 +76,8 @@ chrome.storage.local.get(
     isEnabledTabRotation: false,
     isEnabledTabMute: false,
     isEnabledAutoClose: false,
+    isSkipBrandedContent: false,
+    blockedCategoryNames: '',
   },
   async (data) => {
     loading.hidden = false;
@@ -78,7 +88,9 @@ chrome.storage.local.get(
     tabRotationInterval.value = data.tabRotationInterval;
     enableTabMute.checked = data.isEnabledTabMute;
     enableTabRotation.checked = data.isEnabledTabRotation;
-    enableAutoClose.checked = data.isEnabledAutoClose; 
+    enableAutoClose.checked = data.isEnabledAutoClose;
+    skipBrandedContent.checked = data.isSkipBrandedContent;
+    blockedCategoriesInput.value = data.blockedCategoryNames; 
 
     if (data.oauth_token) {
       const connected = await checkTwitchConnection(data.oauth_token);
@@ -126,8 +138,8 @@ async function addChannelToList(channel, newAdded = false) {
     openButton.textContent = channel.onLiveOpen ? 'LIVE' : 'Pause';
     openButton.setAttribute('class', 'btn btn-outline-success btn-sm min-width-');
     openButton.style.width = '60px';
-    openButton.addEventListener('click', (event) => {
-      chrome.tabs.create({ url: twitchDomain + '/' + channel.name });
+    openButton.addEventListener('click', () => {
+      openInManagedWindow(channel.name);
     });
   } else {
     openButton.textContent = channel.onLiveOpen ? 'OFFLINE' : pauseMsg;
@@ -162,8 +174,8 @@ async function addChannelToList(channel, newAdded = false) {
       openButton.textContent = channel.onLiveOpen ? 'LIVE' : pauseMsg;
       openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
       openButton.style.width = '60px';
-      openButton.addEventListener('click', (event) => {
-        chrome.tabs.create({ url: twitchDomain + '/' + channel.name });
+      openButton.addEventListener('click', () => {
+        openInManagedWindow(channel.name);
       });
     } else {
       openButton.textContent = channel.onLiveOpen ? 'OFFLINE' : pauseMsg;
@@ -303,11 +315,22 @@ enableTabMute.addEventListener('change', () => {
 });
 
 tabRotationInterval.addEventListener('change', () => {
-  chrome.storage.local.set({ tabRotationInterval: tabRotationInterval.value });
+  // 最小値を1分に制限
+  const value = Math.max(1, parseInt(tabRotationInterval.value, 10) || 1);
+  tabRotationInterval.value = value;
+  chrome.storage.local.set({ tabRotationInterval: value });
 });
 
 enableAutoClose.addEventListener('change', () => {
   chrome.storage.local.set({ isEnabledAutoClose: enableAutoClose.checked });
+});
+
+skipBrandedContent.addEventListener('change', () => {
+  chrome.storage.local.set({ isSkipBrandedContent: skipBrandedContent.checked });
+});
+
+blockedCategoriesInput.addEventListener('change', () => {
+  chrome.storage.local.set({ blockedCategoryNames: blockedCategoriesInput.value });
 });
 
 liveFilterSwitch.addEventListener('change', async () => {
@@ -466,4 +489,41 @@ function deleteNullChannel() {
 
 function flushAuthToken() {
   chrome.storage.local.set({ oauth_token: null });
+}
+
+// Miteruyoの管理対象ウィンドウでタブを開く
+async function openInManagedWindow(channelName) {
+  const url = twitchDomain + '/' + channelName;
+  const data = await chrome.storage.local.get(['isOpenNewWindow', 'lastOpenWindowId']);
+
+  if (data.isOpenNewWindow) {
+    // 新しいウィンドウで開く設定の場合
+    let windowId = data.lastOpenWindowId;
+
+    // 既存のウィンドウが有効かチェック
+    if (windowId) {
+      try {
+        await chrome.windows.get(windowId);
+      } catch {
+        windowId = null;
+      }
+    }
+
+    if (windowId) {
+      // 既存の管理対象ウィンドウにタブを追加
+      const tab = await chrome.tabs.create({ url, windowId });
+      return tab;
+    } else {
+      // 新しいウィンドウを作成して管理対象に登録
+      const newWindow = await chrome.windows.create({ url });
+      await chrome.storage.local.set({ lastOpenWindowId: newWindow.id });
+      return newWindow.tabs[0];
+    }
+  } else {
+    // 現在のウィンドウで開く
+    const tab = await chrome.tabs.create({ url });
+    // 開いたタブのウィンドウを管理対象に登録
+    await chrome.storage.local.set({ lastOpenWindowId: tab.windowId });
+    return tab;
+  }
 }

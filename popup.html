@@ -76,7 +76,7 @@
                         </div>
                         <div class="col-2"></div>
                         <div class="col-7">
-                          <input type="number" id="tabRotationInterval" class="form-control text-end small-input"/>
+                          <input type="number" id="tabRotationInterval" class="form-control text-end small-input" min="1"/>
                         </div>
                         <div class="col-2 mt-2">
                           分
@@ -98,6 +98,20 @@
                     </td>
                     <td class="text-center">
                       <label for="enableAutoClose">オフラインチャネル自動閉じ</label>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <input type="checkbox" id="skipBrandedContent" class="form-check-input" />
+                    </td>
+                    <td class="text-center">
+                      <label for="skipBrandedContent">プロモーション配信を開かない</label>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" class="p-2">
+                      <label for="blockedCategories" class="form-label small mb-1">開かないカテゴリ（カンマ区切り）</label>
+                      <input type="text" id="blockedCategories" class="form-control form-control-sm" placeholder="Just Chatting, ASMR" />
                     </td>
                   </tr>
                 </tbody>

@@ -43,10 +43,15 @@ Configure via the extension popup:
 - **Enable/Disable**: Toggle the extension on/off
 - **Channels**: Add channels to monitor
 - **Auto-open**: Enable auto-opening when streams go live
-- **Tab Rotation**: Enable and set rotation interval (minutes)
+- **Tab Rotation**: Enable and set rotation interval (1+ minutes)
 - **Tab Muting**: Auto-mute inactive tabs
-- **Auto-close**: Close tabs when streams go offline
+- **Auto-close**: Close tabs when streams go offline (channel pages only)
 - **New Window**: Open streams in new windows instead of current window
+- **Skip Sponsored**: Don't auto-open sponsored/branded content streams
+- **Blocked Categories**: Comma-separated list of categories to not auto-open (e.g., "Just Chatting, ASMR")
+
+### Context Menu
+Right-click on any Twitch channel link to "Open with Miteruyo" - the tab will be managed (rotation, mute, auto-close).
 
 ## Development
 
@@ -177,6 +182,16 @@ Pull requests welcome! Please:
 See LICENSE file (if present)
 
 ## Version History
+
+### v1.1.0
+- **New Features**:
+  - Skip sponsored/branded content streams (is_branded_content filter)
+  - Block specific categories (comma-separated list, e.g., "Just Chatting, ASMR")
+  - Context menu "Open with Miteruyo" for Twitch channel links
+  - Tabs opened from popup button are now managed (rotation, mute, auto-close)
+- **Bug Fixes**:
+  - Tab rotation interval now has a minimum of 1 minute
+  - Auto-close only works for actual channel pages (not directory, settings, etc.)
 
 ### v1.0.12
 - Fix Service Worker polling reliability with proper alarm initialization

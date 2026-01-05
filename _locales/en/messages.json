@@ -42,5 +42,17 @@
 	"pause": {
 		"message": "Pause",
 		"description": "Label for pause button."
+	},
+	"openWithMiteruyo": {
+		"message": "Open with Miteruyo",
+		"description": "Label for context menu."
+	},
+	"skipBrandedContent": {
+		"message": "Skip sponsored streams",
+		"description": "Label for option to skip branded/sponsored content."
+	},
+	"blockedCategories": {
+		"message": "Blocked categories (comma-separated)",
+		"description": "Label for blocked category names input."
 	}
 }

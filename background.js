@@ -4,6 +4,39 @@ const multiTwitchURL = 'https://www.multitwitch.tv/';
 // const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx'; // for prod
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
 
+// Twitchのシステムページ（チャンネルページではないパス）
+const TWITCH_NON_CHANNEL_PATHS = [
+  'directory', 'settings', 'p', 'downloads', 'turbo', 'wallet',
+  'drops', 'inventory', 'search', 'jobs', 'prime', 'subscriptions',
+  'following', 'friends', 'u', 'teams', 'moderator', 'videos',
+  'clips', 'popout', 'embed', 'chat', 'broadcast'
+];
+
+// URLがTwitchのチャンネルページかどうかをチェック
+function isTwitchChannelPage(url) {
+  if (!url || !url.includes('twitch.tv')) return false;
+
+  try {
+    const urlObj = new URL(url);
+    const pathParts = urlObj.pathname.split('/').filter(p => p);
+
+    // パスがない場合はチャンネルページではない
+    if (pathParts.length === 0) return false;
+
+    const firstPath = pathParts[0].toLowerCase();
+
+    // システムページの場合はチャンネルページではない
+    if (TWITCH_NON_CHANNEL_PATHS.includes(firstPath)) return false;
+
+    // チャンネル名として有効かチェック（英数字、アンダースコア、3-25文字）
+    if (!/^[a-z0-9_]{3,25}$/i.test(firstPath)) return false;
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Service Workerの再起動に備えてアラームを確認・作成する関数
 async function ensureAlarmsExist() {
   console.log('ensureAlarmsExist called');
@@ -22,7 +55,8 @@ async function ensureAlarmsExist() {
   if (!tabRotationAlarm) {
     const data = await chrome.storage.local.get('tabRotationInterval');
     if (data.tabRotationInterval) {
-      const interval = parseInt(data.tabRotationInterval, 10);
+      // 最小値を1分に制限
+      const interval = Math.max(1, parseInt(data.tabRotationInterval, 10) || 1);
       console.log('Creating tabRotationAlarm with interval:', interval);
       chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
     }
@@ -41,7 +75,73 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.runtime.onInstalled.addListener((details) => {
   console.log('onInstalled event:', details.reason);
   ensureAlarmsExist();
+
+  // コンテキストメニューを作成
+  chrome.contextMenus.create({
+    id: 'openWithMiteruyo',
+    title: chrome.i18n.getMessage('openWithMiteruyo') || 'Miteruyoで開く',
+    contexts: ['link'],
+    targetUrlPatterns: ['*://*.twitch.tv/*']
+  });
 });
+
+// コンテキストメニューのクリックハンドラ
+chrome.contextMenus.onClicked.addListener(async (info) => {
+  if (info.menuItemId === 'openWithMiteruyo' && info.linkUrl) {
+    // TwitchのURLからチャンネル名を抽出
+    if (!isTwitchChannelPage(info.linkUrl)) {
+      console.log('Not a channel page:', info.linkUrl);
+      return;
+    }
+
+    try {
+      const url = new URL(info.linkUrl);
+      const pathParts = url.pathname.split('/').filter(p => p);
+      if (pathParts.length === 0) return;
+
+      const channelName = pathParts[0];
+      console.log('Opening channel from context menu:', channelName);
+
+      // Miteruyoの管理対象ウィンドウで開く
+      await openInManagedWindow(channelName);
+    } catch (error) {
+      console.error('Error opening from context menu:', error);
+    }
+  }
+});
+
+// Miteruyoの管理対象ウィンドウでタブを開く
+async function openInManagedWindow(channelName) {
+  const url = twitchDomain + '/' + channelName;
+  const data = await chrome.storage.local.get(['isOpenNewWindow', 'lastOpenWindowId']);
+
+  if (data.isOpenNewWindow) {
+    // 新しいウィンドウで開く設定の場合
+    let windowId = data.lastOpenWindowId;
+
+    // 既存のウィンドウが有効かチェック
+    if (windowId) {
+      const windowExists = await checkWindowExists(windowId);
+      if (!windowExists) {
+        windowId = null;
+      }
+    }
+
+    if (windowId) {
+      // 既存の管理対象ウィンドウにタブを追加
+      await chrome.tabs.create({ url, windowId });
+    } else {
+      // 新しいウィンドウを作成して管理対象に登録
+      const newWindow = await chrome.windows.create({ url });
+      await chrome.storage.local.set({ lastOpenWindowId: newWindow.id });
+    }
+  } else {
+    // 現在のウィンドウで開く
+    const tab = await chrome.tabs.create({ url });
+    // 開いたタブのウィンドウを管理対象に登録
+    await chrome.storage.local.set({ lastOpenWindowId: tab.windowId });
+  }
+}
 
 // Service Worker起動時にもアラームを確認（フォールバック）
 ensureAlarmsExist();
@@ -56,13 +156,13 @@ chrome.alarms.onAlarm.addListener(function (alarm) {
 });
 
 // tab Rotation Interval が変更されたときにアラームの間隔を更新
-chrome.storage.onChanged.addListener((changes, namespace) => {
+chrome.storage.onChanged.addListener((changes) => {
   for (let key in changes) {
     if (key === 'tabRotationInterval') {
       // アラームを一度削除
       chrome.alarms.clear('tabRotationAlarm');
-      // 新しい間隔でアラームを作成
-      const interval = parseInt(changes[key].newValue, 10);
+      // 新しい間隔でアラームを作成（最小値1分）
+      const interval = Math.max(1, parseInt(changes[key].newValue, 10) || 1);
       chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
     }
   }
@@ -252,7 +352,8 @@ async function closeOfflineTabs(channels) {
   const tabs = await chrome.tabs.query({ windowId: targetWindowId });
 
   for (const tab of tabs) {
-    if (!tab.url || !tab.url.includes('twitch.tv')) continue;
+    // チャンネルページ以外（directoryなど）はスキップ
+    if (!isTwitchChannelPage(tab.url)) continue;
 
     try {
       const url = new URL(tab.url);
@@ -275,6 +376,37 @@ async function closeOfflineTabs(channels) {
 async function channelQueuedStreamsInMultiTwitch() {
 }
 
+// チャンネルを開くべきかどうかをチェック
+async function shouldOpenChannel(channel) {
+  if (!channel.onLive || !channel.onLiveOpen) return false;
+
+  // プロモーション配信フィルター
+  const skipBranded = (await chrome.storage.local.get('isSkipBrandedContent')).isSkipBrandedContent;
+  console.log('shouldOpenChannel check:', {
+    channel: channel.name,
+    skipBranded,
+    is_branded_content: channel.is_branded_content,
+    typeof_branded: typeof channel.is_branded_content
+  });
+  if (skipBranded && channel.is_branded_content === true) {
+    console.log('Skipping branded content:', channel.name);
+    return false;
+  }
+
+  // カテゴリフィルター（カテゴリ名で比較）
+  const blockedCategoryNames = (await chrome.storage.local.get('blockedCategoryNames')).blockedCategoryNames || '';
+  if (blockedCategoryNames && channel.game_name) {
+    // カンマ区切りの文字列を配列に変換し、小文字で比較
+    const blockedList = blockedCategoryNames.split(',').map(c => c.trim().toLowerCase()).filter(c => c);
+    if (blockedList.includes(channel.game_name.toLowerCase())) {
+      console.log('Skipping blocked category:', channel.name, channel.game_name);
+      return false;
+    }
+  }
+
+  return true;
+}
+
 async function channelQueuedStreams(channelQueue) {
   const isOpenNewWindow = (await chrome.storage.local.get('isOpenNewWindow')).isOpenNewWindow;
   console.log('channelQueueStreams', { isOpenNewWindow });
@@ -283,7 +415,7 @@ async function channelQueuedStreams(channelQueue) {
     let currentWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
 
     for (const channel of channelQueue) {
-      if (channel.onLive && channel.onLiveOpen) {
+      if (await shouldOpenChannel(channel)) {
         console.log('channelQueueStreams', { currentWindowId });
 
         // 現在のウィンドウIDが有効かチェック
@@ -311,7 +443,7 @@ async function channelQueuedStreams(channelQueue) {
     }
   } else {
     for (const channel of channelQueue) {
-      if (channel.onLive && channel.onLiveOpen) {
+      if (await shouldOpenChannel(channel)) {
         openTabIfNotExists(channel);
       }
     }
@@ -396,14 +528,17 @@ async function checkOfflineWithTab(tabId) {
   const tabUrl = (await getTabUrl(tabId));
 
   console.log('check offline', tabUrl);
-  if (!tabUrl.includes('twitch')) {
-    console.log('tab is not twitch', tabUrl);
-    return;
+
+  // チャンネルページ以外（directory、settingsなど）は閉じない
+  if (!isTwitchChannelPage(tabUrl)) {
+    console.log('tab is not a channel page', tabUrl);
+    return false;
   }
 
-  let channelName;
-  const splittedUrl = tabUrl.split('/');
-  channelName = splittedUrl[splittedUrl.length - 1].split('?')[0];
+  // URLからチャンネル名を抽出
+  const urlObj = new URL(tabUrl);
+  const pathParts = urlObj.pathname.split('/').filter(p => p);
+  const channelName = pathParts[0].split('?')[0];
   console.log('channelName', channelName);
 
   const accessToken = (await chrome.storage.local.get('oauth_token')).oauth_token.oauth_token;
@@ -467,15 +602,38 @@ async function checkStream(channel, oauth_token) {
     }
 
     if (data.data.length > 0) {
-      console.log('online', data.data[0]);
       const stream = data.data[0];
+
+      // /helix/channels から is_branded_content を取得
+      // (/helix/streams にはこのフィールドがないため)
+      let is_branded_content = false;
+      try {
+        const channelInfoUrl = `https://api.twitch.tv/helix/channels?broadcaster_id=${stream.user_id}`;
+        const channelResponse = await fetch(channelInfoUrl, options);
+        if (channelResponse.ok) {
+          const channelData = await channelResponse.json();
+          if (channelData.data && channelData.data.length > 0) {
+            is_branded_content = channelData.data[0].is_branded_content === true;
+          }
+        }
+      } catch (error) {
+        console.error(`checkStream: Error fetching channel info for ${channel.name}:`, error);
+      }
+
+      console.log('online', channel.name, {
+        is_branded_content,
+        game_name: stream.game_name
+      });
+
       return {
         ...channel,
         onLive: true,
         game_name: stream.game_name,
+        game_id: stream.game_id,
         tags: stream.tags,
         title: stream.title,
         viewer_count: stream.viewer_count,
+        is_branded_content,
         status: 'online',
         lastChecked: Date.now()
       };

@@ -42,5 +42,17 @@
 	"pause": {
 		"message": "停止",
 		"description": "停止ボタンのラベル"
+	},
+	"openWithMiteruyo": {
+		"message": "Miteruyoで開く",
+		"description": "コンテキストメニューのラベル"
+	},
+	"skipBrandedContent": {
+		"message": "プロモーション配信を開かない",
+		"description": "プロモーション配信をスキップするオプションのラベル"
+	},
+	"blockedCategories": {
+		"message": "開かないカテゴリ（カンマ区切り）",
+		"description": "ブロックするカテゴリ名のラベル"
 	}
 }
