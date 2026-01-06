@@ -264,6 +264,8 @@ async function addChannelToList(channel, newAdded = false) {
   const volCheck = document.createElement('input');
   volCheck.type = 'checkbox';
   volCheck.className = 'form-check-input me-2';
+  volCheck.style.width = '1.2em';
+  volCheck.style.height = '1.2em';
   volCheck.id = `vol-check-${channel.name}`;
   volCheck.checked = !!channel.enableCustomVolume;
 
@@ -276,9 +278,6 @@ async function addChannelToList(channel, newAdded = false) {
   volRange.type = 'range';
   volRange.className = 'form-range me-2';
   volRange.style.width = '100px';
-  // Ensure background is visible - sometimes in tables or specific themes it gets lost
-  // volRange.style.backgroundColor = '#dee2e6';
-  // volRange.style.height = '4px'; // Explicit height for track
 
   volRange.min = 0;
   volRange.max = 100;
@@ -288,30 +287,34 @@ async function addChannelToList(channel, newAdded = false) {
   volValue.className = 'small';
   volValue.textContent = `${volRange.value}%`;
 
+  // Spinner for applying state
+  const volSpinner = document.createElement('div');
+  volSpinner.className = 'spinner-border spinner-border-sm text-primary me-2';
+  volSpinner.style.display = 'none';
+  volSpinner.setAttribute('role', 'status');
+
   // Apply initial volume state
   toggleState(volCheck.checked, [volRange, volLabel, volValue]);
 
-  // Volume applying indicator
-  const volIndicator = document.createElement('span');
-  volIndicator.className = 'ms-2 small text-primary fade';
-  volIndicator.textContent = '適用中...';
-  volIndicator.style.transition = 'opacity 0.5s';
-  volIndicator.style.opacity = '0';
   // Append volume UI elements to container
   volContainer.appendChild(volCheck);
   volContainer.appendChild(volLabel);
+  volContainer.appendChild(volSpinner);
   volContainer.appendChild(volRange);
   volContainer.appendChild(volValue);
-  volContainer.appendChild(volIndicator);
 
   settingsTd.appendChild(volContainer);
 
   let volTimer;
   const showApplying = () => {
-    volIndicator.style.opacity = '1';
+    volRange.style.display = 'none';
+    volValue.style.display = 'none';
+    volSpinner.style.display = 'inline-block';
     clearTimeout(volTimer);
     volTimer = setTimeout(() => {
-      volIndicator.style.opacity = '0';
+      volSpinner.style.display = 'none';
+      volRange.style.display = '';
+      volValue.style.display = '';
     }, 2000);
   };
 
