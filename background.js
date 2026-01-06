@@ -381,7 +381,13 @@ async function shouldOpenChannel(channel) {
   if (!channel.onLive || !channel.onLiveOpen) return false;
 
   // プロモーション配信フィルター
-  const skipBranded = (await chrome.storage.local.get('isSkipBrandedContent')).isSkipBrandedContent;
+  let skipBranded = (await chrome.storage.local.get('isSkipBrandedContent')).isSkipBrandedContent;
+
+  // Check per-channel priority for Skip Branded
+  if (channel.enablePrioritySkipBranded) {
+    skipBranded = channel.skipBranded;
+  }
+
   console.log('shouldOpenChannel check:', {
     channel: channel.name,
     skipBranded,
@@ -394,7 +400,13 @@ async function shouldOpenChannel(channel) {
   }
 
   // カテゴリフィルター（カテゴリ名で比較）
-  const blockedCategoryNames = (await chrome.storage.local.get('blockedCategoryNames')).blockedCategoryNames || '';
+  let blockedCategoryNames = (await chrome.storage.local.get('blockedCategoryNames')).blockedCategoryNames || '';
+
+  // Check per-channel priority for Blocked Categories
+  if (channel.enablePriorityBlockedCategories) {
+    blockedCategoryNames = channel.blockedCategories || '';
+  }
+
   if (blockedCategoryNames && channel.game_name) {
     // カンマ区切りの文字列を配列に変換し、小文字で比較（\, はエスケープとして扱う）
     const blockedList = blockedCategoryNames

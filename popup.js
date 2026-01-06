@@ -130,6 +130,7 @@ async function addChannelToList(channel, newAdded = false) {
   const pauseMsg = chrome.i18n.getMessage('pause');
 
   const tr = document.createElement('tr');
+  tr.className = 'align-middle'; // Ensure vertical centering
   tr.classList.add('channel-tr');
 
   // 1. Live Status & On/Off Switch
@@ -248,9 +249,17 @@ async function addChannelToList(channel, newAdded = false) {
   settingsTd.colSpan = 3;
   settingsTd.className = 'bg-light p-2';
 
+  // Function to toggle opacity/disabled state
+  const toggleState = (isEnabled, elements) => {
+    elements.forEach(el => {
+      if ('disabled' in el) el.disabled = !isEnabled;
+      el.style.opacity = isEnabled ? '1' : '0.5';
+    });
+  };
+
   // Custom Volume Control
   const volContainer = document.createElement('div');
-  volContainer.className = 'd-flex align-items-center';
+  volContainer.className = 'd-flex align-items-center mb-3';
 
   const volCheck = document.createElement('input');
   volCheck.type = 'checkbox';
@@ -267,20 +276,51 @@ async function addChannelToList(channel, newAdded = false) {
   volRange.type = 'range';
   volRange.className = 'form-range me-2';
   volRange.style.width = '100px';
+  // Ensure background is visible - sometimes in tables or specific themes it gets lost
+  // volRange.style.backgroundColor = '#dee2e6';
+  // volRange.style.height = '4px'; // Explicit height for track
+
   volRange.min = 0;
   volRange.max = 100;
   volRange.value = channel.customVolume !== undefined ? channel.customVolume : 50;
-  volRange.disabled = !volCheck.checked;
 
   const volValue = document.createElement('span');
   volValue.className = 'small';
   volValue.textContent = `${volRange.value}%`;
 
+  // Apply initial volume state
+  toggleState(volCheck.checked, [volRange, volLabel, volValue]);
+
+  // Volume applying indicator
+  const volIndicator = document.createElement('span');
+  volIndicator.className = 'ms-2 small text-primary fade';
+  volIndicator.textContent = '適用中...';
+  volIndicator.style.transition = 'opacity 0.5s';
+  volIndicator.style.opacity = '0';
+  // Append volume UI elements to container
+  volContainer.appendChild(volCheck);
+  volContainer.appendChild(volLabel);
+  volContainer.appendChild(volRange);
+  volContainer.appendChild(volValue);
+  volContainer.appendChild(volIndicator);
+
+  settingsTd.appendChild(volContainer);
+
+  let volTimer;
+  const showApplying = () => {
+    volIndicator.style.opacity = '1';
+    clearTimeout(volTimer);
+    volTimer = setTimeout(() => {
+      volIndicator.style.opacity = '0';
+    }, 2000);
+  };
+
   // Event Listeners for Volume
   volCheck.addEventListener('change', () => {
     channel.enableCustomVolume = volCheck.checked;
-    volRange.disabled = !volCheck.checked;
+    toggleState(volCheck.checked, [volRange, volLabel, volValue]);
     saveChannelToList(channel);
+    if (volCheck.checked) showApplying();
   });
 
   volRange.addEventListener('input', () => {
@@ -290,14 +330,150 @@ async function addChannelToList(channel, newAdded = false) {
   volRange.addEventListener('change', () => {
     channel.customVolume = parseInt(volRange.value, 10);
     saveChannelToList(channel);
+    showApplying();
   });
 
-  volContainer.appendChild(volCheck);
-  volContainer.appendChild(volLabel);
-  volContainer.appendChild(volRange);
-  volContainer.appendChild(volValue);
+  // New Settings Table
+  const settingsTable = document.createElement('table');
+  settingsTable.className = 'table table-sm table-bordered mb-0 mt-3 align-middle bg-white'; // Added table-bordered and bg-white
 
-  settingsTd.appendChild(volContainer);
+  // Header
+  const thead = document.createElement('thead');
+  const theadTr = document.createElement('tr');
+  const thBlank = document.createElement('th');
+  // thBlank.style.borderBottom = '1px solid #dee2e6'; // Handled by table-bordered
+
+  const thPriority = document.createElement('th');
+  thPriority.style.width = '60px'; // Slightly wider for icon
+  thPriority.className = 'text-center small';
+  // thPriority.style.borderBottom = '1px solid #dee2e6'; // Handled by table-bordered
+
+  const priorityLabel = document.createElement('span');
+  priorityLabel.textContent = '優先 ';
+
+  const helpIcon = document.createElement('i');
+  helpIcon.className = 'bi bi-question-circle-fill text-muted';
+  helpIcon.style.cursor = 'help';
+  helpIcon.title = '全体設定より個別設定を優先する';
+
+  thPriority.appendChild(priorityLabel);
+  thPriority.appendChild(helpIcon);
+
+  theadTr.appendChild(thBlank);
+  theadTr.appendChild(thPriority);
+  thead.appendChild(theadTr);
+  settingsTable.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+
+  // Skip Branded Row
+  const brandedTr = document.createElement('tr');
+  // brandedTr.style.borderBottom = '1px solid #dee2e6'; // Handled by table-bordered
+  const brandedTdInput = document.createElement('td');
+  // brandedTdInput.style.border = 'none';
+  const brandedTdPriority = document.createElement('td');
+  brandedTdPriority.className = 'text-center align-middle';
+  // brandedTdPriority.style.border = 'none';
+
+  const brandedCheckDiv = document.createElement('div');
+  brandedCheckDiv.className = 'd-flex align-items-center'; // Keep in one line if possible
+  const brandedCheck = document.createElement('input');
+  brandedCheck.type = 'checkbox';
+  brandedCheck.className = 'form-check-input me-2';
+  brandedCheck.id = `skipBranded-${channel.name}`;
+  brandedCheck.checked = !!channel.skipBranded;
+  const brandedLabel = document.createElement('label');
+  brandedLabel.className = 'form-check-label small';
+  brandedLabel.htmlFor = `skipBranded-${channel.name}`;
+  brandedLabel.textContent = 'PR配信を開かない';
+
+  brandedCheckDiv.appendChild(brandedCheck);
+  brandedCheckDiv.appendChild(brandedLabel);
+  brandedTdInput.appendChild(brandedCheckDiv);
+
+  const brandedPriority = document.createElement('input');
+  brandedPriority.type = 'checkbox';
+  brandedPriority.className = 'form-check-input';
+  brandedPriority.checked = !!channel.enablePrioritySkipBranded;
+  brandedTdPriority.appendChild(brandedPriority);
+
+  brandedTr.appendChild(brandedTdInput);
+  brandedTr.appendChild(brandedTdPriority);
+  tbody.appendChild(brandedTr);
+
+  // Function to save branded settings
+  const updateBrandedState = () => {
+    toggleState(brandedPriority.checked, [brandedCheck, brandedLabel]);
+  };
+  // Initial state
+  updateBrandedState();
+
+  const saveBrandedSettings = () => {
+    channel.skipBranded = brandedCheck.checked;
+    channel.enablePrioritySkipBranded = brandedPriority.checked;
+    updateBrandedState();
+    saveChannelToList(channel);
+  };
+  brandedCheck.addEventListener('change', saveBrandedSettings);
+  brandedPriority.addEventListener('change', saveBrandedSettings);
+
+  // Blocked Categories Row
+  const catTr = document.createElement('tr');
+  // catTr.style.borderBottom = '1px solid #dee2e6'; // Handled by table-bordered
+  const catTdInput = document.createElement('td');
+  // catTdInput.style.border = 'none';
+  const catTdPriority = document.createElement('td');
+  catTdPriority.className = 'text-center align-middle';
+  // catTdPriority.style.border = 'none';
+
+  // Label
+  const catLabel = document.createElement('label');
+  catLabel.className = 'form-label small mb-1';
+  catLabel.htmlFor = `blockedCats-${channel.name}`;
+  catLabel.textContent = '開かないカテゴリ';
+
+  // Input
+  const catInput = document.createElement('input');
+  catInput.type = 'text';
+  catInput.id = `blockedCats-${channel.name}`;
+  catInput.className = 'form-control form-control-sm';
+  catInput.placeholder = 'カテゴリ名 (カンマ区切り)';
+  catInput.value = channel.blockedCategories || '';
+
+  const catInputGroup = document.createElement('div');
+  catInputGroup.appendChild(catLabel);
+  catInputGroup.appendChild(catInput);
+
+  catTdInput.appendChild(catInputGroup);
+
+  const catPriority = document.createElement('input');
+  catPriority.type = 'checkbox';
+  catPriority.className = 'form-check-input';
+  catPriority.checked = !!channel.enablePriorityBlockedCategories;
+  catTdPriority.appendChild(catPriority);
+
+  catTr.appendChild(catTdInput);
+  catTr.appendChild(catTdPriority);
+  tbody.appendChild(catTr);
+
+  // Function to save category settings
+  const updateCatState = () => {
+    toggleState(catPriority.checked, [catInput, catLabel]);
+  };
+  // Initial state
+  updateCatState();
+
+  const saveCatSettings = () => {
+    channel.blockedCategories = catInput.value;
+    channel.enablePriorityBlockedCategories = catPriority.checked;
+    updateCatState();
+    saveChannelToList(channel);
+  };
+  catInput.addEventListener('change', saveCatSettings);
+  catPriority.addEventListener('change', saveCatSettings);
+
+  settingsTable.appendChild(tbody);
+  settingsTd.appendChild(settingsTable);
   settingsTr.appendChild(settingsTd);
 
   channelTable.appendChild(settingsTr);
