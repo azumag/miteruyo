@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', function () {
   document.querySelector('label[for="enableTabRotation"]').textContent = enableTabRotationMessage;
   // 分
   const minutesMessage = chrome.i18n.getMessage('minutes');
-  document.querySelector('div.col-2.mt-2').textContent = minutesMessage;
+  document.getElementById('rotationUnit').textContent = minutesMessage;
   // 非アクティブタブ自動ミュート
   const enableTabMuteMessage = chrome.i18n.getMessage('enableTabMute');
   document.querySelector('label[for="enableTabMute"]').textContent = enableTabMuteMessage;
@@ -132,12 +132,17 @@ async function addChannelToList(channel, newAdded = false) {
   const tr = document.createElement('tr');
   tr.classList.add('channel-tr');
 
-  // 1. Live Status / Open Button
-  const liveStatus = document.createElement('td');
-  tr.appendChild(liveStatus);
+  // 1. Live Status & On/Off Switch
+  const statusTd = document.createElement('td');
+  statusTd.classList.add('pe-0'); // Remove right padding
+  const statusContainer = document.createElement('div');
+  statusContainer.className = 'd-flex align-items-center gap-1';
+  statusTd.appendChild(statusContainer);
+  tr.appendChild(statusTd);
 
   const openButton = document.createElement('button');
-  liveStatus.appendChild(openButton);
+  statusContainer.appendChild(openButton);
+
   if (channel.onLive) {
     openButton.textContent = channel.onLiveOpen ? 'LIVE' : 'Pause';
     openButton.setAttribute('class', 'btn btn-outline-success btn-sm min-width-');
@@ -155,18 +160,18 @@ async function addChannelToList(channel, newAdded = false) {
     openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
   }
 
-  // 2. On/Off Switch
-  const onliveswitchtd = document.createElement('td');
+  // On/Off Switch
   const onLiveOpenSwitch = document.createElement('button');
   const pauseIcon = document.createElement('i');
   onLiveOpenSwitch.setAttribute('class', channel.onLiveOpen ? 'btn btn-outline-primary btn-sm' : 'btn btn-outline-danger btn-sm');
   pauseIcon.setAttribute('class', channel.onLiveOpen ? 'bi bi-pause' : 'bi bi-play');
   onLiveOpenSwitch.appendChild(pauseIcon);
+
   onLiveOpenSwitch.addEventListener('click', () => {
     channel.onLiveOpen = !channel.onLiveOpen;
     pauseIcon.setAttribute('class', channel.onLiveOpen ? 'bi bi-pause' : 'bi bi-play');
     onLiveOpenSwitch.setAttribute('class', channel.onLiveOpen ? 'btn btn-outline-primary btn-sm' : 'btn btn-outline-danger btn-sm');
-    saveChannelToList(channel); // create dedicated save function or use saveChannelToList
+    saveChannelToList(channel);
 
     if (channel.onLive) {
       openButton.textContent = channel.onLiveOpen ? 'LIVE' : pauseMsg;
@@ -180,21 +185,24 @@ async function addChannelToList(channel, newAdded = false) {
       openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
     }
   });
+
   if (channel.status !== 'error') {
-    onliveswitchtd.appendChild(onLiveOpenSwitch);
+    statusContainer.appendChild(onLiveOpenSwitch);
   }
-  tr.appendChild(onliveswitchtd);
 
   // 3. Channel Name
   const cntd = document.createElement('td');
+  // Essential for text-overflow in table cells
+  cntd.style.maxWidth = '0';
+  cntd.style.width = '100%';
+  cntd.style.whiteSpace = 'nowrap';
+  cntd.style.overflow = 'hidden';
+  cntd.style.textOverflow = 'ellipsis';
+
   const channelNameTag = document.createElement('span');
   channelNameTag.textContent = channel.name;
+  channelNameTag.title = channel.name; // Tooltip
   cntd.appendChild(channelNameTag);
-  // if (channel.onLive && channel.title) {
-  //   const desc = document.createElement('div');
-  //   desc.textContent = channel.title;
-  //   cntd.appendChild(desc);
-  // }
   tr.appendChild(cntd);
 
   // 4. Actions (Settings & Delete)
@@ -237,7 +245,7 @@ async function addChannelToList(channel, newAdded = false) {
   settingsTr.hidden = true;
 
   const settingsTd = document.createElement('td');
-  settingsTd.colSpan = 4;
+  settingsTd.colSpan = 3;
   settingsTd.className = 'bg-light p-2';
 
   // Custom Volume Control
