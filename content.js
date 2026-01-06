@@ -13,24 +13,41 @@ async function applyVolumeSettings() {
   const channelName = getChannelNameFromUrl();
   if (!channelName) return;
 
-  const data = await chrome.storage.local.get(['channels']);
-  const channels = data.channels || [];
-
-  // 現在のチャンネル情報を探す
-  const channelInfo = channels.find(c => c.name.toLowerCase() === channelName.toLowerCase());
-
-  let targetVolume = null;
-
-  if (channelInfo) {
-    // 1. チャンネル個別の設定を確認
-    if (channelInfo.enableCustomVolume && channelInfo.customVolume !== undefined) {
-      targetVolume = parseInt(channelInfo.customVolume, 10);
-      console.log(`[Miteruyo] Applying channel volume: ${targetVolume}`);
-    }
+  // 拡張機能のコンテキストが無効になっている場合は停止
+  if (!chrome.runtime?.id) {
+    if (typeof volumeInterval !== 'undefined') clearInterval(volumeInterval);
+    return;
   }
 
-  if (targetVolume !== null) {
-    setVideoVolume(targetVolume);
+  try {
+    const data = await chrome.storage.local.get(['channels']);
+    const channels = data.channels || [];
+
+    // 現在のチャンネル情報を探す
+    const channelInfo = channels.find(c => c.name.toLowerCase() === channelName.toLowerCase());
+
+    let targetVolume = null;
+
+    if (channelInfo) {
+      // 1. チャンネル個別の設定を確認
+      if (channelInfo.enableCustomVolume && channelInfo.customVolume !== undefined) {
+        targetVolume = parseInt(channelInfo.customVolume, 10);
+        console.log(`[Miteruyo] Applying channel volume: ${targetVolume}`);
+      }
+    }
+
+    if (targetVolume !== null) {
+      setVideoVolume(targetVolume);
+    }
+  } catch (error) {
+    if (error.message.includes('Extension context invalidated')) {
+      console.log('[Miteruyo] Extension context invalidated. Stopping script.');
+      // 拡張機能が再読み込みされた場合など、このスクリプトはもう用済みなので停止する
+      // 必要であれば interval をクリアするなどの処理を追加
+      if (volumeInterval) clearInterval(volumeInterval);
+      return;
+    }
+    console.error('[Miteruyo] Error:', error);
   }
 }
 
@@ -62,4 +79,4 @@ new MutationObserver(() => {
 setTimeout(applyVolumeSettings, 1000);
 
 // 定期的にチェック（プレイヤーが後からロードされる場合など）
-setInterval(applyVolumeSettings, 5000);
+const volumeInterval = setInterval(applyVolumeSettings, 5000);

@@ -35,10 +35,14 @@
             <span class="visually-hidden">Loading...</span>
           </div>
         </div>
-        <table id="channelTable" class="table table-striped" style="min-width: 300px">
+        <table id="channelTable" class="table table-striped" style="min-width: 300px; table-layout: fixed;">
+          <colgroup>
+            <col style="width: 98px;">
+            <col style="width: auto;">
+            <col style="width: 60px;">
+          </colgroup>
           <thead>
             <tr>
-              <th scope="col"></th>
               <th scope="col"></th>
               <th scope="col"></th>
               <th scope="col"></th>
@@ -60,48 +64,48 @@
               <table id="tbl" class="table table-striped mb-0 pb-0">
                 <tbody>
                   <tr>
-                    <td scope="col">
-                      <input type="checkbox" id="openNewWindow" class="form-check-input" />
-                    </td>
-                    <td class="text-center">
-                      <label for="openNewWindow" class="form-check-label">新しいウィンドウで開く</label>
+                    <td colspan="2">
+                      <div class="d-flex align-items-center">
+                        <input type="checkbox" id="openNewWindow" class="form-check-input me-2" />
+                        <label for="openNewWindow" class="form-check-label small mb-0">新しいウィンドウで開く</label>
+                      </div>
                     </td>
                   </tr>
                   <tr>
-                    <td colspan="2" class="p-2">
+                    <td colspan="2">
                       <div class="d-flex align-items-center mb-1">
                         <input type="checkbox" id="enableTabRotation" class="form-check-input me-2" />
                         <label for="enableTabRotation" class="form-check-label small mb-0">複数タブ自動切り替え</label>
                       </div>
                       <div class="d-flex align-items-center ps-4">
-                        <input type="number" id="tabRotationInterval" class="form-control form-control-sm text-end me-1"
-                          style="width: 80px;" min="1" />
-                        <span class="small">分</span>
+                        <input type="number" id="tabRotationInterval"
+                          class="form-control form-control-sm text-end me-1 flex-grow-1" min="1" />
+                        <span id="rotationUnit" class="small">分</span>
                       </div>
                     </td>
                   </tr>
                   <tr>
-                    <td>
-                      <input type="checkbox" id="enableTabMute" class="form-check-input" />
-                    </td>
-                    <td class="text-center">
-                      <label for="enableTabMute">非アクティブタブ自動ミュート</label>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <input type="checkbox" id="enableAutoClose" class="form-check-input" />
-                    </td>
-                    <td class="text-center">
-                      <label for="enableAutoClose">オフラインチャネル自動閉じ</label>
+                    <td colspan="2">
+                      <div class="d-flex align-items-center">
+                        <input type="checkbox" id="enableTabMute" class="form-check-input me-2" />
+                        <label for="enableTabMute" class="form-check-label small mb-0">非アクティブタブ自動ミュート</label>
+                      </div>
                     </td>
                   </tr>
                   <tr>
-                    <td>
-                      <input type="checkbox" id="skipBrandedContent" class="form-check-input" />
+                    <td colspan="2">
+                      <div class="d-flex align-items-center">
+                        <input type="checkbox" id="enableAutoClose" class="form-check-input me-2" />
+                        <label for="enableAutoClose" class="form-check-label small mb-0">オフラインチャネル自動閉じ</label>
+                      </div>
                     </td>
-                    <td class="text-center">
-                      <label for="skipBrandedContent">プロモーション配信を開かない</label>
+                  </tr>
+                  <tr>
+                    <td colspan="2">
+                      <div class="d-flex align-items-center">
+                        <input type="checkbox" id="skipBrandedContent" class="form-check-input me-2" />
+                        <label for="skipBrandedContent" class="form-check-label small mb-0">プロモーション配信を開かない</label>
+                      </div>
                     </td>
                   </tr>
                   <tr>
