@@ -312,6 +312,40 @@ async function addChannelToList(channel, newAdded = false) {
 
   settingsTd.appendChild(volContainer);
 
+  // Volume timer and applying indicator
+  let volTimer;
+  const showApplying = () => {
+    volRange.style.display = 'none';
+    volValue.style.display = 'none';
+    volSpinner.style.display = 'inline-block';
+    volApplyingText.style.display = 'inline';
+    clearTimeout(volTimer);
+    volTimer = setTimeout(() => {
+      volSpinner.style.display = 'none';
+      volApplyingText.style.display = 'none';
+      volRange.style.display = '';
+      volValue.style.display = '';
+    }, 2000);
+  };
+
+  // Event Listeners for Volume
+  volCheck.addEventListener('change', () => {
+    channel.enableCustomVolume = volCheck.checked;
+    toggleState(volCheck.checked, [volRange, volValue]);
+    saveChannelToList(channel);
+    if (volCheck.checked) showApplying();
+  });
+
+  volRange.addEventListener('input', () => {
+    volValue.textContent = `${volRange.value}%`;
+  });
+
+  volRange.addEventListener('change', () => {
+    channel.customVolume = parseInt(volRange.value, 10);
+    saveChannelToList(channel);
+    showApplying();
+  });
+
   // Add separator after volume
   const volSeparator = document.createElement('hr');
   volSeparator.className = 'my-2';
