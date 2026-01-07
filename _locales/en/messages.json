@@ -54,5 +54,14 @@
 	"blockedCategories": {
 		"message": "Blocked categories (comma-separated)",
 		"description": "Label for blocked category names input."
+	},
+	"confirmDelete": {
+		"message": "Are you sure you want to delete $channel$?",
+		"description": "Confirmation message when deleting a channel",
+		"placeholders": {
+			"channel": {
+				"content": "$1"
+			}
+		}
 	}
 }

@@ -7,38 +7,38 @@
 		"message": "追加",
 		"description": "チャンネルを追加します。"
 	},
-  "enableOpen": {
+	"enableOpen": {
 		"message": "自動で開く",
 		"description": "自動で開くかどうかを設定します。"
 	},
 	"showOnlyLive": {
-    "message": "配信中のみ表示",
-    "description": "配信中のチャンネルのみを表示するオプションのラベル"
-  },
+		"message": "配信中のみ表示",
+		"description": "配信中のチャンネルのみを表示するオプションのラベル"
+	},
 	"settings": {
-    "message": "設定",
-    "description": ""
-  },
+		"message": "設定",
+		"description": ""
+	},
 	"openNewWindow": {
-    "message": "新しいウィンドウで開く",
-    "description": "新しいウィンドウで開くオプションのラベル"
-  },
-  "enableTabRotation": {
-    "message": "複数タブ自動切り替え",
-    "description": "複数タブを自動で切り替えるオプションのラベル"
-  },
-  "minutes": {
-    "message": "分",
-    "description": "時間の単位（分）"
-  },
-  "enableTabMute": {
-    "message": "非アクティブタブ自動ミュート",
-    "description": "非アクティブなタブを自動的にミュートするオプションのラベル"
-  },
-  "enableAutoClose": {
-    "message": "オフラインチャネル自動閉じ",
-    "description": "オフラインのチャネルを自動的に閉じるオプションのラベル"
-  },
+		"message": "新しいウィンドウで開く",
+		"description": "新しいウィンドウで開くオプションのラベル"
+	},
+	"enableTabRotation": {
+		"message": "複数タブ自動切り替え",
+		"description": "複数タブを自動で切り替えるオプションのラベル"
+	},
+	"minutes": {
+		"message": "分",
+		"description": "時間の単位（分）"
+	},
+	"enableTabMute": {
+		"message": "非アクティブタブ自動ミュート",
+		"description": "非アクティブなタブを自動的にミュートするオプションのラベル"
+	},
+	"enableAutoClose": {
+		"message": "オフラインチャネル自動閉じ",
+		"description": "オフラインのチャネルを自動的に閉じるオプションのラベル"
+	},
 	"pause": {
 		"message": "停止",
 		"description": "停止ボタンのラベル"
@@ -54,5 +54,14 @@
 	"blockedCategories": {
 		"message": "開かないカテゴリ（カンマ区切り）",
 		"description": "ブロックするカテゴリ名のラベル"
+	},
+	"confirmDelete": {
+		"message": "$channel$を削除してもよろしいですか？",
+		"description": "チャンネル削除の確認メッセージ",
+		"placeholders": {
+			"channel": {
+				"content": "$1"
+			}
+		}
 	}
 }

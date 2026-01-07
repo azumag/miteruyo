@@ -426,13 +426,16 @@ async function addChannelToList(channel, newAdded = false) {
   removeButton.className = 'bi bi-trash';
   removeButton.style.cursor = 'pointer';
   removeButton.addEventListener('click', () => {
-    // Remove settings row if exists
-    const nextRow = tr.nextSibling;
-    if (nextRow && nextRow.classList.contains('settings-tr')) {
-      nextRow.remove();
+    const confirmMessage = chrome.i18n.getMessage('confirmDelete', channel.name);
+    if (window.confirm(confirmMessage)) {
+      // Remove settings row if exists
+      const nextRow = tr.nextSibling;
+      if (nextRow && nextRow.classList.contains('settings-tr')) {
+        nextRow.remove();
+      }
+      tr.remove();
+      removeChannel(channel);
     }
-    tr.remove();
-    removeChannel(channel);
   });
   removetd.appendChild(removeButton);
   tr.appendChild(removetd);
