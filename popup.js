@@ -433,40 +433,98 @@ async function addChannelToList(channel, newAdded = false) {
   allowLabelDiv.appendChild(allowHelpIcon);
   allowContainer.appendChild(allowLabelDiv);
 
-  const allowSelectDiv = document.createElement('div');
-  allowSelectDiv.className = 'ps-3';
+  const allowContentDiv = document.createElement('div');
+  allowContentDiv.className = 'ps-3';
 
-  const allowSelect = document.createElement('select');
-  allowSelect.className = 'form-select form-select-sm';
-  allowSelect.multiple = true;
-  allowSelect.id = `allowCats-${channel.name}`;
-  allowSelect.style.height = '80px';
+  // Tag list container
+  const allowTagList = document.createElement('div');
+  allowTagList.className = 'd-flex flex-wrap gap-1 mb-1';
 
-  // Populate from global blocked categories
-  chrome.storage.local.get('blockedCategoryNames', (data) => {
-    const globalBlocked = data.blockedCategoryNames || '';
-    if (globalBlocked.trim()) {
-      const categories = globalBlocked.replace(/\\,/g, '__M_COMMA__').split(',').map(c => c.replace(/__M_COMMA__/g, ',').trim()).filter(c => c);
-      const currentAllowed = channel.allowedCategories || [];
-      categories.forEach(cat => {
-        const option = document.createElement('option');
-        option.value = cat;
-        option.textContent = cat;
-        option.selected = currentAllowed.includes(cat);
-        allowSelect.appendChild(option);
+  // Dropdown for adding
+  const allowDropdown = document.createElement('select');
+  allowDropdown.className = 'form-select form-select-sm';
+  allowDropdown.id = `allowCats-dropdown-${channel.name}`;
+
+  const defaultOption = document.createElement('option');
+  defaultOption.value = '';
+  defaultOption.textContent = '追加...';
+  defaultOption.disabled = true;
+  defaultOption.selected = true;
+  allowDropdown.appendChild(defaultOption);
+
+  // Current allowed categories
+  let currentAllowed = channel.allowedCategories || [];
+
+  // Function to render the tag list
+  const renderAllowTags = () => {
+    allowTagList.innerHTML = '';
+    currentAllowed.forEach(cat => {
+      const tag = document.createElement('span');
+      tag.className = 'badge bg-success d-flex align-items-center';
+      tag.textContent = cat;
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'btn-close btn-close-white ms-1';
+      deleteBtn.style.fontSize = '0.6em';
+      deleteBtn.addEventListener('click', () => {
+        currentAllowed = currentAllowed.filter(c => c !== cat);
+        channel.allowedCategories = currentAllowed;
+        saveChannelToList(channel);
+        renderAllowTags();
+        updateDropdownOptions();
       });
+
+      tag.appendChild(deleteBtn);
+      allowTagList.appendChild(tag);
+    });
+  };
+
+  // Function to update dropdown options
+  const updateDropdownOptions = () => {
+    // Clear existing options except the first one
+    while (allowDropdown.options.length > 1) {
+      allowDropdown.remove(1);
+    }
+
+    chrome.storage.local.get('blockedCategoryNames', (data) => {
+      const globalBlocked = data.blockedCategoryNames || '';
+      if (globalBlocked.trim()) {
+        const categories = globalBlocked.replace(/\\,/g, '__M_COMMA__').split(',').map(c => c.replace(/__M_COMMA__/g, ',').trim()).filter(c => c);
+        categories.forEach(cat => {
+          if (!currentAllowed.includes(cat)) {
+            const option = document.createElement('option');
+            option.value = cat;
+            option.textContent = cat;
+            allowDropdown.appendChild(option);
+          }
+        });
+      }
+      // Reset to default option
+      allowDropdown.selectedIndex = 0;
+    });
+  };
+
+  // Handle dropdown selection
+  allowDropdown.addEventListener('change', () => {
+    const selected = allowDropdown.value;
+    if (selected && !currentAllowed.includes(selected)) {
+      currentAllowed.push(selected);
+      channel.allowedCategories = currentAllowed;
+      saveChannelToList(channel);
+      renderAllowTags();
+      updateDropdownOptions();
     }
   });
 
-  allowSelectDiv.appendChild(allowSelect);
-  allowContainer.appendChild(allowSelectDiv);
-  settingsTd.appendChild(allowContainer);
+  // Initial render
+  renderAllowTags();
+  updateDropdownOptions();
 
-  const saveAllowSettings = () => {
-    channel.allowedCategories = Array.from(allowSelect.selectedOptions).map(o => o.value);
-    saveChannelToList(channel);
-  };
-  allowSelect.addEventListener('change', saveAllowSettings);
+  allowContentDiv.appendChild(allowTagList);
+  allowContentDiv.appendChild(allowDropdown);
+  allowContainer.appendChild(allowContentDiv);
+  settingsTd.appendChild(allowContainer);
 
   // Add separator after Allow Categories
   const allowSeparator = document.createElement('hr');
