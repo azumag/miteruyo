@@ -425,15 +425,16 @@ async function shouldOpenChannel(channel) {
 
   // Normalize to {id, name} format if old string array
   globalBlockedList = globalBlockedList.map(item =>
-    typeof item === 'string' ? { id: null, name: item } : item
-  );
+    typeof item === 'string' ? { id: null, name: item } : (item || { id: null, name: '' })
+  ).filter(item => item.name);
 
   const channelBlockedList = (channel.blockedCategoryList || []).map(item =>
-    typeof item === 'string' ? { id: null, name: item } : item
-  );
+    typeof item === 'string' ? { id: null, name: item } : (item || { id: null, name: '' })
+  ).filter(item => item.name);
+
   const allowedCategoryList = (channel.allowedCategoryList || channel.allowedCategories || []).map(item =>
-    typeof item === 'string' ? { id: null, name: item } : item
-  );
+    typeof item === 'string' ? { id: null, name: item } : (item || { id: null, name: '' })
+  ).filter(item => item.name);
 
   // Combine both global and channel-specific blocked categories
   const combinedBlockedList = [...globalBlockedList, ...channelBlockedList];
