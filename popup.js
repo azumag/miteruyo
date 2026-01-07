@@ -918,10 +918,15 @@ async function addChannelToList(channel, newAdded = false) {
   renderAllowTags();
   updateDropdownOptions();
 
-  // Listen for global settings changes to update dropdown
+  // Listen for global settings changes to update dropdown and UI state
   const storageChangeListener = (changes, areaName) => {
-    if (areaName === 'local' && changes.blockedCategoryList) {
-      updateDropdownOptions();
+    if (areaName === 'local') {
+      if (changes.blockedCategoryList) {
+        updateDropdownOptions();
+      }
+      if (changes.allowedOnlyCategoryList) {
+        updateChannelCategoryUIState();
+      }
     }
   };
   chrome.storage.onChanged.addListener(storageChangeListener);
