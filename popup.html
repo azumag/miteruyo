@@ -132,13 +132,18 @@
                 </tbody>
               </table>
             </div>
-            <div class="mt-2 ps-2 mb-2">
+            <div class="mt-2 ps-2 mb-1">
               <div class="form-check form-switch d-flex align-items-center">
                 <input class="form-check-input" type="checkbox" role="switch" id="enableNotifications">
                 <label class="form-check-label mb-0 ms-2" for="enableNotifications">配信開始時にデスクトップ通知</label>
                 <i id="notificationHelpIcon" class="bi bi-question-circle ms-1 text-muted" data-bs-toggle="tooltip"
                   data-bs-placement="top" title=""></i>
               </div>
+            </div>
+            <div class="mb-2 pe-3 text-end">
+              <button id="aboutBtn" class="btn btn-link btn-sm text-decoration-none text-muted p-0">
+                <i class="bi bi-info-circle"></i> <span id="aboutLabel">About</span>
+              </button>
             </div>
           </div>
         </div>
@@ -150,6 +155,35 @@
       Login Twitch
     </button>
   </div>
+  <!-- About Modal -->
+  <div class="modal fade" id="aboutModal" tabindex="-1" aria-labelledby="aboutModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header py-2">
+          <h5 class="modal-title fs-6" id="aboutModalLabel">Miteruyo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body small">
+          <div class="mb-2">
+            <strong>Miteruyo</strong> <span id="aboutVersion"></span>
+          </div>
+          <div class="mb-3">
+            <a href="https://github.com/azumag/miteruyo" target="_blank" class="text-decoration-none"
+              id="githubLinkLabel">
+              <i class="bi bi-github"></i> GitHub Repository
+            </a>
+          </div>
+          <div class="bg-light p-2 rounded">
+            <p class="mb-1" id="supportMessageLabel">If you like this extension, please consider supporting me!</p>
+            <a href="https://ofuse.me/8fe1bedb" target="_blank" class="btn btn-danger btn-sm w-100">
+              <i class="bi bi-heart-fill"></i> OFUSE
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="popup.js"></script>
 </body>

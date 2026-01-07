@@ -14,6 +14,7 @@ const blockedCategoriesSearchContainer = document.getElementById('blockedCategor
 
 const loginTwitch = document.getElementById('loginTwitch');
 const enableNotifications = document.getElementById('enableNotifications');
+const aboutBtn = document.getElementById('aboutBtn');
 
 const liveFilterSwitch = document.getElementById('liveFilterSwitch');
 
@@ -187,6 +188,27 @@ document.addEventListener('DOMContentLoaded', function () {
   // 配信開始時にデスクトップ通知
   const enableNotificationsMessage = chrome.i18n.getMessage('enableNotifications');
   document.querySelector('label[for="enableNotifications"]').textContent = enableNotificationsMessage;
+
+  // Aboutラベル
+  const aboutLabel = document.getElementById('aboutLabel');
+  if (aboutLabel) aboutLabel.textContent = chrome.i18n.getMessage('about');
+
+  // モーダル内の多言語対応
+  const aboutModalLabel = document.getElementById('aboutModalLabel');
+  if (aboutModalLabel) aboutModalLabel.textContent = chrome.i18n.getMessage('about');
+
+  const githubLinkLabel = document.getElementById('githubLinkLabel');
+  if (githubLinkLabel) githubLinkLabel.innerHTML = `<i class="bi bi-github"></i> ${chrome.i18n.getMessage('githubLink')}`;
+
+  const supportMessageLabel = document.getElementById('supportMessageLabel');
+  if (supportMessageLabel) supportMessageLabel.textContent = chrome.i18n.getMessage('supportMessage');
+
+  // バージョン情報の設定
+  const aboutVersion = document.getElementById('aboutVersion');
+  if (aboutVersion) {
+    const manifest = chrome.runtime.getManifest();
+    aboutVersion.textContent = `v${manifest.version}`;
+  }
 
   // 通知ヘルプアイコン
   const notificationHelpIcon = document.getElementById('notificationHelpIcon');
@@ -1072,6 +1094,13 @@ openNewWindow.addEventListener('change', () => {
 if (enableNotifications) {
   enableNotifications.addEventListener('change', () => {
     chrome.storage.local.set({ isEnabledNotifications: enableNotifications.checked });
+  });
+}
+
+if (aboutBtn) {
+  aboutBtn.addEventListener('click', () => {
+    const aboutModal = new bootstrap.Modal(document.getElementById('aboutModal'));
+    aboutModal.show();
   });
 }
 
