@@ -51,6 +51,10 @@
 		"message": "Skip sponsored streams",
 		"description": "Label for option to skip branded/sponsored content."
 	},
+	"allowedOnlyCategories": {
+		"message": "Open only these categories",
+		"description": "Label for allowed-only categories setting"
+	},
 	"blockedCategories": {
 		"message": "Blocked categories",
 		"description": "Label for blocked category names input."

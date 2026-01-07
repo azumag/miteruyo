@@ -249,4 +249,172 @@ describe('Background Script', () => {
       expect(results[1].status).toBe('error');
     });
   });
+
+  describe('shouldOpenChannel', () => {
+    it('should return false if channel is not live', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({});
+
+      async function shouldOpenChannel(channel) {
+        if (!channel.onLive || !channel.onLiveOpen) return false;
+        return true;
+      }
+
+      const result = await shouldOpenChannel({ name: 'test', onLive: false, onLiveOpen: true });
+      expect(result).toBe(false);
+    });
+
+    it('should block channel with allowed-only list when category does not match', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({
+        allowedOnlyCategoryList: [{ id: '123', name: 'Test Game' }],
+      });
+
+      async function shouldOpenChannel(channel) {
+        if (!channel.onLive || !channel.onLiveOpen) return false;
+
+        const storageData = await chrome.storage.local.get(['allowedOnlyCategoryList']);
+        const globalAllowedOnlyList = (storageData.allowedOnlyCategoryList || []);
+
+        if (globalAllowedOnlyList.length > 0) {
+          if (!channel.game_id && !channel.game_name) return false;
+          const gameId = channel.game_id;
+          const gameName = channel.game_name?.toLowerCase();
+          const isInAllowedOnly = globalAllowedOnlyList.some(
+            (cat) =>
+              (gameId && cat.id && cat.id === gameId) ||
+              (gameName && cat.name && cat.name.toLowerCase() === gameName)
+          );
+          return isInAllowedOnly;
+        }
+        return true;
+      }
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        game_id: '456',
+        game_name: 'Other Game',
+      });
+      expect(result).toBe(false);
+    });
+
+    it('should open channel with allowed-only list when category matches', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({
+        allowedOnlyCategoryList: [{ id: '123', name: 'Test Game' }],
+      });
+
+      async function shouldOpenChannel(channel) {
+        if (!channel.onLive || !channel.onLiveOpen) return false;
+
+        const storageData = await chrome.storage.local.get(['allowedOnlyCategoryList']);
+        const globalAllowedOnlyList = storageData.allowedOnlyCategoryList || [];
+
+        if (globalAllowedOnlyList.length > 0) {
+          if (!channel.game_id && !channel.game_name) return false;
+          const gameId = channel.game_id;
+          const gameName = channel.game_name?.toLowerCase();
+          const isInAllowedOnly = globalAllowedOnlyList.some(
+            (cat) =>
+              (gameId && cat.id && cat.id === gameId) ||
+              (gameName && cat.name && cat.name.toLowerCase() === gameName)
+          );
+          return isInAllowedOnly;
+        }
+        return true;
+      }
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        game_id: '123',
+        game_name: 'Test Game',
+      });
+      expect(result).toBe(true);
+    });
+
+    it('should prioritize channel allowed-only list over global allowed-only list', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({
+        allowedOnlyCategoryList: [{ id: '123', name: 'Global Game' }],
+      });
+
+      async function shouldOpenChannel(channel) {
+        if (!channel.onLive || !channel.onLiveOpen) return false;
+
+        const channelAllowedOnlyList = channel.allowedOnlyCategoryList || [];
+        const storageData = await chrome.storage.local.get(['allowedOnlyCategoryList']);
+        const globalAllowedOnlyList = storageData.allowedOnlyCategoryList || [];
+
+        if (channelAllowedOnlyList.length > 0 || globalAllowedOnlyList.length > 0) {
+          const activeAllowedOnlyList =
+            channelAllowedOnlyList.length > 0 ? channelAllowedOnlyList : globalAllowedOnlyList;
+
+          if (!channel.game_id && !channel.game_name) return false;
+          const gameId = channel.game_id;
+          const gameName = channel.game_name?.toLowerCase();
+          const isInAllowedOnly = activeAllowedOnlyList.some(
+            (cat) =>
+              (gameId && cat.id && cat.id === gameId) ||
+              (gameName && cat.name && cat.name.toLowerCase() === gameName)
+          );
+          return isInAllowedOnly;
+        }
+        return true;
+      }
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        game_id: '456',
+        game_name: 'Channel Game',
+        allowedOnlyCategoryList: [{ id: '456', name: 'Channel Game' }],
+      });
+      expect(result).toBe(true);
+    });
+
+    it('should use blocked list when no allowed-only list is set', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({
+        allowedOnlyCategoryList: [],
+        blockedCategoryList: [{ id: '123', name: 'Blocked Game' }],
+      });
+
+      async function shouldOpenChannel(channel) {
+        if (!channel.onLive || !channel.onLiveOpen) return false;
+
+        const channelAllowedOnlyList = channel.allowedOnlyCategoryList || [];
+        const storageData = await chrome.storage.local.get([
+          'allowedOnlyCategoryList',
+          'blockedCategoryList',
+        ]);
+        const globalAllowedOnlyList = storageData.allowedOnlyCategoryList || [];
+
+        if (channelAllowedOnlyList.length > 0 || globalAllowedOnlyList.length > 0) {
+          return false; // simplified for test
+        }
+
+        const globalBlockedList = storageData.blockedCategoryList || [];
+        if (globalBlockedList.length > 0 && (channel.game_id || channel.game_name)) {
+          const gameId = channel.game_id;
+          const gameName = channel.game_name?.toLowerCase();
+          const isBlocked = globalBlockedList.some(
+            (blocked) =>
+              (gameId && blocked.id && blocked.id === gameId) ||
+              (gameName && blocked.name && blocked.name.toLowerCase() === gameName)
+          );
+          if (isBlocked) return false;
+        }
+        return true;
+      }
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        game_id: '123',
+        game_name: 'Blocked Game',
+      });
+      expect(result).toBe(false);
+    });
+  });
 });

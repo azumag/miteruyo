@@ -51,6 +51,10 @@
 		"message": "プロモーション配信を開かない",
 		"description": "プロモーション配信をスキップするオプションのラベル"
 	},
+	"allowedOnlyCategories": {
+		"message": "このカテゴリだけを開く",
+		"description": "特定カテゴリのみを開く設定のラベル"
+	},
 	"blockedCategories": {
 		"message": "開かないカテゴリ",
 		"description": "ブロックするカテゴリ名のラベル"
