@@ -381,15 +381,24 @@ async function shouldOpenChannel(channel) {
   if (!channel.onLive || !channel.onLiveOpen) return false;
 
   // プロモーション配信フィルター
-  let skipBranded = (await chrome.storage.local.get('isSkipBrandedContent')).isSkipBrandedContent;
+  // New: Use per-channel brandedContentSetting ('open', 'block', 'global')
+  const brandedSetting = channel.brandedContentSetting || 'global';
+  let skipBranded;
 
-  // Check per-channel priority for Skip Branded
-  if (channel.enablePrioritySkipBranded) {
-    skipBranded = channel.skipBranded;
+  if (brandedSetting === 'open') {
+    // Always allow branded content for this channel
+    skipBranded = false;
+  } else if (brandedSetting === 'block') {
+    // Always block branded content for this channel
+    skipBranded = true;
+  } else {
+    // Follow global setting
+    skipBranded = (await chrome.storage.local.get('isSkipBrandedContent')).isSkipBrandedContent;
   }
 
   console.log('shouldOpenChannel check:', {
     channel: channel.name,
+    brandedSetting,
     skipBranded,
     is_branded_content: channel.is_branded_content,
     typeof_branded: typeof channel.is_branded_content

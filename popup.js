@@ -312,6 +312,61 @@ async function addChannelToList(channel, newAdded = false) {
 
   settingsTd.appendChild(volContainer);
 
+  // --- Branded Content Settings ---
+  const brandedContainer = document.createElement('div');
+  brandedContainer.className = 'mb-1';
+
+  const brandedLabel = document.createElement('div');
+  brandedLabel.className = 'small mb-1';
+  brandedLabel.textContent = 'PR配信';
+  brandedContainer.appendChild(brandedLabel);
+
+  const brandedRadioGroup = document.createElement('div');
+  brandedRadioGroup.className = 'ps-3'; // Slight indentation
+
+  const createBrandedRadio = (id, value, labelText) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'form-check mb-1';
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.className = 'form-check-input';
+    input.name = `branded-${channel.name}`;
+    input.id = `branded-${id}-${channel.name}`;
+    input.value = value;
+    const label = document.createElement('label');
+    label.className = 'form-check-label small';
+    label.htmlFor = `branded-${id}-${channel.name}`;
+    label.textContent = labelText;
+    wrapper.appendChild(input);
+    wrapper.appendChild(label);
+    return { wrapper, input };
+  };
+
+  const { wrapper: openWrapper, input: radioOpenInput } = createBrandedRadio('open', 'open', '開く');
+  const { wrapper: blockWrapper, input: radioBlockInput } = createBrandedRadio('block', 'block', '開かない');
+  const { wrapper: globalWrapper, input: radioGlobalInput } = createBrandedRadio('global', 'global', '全体設定に従う');
+
+  const brandedSetting = channel.brandedContentSetting || 'global';
+  if (brandedSetting === 'open') radioOpenInput.checked = true;
+  else if (brandedSetting === 'block') radioBlockInput.checked = true;
+  else radioGlobalInput.checked = true;
+
+  brandedRadioGroup.appendChild(openWrapper);
+  brandedRadioGroup.appendChild(blockWrapper);
+  brandedRadioGroup.appendChild(globalWrapper);
+  brandedContainer.appendChild(brandedRadioGroup);
+  settingsTd.appendChild(brandedContainer);
+
+  const saveBrandedSettings = () => {
+    if (radioOpenInput.checked) channel.brandedContentSetting = 'open';
+    else if (radioBlockInput.checked) channel.brandedContentSetting = 'block';
+    else channel.brandedContentSetting = 'global';
+    saveChannelToList(channel);
+  };
+  radioOpenInput.addEventListener('change', saveBrandedSettings);
+  radioBlockInput.addEventListener('change', saveBrandedSettings);
+  radioGlobalInput.addEventListener('change', saveBrandedSettings);
+
   let volTimer;
   const showApplying = () => {
     volRange.style.display = 'none';
@@ -385,53 +440,7 @@ async function addChannelToList(channel, newAdded = false) {
 
   const tbody = document.createElement('tbody');
 
-  // Skip Branded Row
-  const brandedTr = document.createElement('tr');
-  // brandedTr.style.borderBottom = '1px solid #dee2e6'; // Handled by table-bordered
-  const brandedTdInput = document.createElement('td');
-  // brandedTdInput.style.border = 'none';
-  const brandedTdPriority = document.createElement('td');
-  brandedTdPriority.className = 'text-center align-middle';
-  // brandedTdPriority.style.border = 'none';
-
-  const brandedCheckDiv = document.createElement('div');
-  brandedCheckDiv.className = 'd-flex align-items-center justify-content-between form-switch';
-
-  const brandedLabel = document.createElement('label');
-  brandedLabel.className = 'form-check-label small ms-0';
-  brandedLabel.htmlFor = `skipBranded-${channel.name}`;
-  brandedLabel.textContent = 'PR配信を開かない';
-
-  const brandedCheck = document.createElement('input');
-  brandedCheck.type = 'checkbox';
-  brandedCheck.className = 'form-check-input';
-  brandedCheck.role = 'switch';
-  brandedCheck.id = `skipBranded-${channel.name}`;
-  brandedCheck.checked = !!channel.skipBranded;
-  brandedCheck.style.transform = 'scale(0.8)';
-
-  brandedCheckDiv.appendChild(brandedLabel);
-  brandedCheckDiv.appendChild(brandedCheck);
-  brandedTdInput.appendChild(brandedCheckDiv);
-
-  const brandedPriority = document.createElement('input');
-  brandedPriority.type = 'checkbox';
-  brandedPriority.className = 'form-check-input';
-  brandedPriority.checked = !!channel.enablePrioritySkipBranded;
-  brandedTdPriority.appendChild(brandedPriority);
-
-  brandedTr.appendChild(brandedTdInput);
-  brandedTr.appendChild(brandedTdPriority);
-  tbody.appendChild(brandedTr);
-
-  // Function to save branded settings
-  const saveBrandedSettings = () => {
-    channel.skipBranded = brandedCheck.checked;
-    channel.enablePrioritySkipBranded = brandedPriority.checked;
-    saveChannelToList(channel);
-  };
-  brandedCheck.addEventListener('change', saveBrandedSettings);
-  brandedPriority.addEventListener('change', saveBrandedSettings);
+  // Blocked Categories Row (Only category settings remain in table)
 
   // Blocked Categories Row
   const catTr = document.createElement('tr');
