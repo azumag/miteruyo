@@ -69,8 +69,12 @@
 		"description": "Context menu item to add a channel to Miteruyo"
 	},
 	"enableNotifications": {
-		"message": "Desktop Notifications",
+		"message": "Desktop notifications when streaming starts",
 		"description": "Global settings label for desktop notifications"
+	},
+	"notificationHelp": {
+		"message": "If notifications do not appear, please check your OS and Chrome settings.",
+		"description": "Help tooltip for notification settings"
 	},
 	"notificationTitle": {
 		"message": "Stream Live!",

@@ -69,8 +69,12 @@
 		"description": "チャンネルをMiteruyoに追加するコンテキストメニュー項目"
 	},
 	"enableNotifications": {
-		"message": "デスクトップ通知を出す",
+		"message": "配信開始時にデスクトップ通知",
 		"description": "全体設定のデスクトップ通知ラベル"
+	},
+	"notificationHelp": {
+		"message": "通知が出ない場合はOSとchromeの設定を確認してください",
+		"description": "通知設定のヘルプツールチップ"
 	},
 	"notificationTitle": {
 		"message": "配信開始！",

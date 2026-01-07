@@ -184,9 +184,16 @@ document.addEventListener('DOMContentLoaded', function () {
   const blockedCategoriesMessage = chrome.i18n.getMessage('blockedCategories');
   document.getElementById('blockedCategoriesLabel').textContent = blockedCategoriesMessage;
 
-  // デスクトップ通知を出す
+  // 配信開始時にデスクトップ通知
   const enableNotificationsMessage = chrome.i18n.getMessage('enableNotifications');
   document.querySelector('label[for="enableNotifications"]').textContent = enableNotificationsMessage;
+
+  // 通知ヘルプアイコン
+  const notificationHelpIcon = document.getElementById('notificationHelpIcon');
+  if (notificationHelpIcon) {
+    const notificationHelpMessage = chrome.i18n.getMessage('notificationHelp');
+    notificationHelpIcon.setAttribute('title', notificationHelpMessage);
+  }
 
   // ウィンドウ高さが600px未満なら設定アコーディオンを開く
   if (window.innerHeight < 600) {
@@ -197,6 +204,12 @@ document.addEventListener('DOMContentLoaded', function () {
       }).show();
     }
   }
+
+  // Tooltipの初期化
+  const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+  tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+  });
 });
 
 // Global state for blocked categories (array of {id, name} objects)

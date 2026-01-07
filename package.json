@@ -1,6 +1,6 @@
 {
   "name": "miteruyo",
-  "version": "1.8.0",
+  "version": "1.8.3",
   "description": "Twitch stream monitoring Chrome extension",
   "type": "module",
   "scripts": {
