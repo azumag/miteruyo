@@ -413,16 +413,9 @@ async function addChannelToList(channel, newAdded = false) {
   tbody.appendChild(brandedTr);
 
   // Function to save branded settings
-  const updateBrandedState = () => {
-    toggleState(brandedPriority.checked, [brandedCheck, brandedLabel]);
-  };
-  // Initial state
-  updateBrandedState();
-
   const saveBrandedSettings = () => {
     channel.skipBranded = brandedCheck.checked;
     channel.enablePrioritySkipBranded = brandedPriority.checked;
-    updateBrandedState();
     saveChannelToList(channel);
   };
   brandedCheck.addEventListener('change', saveBrandedSettings);
@@ -468,16 +461,9 @@ async function addChannelToList(channel, newAdded = false) {
   tbody.appendChild(catTr);
 
   // Function to save category settings
-  const updateCatState = () => {
-    toggleState(catPriority.checked, [catInput, catLabel]);
-  };
-  // Initial state
-  updateCatState();
-
   const saveCatSettings = () => {
     channel.blockedCategories = catInput.value;
     channel.enablePriorityBlockedCategories = catPriority.checked;
-    updateCatState();
     saveChannelToList(channel);
   };
   catInput.addEventListener('change', saveCatSettings);
