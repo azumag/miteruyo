@@ -441,8 +441,6 @@ async function addChannelToList(channel, newAdded = false) {
   const tbody = document.createElement('tbody');
 
   // Blocked Categories Row (Only category settings remain in table)
-
-  // Blocked Categories Row
   const catTr = document.createElement('tr');
   // catTr.style.borderBottom = '1px solid #dee2e6'; // Handled by table-bordered
   const catTdInput = document.createElement('td');
