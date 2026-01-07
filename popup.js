@@ -345,19 +345,21 @@ async function addChannelToList(channel, newAdded = false) {
 
   if (channel.onLive) {
     openButton.textContent = channel.onLiveOpen ? 'LIVE' : 'Pause';
-    openButton.setAttribute('class', 'btn btn-outline-success btn-sm min-width-');
-    openButton.style.width = '60px';
+    openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
+    openButton.style.width = '72px';
     openButton.addEventListener('click', () => {
       openInManagedWindow(channel.name);
     });
   } else {
     openButton.textContent = channel.onLiveOpen ? 'OFFLINE' : pauseMsg;
     openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
+    openButton.style.width = '72px';
   }
 
   if (channel.status === 'error') {
     openButton.textContent = 'NOT FOUND';
     openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
+    openButton.style.width = '72px';
   }
 
   // On/Off Switch
@@ -376,13 +378,14 @@ async function addChannelToList(channel, newAdded = false) {
     if (channel.onLive) {
       openButton.textContent = channel.onLiveOpen ? 'LIVE' : pauseMsg;
       openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
-      openButton.style.width = '60px';
+      openButton.style.width = '72px';
       openButton.addEventListener('click', () => {
         openInManagedWindow(channel.name);
       });
     } else {
       openButton.textContent = channel.onLiveOpen ? 'OFFLINE' : pauseMsg;
       openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
+      openButton.style.width = '72px';
     }
   });
 
