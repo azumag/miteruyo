@@ -535,7 +535,7 @@ async function addChannelToList(channel, newAdded = false) {
 
   volRange.min = 0;
   volRange.max = 100;
-  volRange.value = channel.customVolume !== undefined ? channel.customVolume : 50;
+  volRange.value = channel.customVolume !== undefined ? channel.customVolume : 100;
 
   const volValue = document.createElement('span');
   volValue.className = 'small';
@@ -578,7 +578,7 @@ async function addChannelToList(channel, newAdded = false) {
       volApplyingText.style.display = 'none';
       volRange.style.display = '';
       volValue.style.display = '';
-    }, 2000);
+    }, 5000);
   };
 
   // Event Listeners for Volume
