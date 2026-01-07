@@ -289,9 +289,14 @@ async function addChannelToList(channel, newAdded = false) {
 
   // Spinner for applying state
   const volSpinner = document.createElement('div');
-  volSpinner.className = 'spinner-border spinner-border-sm text-primary me-2';
+  volSpinner.className = 'spinner-border spinner-border-sm text-primary me-1';
   volSpinner.style.display = 'none';
   volSpinner.setAttribute('role', 'status');
+
+  const volApplyingText = document.createElement('span');
+  volApplyingText.className = 'small text-primary me-2';
+  volApplyingText.textContent = '適用中...';
+  volApplyingText.style.display = 'none';
 
   // Apply initial volume state
   toggleState(volCheck.checked, [volRange, volLabel, volValue]);
@@ -300,6 +305,7 @@ async function addChannelToList(channel, newAdded = false) {
   volContainer.appendChild(volCheck);
   volContainer.appendChild(volLabel);
   volContainer.appendChild(volSpinner);
+  volContainer.appendChild(volApplyingText);
   volContainer.appendChild(volRange);
   volContainer.appendChild(volValue);
 
@@ -310,9 +316,11 @@ async function addChannelToList(channel, newAdded = false) {
     volRange.style.display = 'none';
     volValue.style.display = 'none';
     volSpinner.style.display = 'inline-block';
+    volApplyingText.style.display = 'inline';
     clearTimeout(volTimer);
     volTimer = setTimeout(() => {
       volSpinner.style.display = 'none';
+      volApplyingText.style.display = 'none';
       volRange.style.display = '';
       volValue.style.display = '';
     }, 2000);
