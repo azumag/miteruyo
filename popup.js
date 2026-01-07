@@ -224,6 +224,17 @@ document.addEventListener('DOMContentLoaded', function () {
     notificationHelpIcon.setAttribute('title', notificationHelpMessage);
   }
 
+  // カテゴリ設定のヘルプアイコン
+  const allowedOnlyCategoriesHelpIcon = document.getElementById('allowedOnlyCategoriesHelpIcon');
+  if (allowedOnlyCategoriesHelpIcon) {
+    allowedOnlyCategoriesHelpIcon.setAttribute('data-bs-title', chrome.i18n.getMessage('allowedOnlyCategoriesHelp'));
+  }
+
+  const blockedCategoriesHelpIcon = document.getElementById('blockedCategoriesHelpIcon');
+  if (blockedCategoriesHelpIcon) {
+    blockedCategoriesHelpIcon.setAttribute('data-bs-title', chrome.i18n.getMessage('blockedCategoriesHelp'));
+  }
+
   // ウィンドウ高さが600px未満なら設定アコーディオンを開く
   if (window.innerHeight < 600) {
     const collapseConfig = document.getElementById('collapseConfig');
@@ -764,7 +775,7 @@ async function addChannelToList(channel, newAdded = false) {
   notifyRadioGroup.appendChild(notifyOffWrapper);
 
   notifyContainer.appendChild(notifyRadioGroup);
-  settingsTd.appendChild(notifyContainer);
+  // notifyContainer will be appended later in correct order
 
   const notifyChangeHandler = () => {
     if (notifyGlobalInput.checked) channel.notificationSetting = 'global';
@@ -776,27 +787,27 @@ async function addChannelToList(channel, newAdded = false) {
   notifyOnInput.addEventListener('change', notifyChangeHandler);
   notifyOffInput.addEventListener('change', notifyChangeHandler);
 
-  // Add separator after PR settings
-  const prSeparator = document.createElement('hr');
-  prSeparator.className = 'my-2';
-  settingsTd.appendChild(prSeparator);
+  // Separator after notification settings
+  const notifySeparator = document.createElement('hr');
+  notifySeparator.className = 'my-2';
+  // notifySeparator will be appended later in correct order
 
   // --- Allow Categories Settings (override global blocked) ---
   const allowContainer = document.createElement('div');
   allowContainer.className = 'mb-1';
 
   const allowLabelDiv = document.createElement('div');
-  allowLabelDiv.className = 'd-flex align-items-center mb-1';
+  allowLabelDiv.className = 'd-flex justify-content-between align-items-center mb-1';
 
   const allowLabel = document.createElement('span');
   allowLabel.className = 'small';
-  allowLabel.textContent = '開くカテゴリ';
+  allowLabel.textContent = '全体除外の例外';
 
   const allowHelpIcon = document.createElement('i');
-  allowHelpIcon.className = 'bi bi-question-circle-fill text-muted ms-1';
+  allowHelpIcon.className = 'bi bi-question-circle-fill text-muted';
   allowHelpIcon.style.cursor = 'help';
   allowHelpIcon.setAttribute('data-bs-toggle', 'tooltip');
-  allowHelpIcon.setAttribute('data-bs-title', '全体設定で設定した除外カテゴリのうち、個別に開くカテゴリ');
+  allowHelpIcon.setAttribute('data-bs-title', '全体設定で除外したカテゴリのうち、このチャンネルでのみ開きたいカテゴリ');
   new bootstrap.Tooltip(allowHelpIcon, { trigger: 'hover click' });
 
   allowLabelDiv.appendChild(allowLabel);
@@ -918,29 +929,24 @@ async function addChannelToList(channel, newAdded = false) {
   allowContentDiv.appendChild(allowTagList);
   allowContentDiv.appendChild(allowDropdown);
   allowContainer.appendChild(allowContentDiv);
-  settingsTd.appendChild(allowContainer);
-
-  // Add separator after Allow Categories
-  const allowSeparator = document.createElement('hr');
-  allowSeparator.className = 'my-2';
-  settingsTd.appendChild(allowSeparator);
+  // allowContainer will be appended later in correct order
 
   // --- Allowed-Only Categories Settings (individual) ---
   const allowedOnlyContainer = document.createElement('div');
   allowedOnlyContainer.className = 'mb-1';
 
   const allowedOnlyLabelDiv = document.createElement('div');
-  allowedOnlyLabelDiv.className = 'd-flex align-items-center mb-1';
+  allowedOnlyLabelDiv.className = 'd-flex justify-content-between align-items-center mb-1';
 
   const allowedOnlyLabel = document.createElement('span');
   allowedOnlyLabel.className = 'small';
   allowedOnlyLabel.textContent = 'このカテゴリだけを開く';
 
   const allowedOnlyHelpIcon = document.createElement('i');
-  allowedOnlyHelpIcon.className = 'bi bi-question-circle-fill text-muted ms-1';
+  allowedOnlyHelpIcon.className = 'bi bi-question-circle-fill text-muted';
   allowedOnlyHelpIcon.style.cursor = 'help';
   allowedOnlyHelpIcon.setAttribute('data-bs-toggle', 'tooltip');
-  allowedOnlyHelpIcon.setAttribute('data-bs-title', 'このチャンネルで指定したカテゴリのみ開く（他のフィルターを無視）');
+  allowedOnlyHelpIcon.setAttribute('data-bs-title', 'カテゴリ設定を上書きし、指定したカテゴリだけを開く。除外カテゴリはこれが設定されている場合は無効');
   new bootstrap.Tooltip(allowedOnlyHelpIcon, { trigger: 'hover click' });
 
   allowedOnlyLabelDiv.appendChild(allowedOnlyLabel);
@@ -1003,29 +1009,23 @@ async function addChannelToList(channel, newAdded = false) {
   allowedOnlyContentDiv.appendChild(allowedOnlyTagList);
   allowedOnlyContentDiv.appendChild(channelAllowedOnlySearch);
   allowedOnlyContainer.appendChild(allowedOnlyContentDiv);
-  settingsTd.appendChild(allowedOnlyContainer);
-
-  // Add separator after Allowed-Only Categories
-  const allowedOnlySeparator = document.createElement('hr');
-  allowedOnlySeparator.className = 'my-2';
-  settingsTd.appendChild(allowedOnlySeparator);
 
   // --- Blocked Categories Settings ---
   const catContainer = document.createElement('div');
   catContainer.className = 'mb-1';
 
   const catLabelDiv = document.createElement('div');
-  catLabelDiv.className = 'd-flex align-items-center mb-1';
+  catLabelDiv.className = 'd-flex justify-content-between align-items-center mb-1';
 
   const catLabel = document.createElement('span');
   catLabel.className = 'small';
-  catLabel.textContent = '開かないカテゴリ';
+  catLabel.textContent = 'このカテゴリを除外';
 
   const catHelpIcon = document.createElement('i');
-  catHelpIcon.className = 'bi bi-question-circle-fill text-muted ms-1';
+  catHelpIcon.className = 'bi bi-question-circle-fill text-muted';
   catHelpIcon.style.cursor = 'help';
   catHelpIcon.setAttribute('data-bs-toggle', 'tooltip');
-  catHelpIcon.setAttribute('data-bs-title', '全体設定に追加する除外カテゴリ');
+  catHelpIcon.setAttribute('data-bs-title', '全体設定に加えて除外したいカテゴリ');
   new bootstrap.Tooltip(catHelpIcon, { trigger: 'hover click' });
 
   catLabelDiv.appendChild(catLabel);
@@ -1133,27 +1133,50 @@ async function addChannelToList(channel, newAdded = false) {
   catContentDiv.appendChild(channelCatSearch);
   catContentDiv.appendChild(catAlert);
   catContainer.appendChild(catContentDiv);
+
+  // Separators for layout
+  const allowedOnlySeparator = document.createElement('hr');
+  allowedOnlySeparator.className = 'my-2';
+  const catSeparator = document.createElement('hr');
+  catSeparator.className = 'my-2';
+
+  // Append all containers in correct order:
+  // 1. 通知 (notifyContainer)
+  // 2. このカテゴリだけを開く (allowedOnlyContainer)
+  // 3. このカテゴリを除外 (catContainer)
+  // 4. 除外の例外 (allowContainer)
+  settingsTd.appendChild(notifyContainer);
+  settingsTd.appendChild(notifySeparator);
+  settingsTd.appendChild(allowedOnlyContainer);
+  settingsTd.appendChild(allowedOnlySeparator);
   settingsTd.appendChild(catContainer);
+  settingsTd.appendChild(catSeparator);
+  settingsTd.appendChild(allowContainer);
 
   // Function to update UI state based on allowed-only categories
   const updateChannelCategoryUIState = () => {
-    const hasAllowedOnly = currentAllowedOnly.length > 0;
+    chrome.storage.local.get('allowedOnlyCategoryList', (data) => {
+      const globalAllowedOnly = data.allowedOnlyCategoryList || [];
+      const hasChannelAllowedOnly = currentAllowedOnly.length > 0;
+      const hasGlobalAllowedOnly = globalAllowedOnly.length > 0;
+      const hasAllowedOnly = hasChannelAllowedOnly || hasGlobalAllowedOnly;
 
-    // グレーアウト: 開くカテゴリ
-    allowTagList.style.opacity = hasAllowedOnly ? '0.5' : '1';
-    allowDropdown.style.opacity = hasAllowedOnly ? '0.5' : '1';
-    allowDropdown.disabled = hasAllowedOnly;
+      // グレーアウト: 全体除外の例外
+      allowTagList.style.opacity = hasAllowedOnly ? '0.5' : '1';
+      allowDropdown.style.opacity = hasAllowedOnly ? '0.5' : '1';
+      allowDropdown.disabled = hasAllowedOnly;
 
-    // グレーアウト: 開かないカテゴリ
-    catTagList.style.opacity = hasAllowedOnly ? '0.5' : '1';
-    catContentDiv.querySelector('input')?.setAttribute('disabled', hasAllowedOnly);
-    if (hasAllowedOnly && channelCatSearch) {
-      const input = catContentDiv.querySelector('input');
-      if (input) input.disabled = true;
-    } else if (channelCatSearch) {
-      const input = catContentDiv.querySelector('input');
-      if (input) input.disabled = false;
-    }
+      // グレーアウト: このカテゴリを除外
+      catTagList.style.opacity = hasAllowedOnly ? '0.5' : '1';
+      catContentDiv.querySelector('input')?.setAttribute('disabled', hasAllowedOnly);
+      if (hasAllowedOnly && channelCatSearch) {
+        const input = catContentDiv.querySelector('input');
+        if (input) input.disabled = true;
+      } else if (channelCatSearch) {
+        const input = catContentDiv.querySelector('input');
+        if (input) input.disabled = false;
+      }
+    });
   };
 
   // Initial renders

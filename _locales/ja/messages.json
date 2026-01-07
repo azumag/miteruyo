@@ -53,11 +53,39 @@
 	},
 	"allowedOnlyCategories": {
 		"message": "このカテゴリだけを開く",
-		"description": "特定カテゴリのみを開く設定のラベル"
+		"description": "カテゴリ設定を上書きし、指定したカテゴリだけを開く"
+	},
+	"allowedOnlyCategoriesHelp": {
+		"message": "カテゴリ設定を上書きし、指定したカテゴリだけを開く。除外カテゴリはこれが設定されている場合は無効",
+		"description": "このカテゴリだけを開くのツールチップ"
 	},
 	"blockedCategories": {
-		"message": "開かないカテゴリ",
+		"message": "このカテゴリを除外",
 		"description": "ブロックするカテゴリ名のラベル"
+	},
+	"blockedCategoriesHelp": {
+		"message": "指定したカテゴリの配信は自動で開かない",
+		"description": "このカテゴリを除外のツールチップ（全体設定）"
+	},
+	"blockedCategoriesChannelHelp": {
+		"message": "全体設定に加えて除外したいカテゴリ",
+		"description": "このカテゴリを除外のツールチップ（個別設定）"
+	},
+	"allowedCategoriesException": {
+		"message": "全体除外の例外",
+		"description": "個別設定の全体除外例外ラベル"
+	},
+	"allowedCategoriesExceptionHelp": {
+		"message": "全体設定で除外したカテゴリのうち、このチャンネルでのみ開きたいカテゴリ",
+		"description": "全体除外の例外のツールチップ"
+	},
+	"categorySearchPlaceholder": {
+		"message": "カテゴリを検索して追加...",
+		"description": "カテゴリ検索のプレースホルダー"
+	},
+	"addPlaceholder": {
+		"message": "追加...",
+		"description": "追加ドロップダウンのプレースホルダー"
 	},
 	"confirmDelete": {
 		"message": "$channel$を削除してもよろしいですか？",

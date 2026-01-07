@@ -15,7 +15,17 @@ npm run test:watch   # Watch mode for TDD
 npm run test:coverage # Generate coverage report
 npm run lint         # Check code quality
 npm run lint:fix     # Auto-fix linting issues
+npm run screenshot   # Take popup screenshot (saves to screenshots/latest.png)
+npm run screenshot -- --channel  # Include channel settings panel
 ```
+
+### UI Screenshot Testing
+
+Puppeteerを使用してChrome拡張機能のポップアップUIをスクリーンショットで確認できます。
+
+- スクリプト: `scripts/screenshot.cjs`
+- 出力先: `screenshots/latest.png`
+- 機能: ダミーデータを挿入してログイン状態をシミュレート、設定パネルを自動展開
 
 ## Architecture
 

@@ -55,9 +55,37 @@
 		"message": "Open only these categories",
 		"description": "Label for allowed-only categories setting"
 	},
+	"allowedOnlyCategoriesHelp": {
+		"message": "Override category settings and open only specified categories. Blocked categories are ignored when this is set.",
+		"description": "Tooltip for open only these categories"
+	},
 	"blockedCategories": {
 		"message": "Blocked categories",
 		"description": "Label for blocked category names input."
+	},
+	"blockedCategoriesHelp": {
+		"message": "Streams in specified categories will not auto-open",
+		"description": "Tooltip for blocked categories (global)"
+	},
+	"blockedCategoriesChannelHelp": {
+		"message": "Categories to block in addition to global settings",
+		"description": "Tooltip for blocked categories (per-channel)"
+	},
+	"allowedCategoriesException": {
+		"message": "Global block exceptions",
+		"description": "Per-channel label for global block exceptions"
+	},
+	"allowedCategoriesExceptionHelp": {
+		"message": "Categories from global blocked list that you want to open only for this channel",
+		"description": "Tooltip for global block exceptions"
+	},
+	"categorySearchPlaceholder": {
+		"message": "Search and add category...",
+		"description": "Placeholder for category search"
+	},
+	"addPlaceholder": {
+		"message": "Add...",
+		"description": "Placeholder for add dropdown"
 	},
 	"confirmDelete": {
 		"message": "Are you sure you want to delete $channel$?",
