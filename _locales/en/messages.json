@@ -52,7 +52,7 @@
 		"description": "Label for option to skip branded/sponsored content."
 	},
 	"blockedCategories": {
-		"message": "Blocked categories (comma-separated)",
+		"message": "Blocked categories",
 		"description": "Label for blocked category names input."
 	},
 	"confirmDelete": {
