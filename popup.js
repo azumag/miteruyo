@@ -398,7 +398,7 @@ async function addChannelToList(channel, newAdded = false) {
   brandedCheckDiv.className = 'd-flex align-items-center justify-content-between form-switch';
 
   const brandedLabel = document.createElement('label');
-  brandedLabel.className = 'form-check-label small';
+  brandedLabel.className = 'form-check-label small ms-0';
   brandedLabel.htmlFor = `skipBranded-${channel.name}`;
   brandedLabel.textContent = 'PR配信を開かない';
 
