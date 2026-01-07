@@ -124,7 +124,20 @@
                   </tr>
                   <tr>
                     <td colspan="2" class="p-2">
-                      <label id="blockedCategoriesLabel" class="form-label small mb-1">開かないカテゴリ</label>
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span id="allowedOnlyCategoriesLabel" class="small">このカテゴリだけを開く</span>
+                        <i id="allowedOnlyCategoriesHelpIcon" class="bi bi-question-circle-fill text-muted" style="cursor: help;" data-bs-toggle="tooltip" data-bs-title=""></i>
+                      </div>
+                      <div id="allowedOnlyCategoriesTagList" class="d-flex flex-wrap gap-1 mb-2"></div>
+                      <div id="allowedOnlyCategoriesSearch"></div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" class="p-2">
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span id="blockedCategoriesLabel" class="small">このカテゴリを除外</span>
+                        <i id="blockedCategoriesHelpIcon" class="bi bi-question-circle-fill text-muted" style="cursor: help;" data-bs-toggle="tooltip" data-bs-title=""></i>
+                      </div>
                       <div id="blockedCategoriesTagList" class="d-flex flex-wrap gap-1 mb-2"></div>
                       <div id="blockedCategoriesSearch"></div>
                     </td>

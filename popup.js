@@ -9,6 +9,8 @@ const enableTabMute = document.getElementById('enableTabMute');
 const enableAutoClose = document.getElementById('enableAutoClose');
 const tabRotationInterval = document.getElementById('tabRotationInterval');
 const skipBrandedContent = document.getElementById('skipBrandedContent');
+const allowedOnlyCategoriesTagList = document.getElementById('allowedOnlyCategoriesTagList');
+const allowedOnlyCategoriesSearchContainer = document.getElementById('allowedOnlyCategoriesSearch');
 const blockedCategoriesTagList = document.getElementById('blockedCategoriesTagList');
 const blockedCategoriesSearchContainer = document.getElementById('blockedCategoriesSearch');
 
@@ -181,6 +183,11 @@ document.addEventListener('DOMContentLoaded', function () {
   // プロモーション配信を開かない
   const skipBrandedContentMessage = chrome.i18n.getMessage('skipBrandedContent');
   document.querySelector('label[for="skipBrandedContent"]').textContent = skipBrandedContentMessage;
+  // このカテゴリだけを開く
+  const allowedOnlyCategoriesMessage = chrome.i18n.getMessage('allowedOnlyCategories');
+  if (allowedOnlyCategoriesMessage) {
+    document.getElementById('allowedOnlyCategoriesLabel').textContent = allowedOnlyCategoriesMessage;
+  }
   // 開かないカテゴリ
   const blockedCategoriesMessage = chrome.i18n.getMessage('blockedCategories');
   document.getElementById('blockedCategoriesLabel').textContent = blockedCategoriesMessage;
@@ -217,6 +224,17 @@ document.addEventListener('DOMContentLoaded', function () {
     notificationHelpIcon.setAttribute('title', notificationHelpMessage);
   }
 
+  // カテゴリ設定のヘルプアイコン
+  const allowedOnlyCategoriesHelpIcon = document.getElementById('allowedOnlyCategoriesHelpIcon');
+  if (allowedOnlyCategoriesHelpIcon) {
+    allowedOnlyCategoriesHelpIcon.setAttribute('data-bs-title', chrome.i18n.getMessage('allowedOnlyCategoriesHelp'));
+  }
+
+  const blockedCategoriesHelpIcon = document.getElementById('blockedCategoriesHelpIcon');
+  if (blockedCategoriesHelpIcon) {
+    blockedCategoriesHelpIcon.setAttribute('data-bs-title', chrome.i18n.getMessage('blockedCategoriesHelp'));
+  }
+
   // ウィンドウ高さが600px未満なら設定アコーディオンを開く
   if (window.innerHeight < 600) {
     const collapseConfig = document.getElementById('collapseConfig');
@@ -236,6 +254,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Global state for blocked categories (array of {id, name} objects)
 let globalBlockedCategories = [];
+// Global state for allowed-only categories (array of {id, name} objects)
+let globalAllowedOnlyCategories = [];
 
 // Migrate old formats to new {id, name} array format
 async function migrateBlockedCategories() {
@@ -268,6 +288,63 @@ async function migrateBlockedCategories() {
   return [];
 }
 
+// Migrate allowed-only categories to new format
+async function migrateAllowedOnlyCategories() {
+  const data = await chrome.storage.local.get(['allowedOnlyCategoryList']);
+
+  // Check if already in new format (array of objects with id)
+  if (data.allowedOnlyCategoryList && Array.isArray(data.allowedOnlyCategoryList)) {
+    // Check if it's already in {id, name} format
+    if (data.allowedOnlyCategoryList.length === 0 || (data.allowedOnlyCategoryList[0] && typeof data.allowedOnlyCategoryList[0] === 'object' && 'id' in data.allowedOnlyCategoryList[0])) {
+      return data.allowedOnlyCategoryList;
+    }
+    // Migrate from string array to object array (id will be null for backwards compatibility)
+    const migrated = data.allowedOnlyCategoryList.map(name => ({ id: null, name }));
+    await chrome.storage.local.set({ allowedOnlyCategoryList: migrated });
+    return migrated;
+  }
+
+  return [];
+}
+
+// Render global allowed-only categories tag list
+function renderGlobalAllowedOnlyTags() {
+  allowedOnlyCategoriesTagList.innerHTML = '';
+  globalAllowedOnlyCategories.forEach(cat => {
+    const tag = document.createElement('span');
+    tag.className = 'badge bg-success d-flex align-items-center';
+    tag.textContent = cat.name;
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'btn-close btn-close-white ms-1';
+    deleteBtn.style.fontSize = '0.6em';
+    deleteBtn.addEventListener('click', () => {
+      globalAllowedOnlyCategories = globalAllowedOnlyCategories.filter(c => c.id !== cat.id || c.name !== cat.name);
+      chrome.storage.local.set({ allowedOnlyCategoryList: globalAllowedOnlyCategories });
+      renderGlobalAllowedOnlyTags();
+      globalAllowedOnlyCategorySearch?.updateExistingCategories(globalAllowedOnlyCategories);
+      updateGlobalCategoryUIState();
+    });
+
+    tag.appendChild(deleteBtn);
+    allowedOnlyCategoriesTagList.appendChild(tag);
+  });
+}
+
+// Update UI state based on allowed-only categories
+function updateGlobalCategoryUIState() {
+  const hasAllowedOnly = globalAllowedOnlyCategories.length > 0;
+
+  // グレーアウト: 除外カテゴリの設定
+  blockedCategoriesTagList.style.opacity = hasAllowedOnly ? '0.5' : '1';
+  blockedCategoriesSearchContainer.style.opacity = hasAllowedOnly ? '0.5' : '1';
+  if (globalCategorySearch) {
+    const input = blockedCategoriesSearchContainer.querySelector('input');
+    if (input) input.disabled = hasAllowedOnly;
+  }
+}
+
 // Render global blocked categories tag list
 function renderGlobalBlockedTags() {
   blockedCategoriesTagList.innerHTML = '';
@@ -292,8 +369,9 @@ function renderGlobalBlockedTags() {
   });
 }
 
-// Global category search instance
+// Global category search instances
 let globalCategorySearch = null;
+let globalAllowedOnlyCategorySearch = null;
 
 chrome.storage.local.get(
   {
@@ -323,6 +401,27 @@ chrome.storage.local.get(
     skipBrandedContent.checked = data.isSkipBrandedContent;
     enableNotifications.checked = data.isEnabledNotifications; // Added this line
 
+    // Initialize global allowed-only categories
+    globalAllowedOnlyCategories = await migrateAllowedOnlyCategories();
+    renderGlobalAllowedOnlyTags();
+
+    // Setup allowed-only category search
+    globalAllowedOnlyCategorySearch = createCategorySearchInput({
+      onSelect: (category) => {
+        // category is {id, name} object
+        if (!globalAllowedOnlyCategories.some(c => c.id === category.id)) {
+          globalAllowedOnlyCategories.push(category);
+          chrome.storage.local.set({ allowedOnlyCategoryList: globalAllowedOnlyCategories });
+          renderGlobalAllowedOnlyTags();
+          globalAllowedOnlyCategorySearch.updateExistingCategories(globalAllowedOnlyCategories);
+          updateGlobalCategoryUIState();
+        }
+      },
+      placeholder: 'カテゴリを検索して追加...',
+      existingCategories: [...globalAllowedOnlyCategories],
+    });
+    allowedOnlyCategoriesSearchContainer.appendChild(globalAllowedOnlyCategorySearch);
+
     // Initialize global blocked categories
     globalBlockedCategories = await migrateBlockedCategories();
     renderGlobalBlockedTags();
@@ -342,6 +441,9 @@ chrome.storage.local.get(
       existingCategories: [...globalBlockedCategories],
     });
     blockedCategoriesSearchContainer.appendChild(globalCategorySearch);
+
+    // Update UI state based on allowed-only categories
+    updateGlobalCategoryUIState();
 
     if (data.oauth_token) {
       const connected = await checkTwitchConnection(data.oauth_token);
@@ -673,7 +775,7 @@ async function addChannelToList(channel, newAdded = false) {
   notifyRadioGroup.appendChild(notifyOffWrapper);
 
   notifyContainer.appendChild(notifyRadioGroup);
-  settingsTd.appendChild(notifyContainer);
+  // notifyContainer will be appended later in correct order
 
   const notifyChangeHandler = () => {
     if (notifyGlobalInput.checked) channel.notificationSetting = 'global';
@@ -685,27 +787,27 @@ async function addChannelToList(channel, newAdded = false) {
   notifyOnInput.addEventListener('change', notifyChangeHandler);
   notifyOffInput.addEventListener('change', notifyChangeHandler);
 
-  // Add separator after PR settings
-  const prSeparator = document.createElement('hr');
-  prSeparator.className = 'my-2';
-  settingsTd.appendChild(prSeparator);
+  // Separator after notification settings
+  const notifySeparator = document.createElement('hr');
+  notifySeparator.className = 'my-2';
+  // notifySeparator will be appended later in correct order
 
   // --- Allow Categories Settings (override global blocked) ---
   const allowContainer = document.createElement('div');
   allowContainer.className = 'mb-1';
 
   const allowLabelDiv = document.createElement('div');
-  allowLabelDiv.className = 'd-flex align-items-center mb-1';
+  allowLabelDiv.className = 'd-flex justify-content-between align-items-center mb-1';
 
   const allowLabel = document.createElement('span');
   allowLabel.className = 'small';
-  allowLabel.textContent = '開くカテゴリ';
+  allowLabel.textContent = '全体除外の例外';
 
   const allowHelpIcon = document.createElement('i');
-  allowHelpIcon.className = 'bi bi-question-circle-fill text-muted ms-1';
+  allowHelpIcon.className = 'bi bi-question-circle-fill text-muted';
   allowHelpIcon.style.cursor = 'help';
   allowHelpIcon.setAttribute('data-bs-toggle', 'tooltip');
-  allowHelpIcon.setAttribute('data-bs-title', '全体設定で設定した除外カテゴリのうち、個別に開くカテゴリ');
+  allowHelpIcon.setAttribute('data-bs-title', '全体設定で除外したカテゴリのうち、このチャンネルでのみ開きたいカテゴリ');
   new bootstrap.Tooltip(allowHelpIcon, { trigger: 'hover click' });
 
   allowLabelDiv.appendChild(allowLabel);
@@ -827,29 +929,103 @@ async function addChannelToList(channel, newAdded = false) {
   allowContentDiv.appendChild(allowTagList);
   allowContentDiv.appendChild(allowDropdown);
   allowContainer.appendChild(allowContentDiv);
-  settingsTd.appendChild(allowContainer);
+  // allowContainer will be appended later in correct order
 
-  // Add separator after Allow Categories
-  const allowSeparator = document.createElement('hr');
-  allowSeparator.className = 'my-2';
-  settingsTd.appendChild(allowSeparator);
+  // --- Allowed-Only Categories Settings (individual) ---
+  const allowedOnlyContainer = document.createElement('div');
+  allowedOnlyContainer.className = 'mb-1';
+
+  const allowedOnlyLabelDiv = document.createElement('div');
+  allowedOnlyLabelDiv.className = 'd-flex justify-content-between align-items-center mb-1';
+
+  const allowedOnlyLabel = document.createElement('span');
+  allowedOnlyLabel.className = 'small';
+  allowedOnlyLabel.textContent = 'このカテゴリだけを開く';
+
+  const allowedOnlyHelpIcon = document.createElement('i');
+  allowedOnlyHelpIcon.className = 'bi bi-question-circle-fill text-muted';
+  allowedOnlyHelpIcon.style.cursor = 'help';
+  allowedOnlyHelpIcon.setAttribute('data-bs-toggle', 'tooltip');
+  allowedOnlyHelpIcon.setAttribute('data-bs-title', 'カテゴリ設定を上書きし、指定したカテゴリだけを開く。除外カテゴリはこれが設定されている場合は無効');
+  new bootstrap.Tooltip(allowedOnlyHelpIcon, { trigger: 'hover click' });
+
+  allowedOnlyLabelDiv.appendChild(allowedOnlyLabel);
+  allowedOnlyLabelDiv.appendChild(allowedOnlyHelpIcon);
+  allowedOnlyContainer.appendChild(allowedOnlyLabelDiv);
+
+  const allowedOnlyContentDiv = document.createElement('div');
+  allowedOnlyContentDiv.className = 'ps-3';
+
+  // Tag list container
+  const allowedOnlyTagList = document.createElement('div');
+  allowedOnlyTagList.className = 'd-flex flex-wrap gap-1 mb-1';
+
+  // Current allowed-only categories (array of {id, name})
+  let currentAllowedOnly = channel.allowedOnlyCategoryList || [];
+
+  // Function to render the tag list
+  const renderAllowedOnlyTags = () => {
+    allowedOnlyTagList.innerHTML = '';
+    currentAllowedOnly.forEach(cat => {
+      const tag = document.createElement('span');
+      tag.className = 'badge bg-primary d-flex align-items-center';
+      tag.textContent = cat.name;
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'btn-close btn-close-white ms-1';
+      deleteBtn.style.fontSize = '0.6em';
+      deleteBtn.addEventListener('click', () => {
+        currentAllowedOnly = currentAllowedOnly.filter(c => c.id !== cat.id || c.name !== cat.name);
+        channel.allowedOnlyCategoryList = currentAllowedOnly;
+        saveChannelToList(channel);
+        renderAllowedOnlyTags();
+        channelAllowedOnlySearch?.updateExistingCategories(currentAllowedOnly);
+        updateChannelCategoryUIState();
+      });
+
+      tag.appendChild(deleteBtn);
+      allowedOnlyTagList.appendChild(tag);
+    });
+  };
+
+  // Create category search for this channel
+  const channelAllowedOnlySearch = createCategorySearchInput({
+    onSelect: (category) => {
+      // category is {id, name} object
+      if (!currentAllowedOnly.some(c => c.id === category.id)) {
+        currentAllowedOnly.push(category);
+        channel.allowedOnlyCategoryList = currentAllowedOnly;
+        saveChannelToList(channel);
+        renderAllowedOnlyTags();
+        channelAllowedOnlySearch.updateExistingCategories(currentAllowedOnly);
+        updateChannelCategoryUIState();
+      }
+    },
+    placeholder: 'カテゴリを検索して追加...',
+    existingCategories: [...currentAllowedOnly],
+  });
+
+  allowedOnlyContentDiv.appendChild(allowedOnlyTagList);
+  allowedOnlyContentDiv.appendChild(channelAllowedOnlySearch);
+  allowedOnlyContainer.appendChild(allowedOnlyContentDiv);
 
   // --- Blocked Categories Settings ---
   const catContainer = document.createElement('div');
   catContainer.className = 'mb-1';
 
   const catLabelDiv = document.createElement('div');
-  catLabelDiv.className = 'd-flex align-items-center mb-1';
+  catLabelDiv.className = 'd-flex justify-content-between align-items-center mb-1';
 
   const catLabel = document.createElement('span');
   catLabel.className = 'small';
-  catLabel.textContent = '開かないカテゴリ';
+  catLabel.textContent = 'このカテゴリを除外';
 
   const catHelpIcon = document.createElement('i');
-  catHelpIcon.className = 'bi bi-question-circle-fill text-muted ms-1';
+  catHelpIcon.className = 'bi bi-question-circle-fill text-muted';
   catHelpIcon.style.cursor = 'help';
   catHelpIcon.setAttribute('data-bs-toggle', 'tooltip');
-  catHelpIcon.setAttribute('data-bs-title', '全体設定に追加する除外カテゴリ');
+  catHelpIcon.setAttribute('data-bs-title', '全体設定に加えて除外したいカテゴリ');
   new bootstrap.Tooltip(catHelpIcon, { trigger: 'hover click' });
 
   catLabelDiv.appendChild(catLabel);
@@ -957,11 +1133,57 @@ async function addChannelToList(channel, newAdded = false) {
   catContentDiv.appendChild(channelCatSearch);
   catContentDiv.appendChild(catAlert);
   catContainer.appendChild(catContentDiv);
-  settingsTd.appendChild(catContainer);
 
-  // Initial render
+  // Separators for layout
+  const allowedOnlySeparator = document.createElement('hr');
+  allowedOnlySeparator.className = 'my-2';
+  const catSeparator = document.createElement('hr');
+  catSeparator.className = 'my-2';
+
+  // Append all containers in correct order:
+  // 1. 通知 (notifyContainer)
+  // 2. このカテゴリだけを開く (allowedOnlyContainer)
+  // 3. このカテゴリを除外 (catContainer)
+  // 4. 除外の例外 (allowContainer)
+  settingsTd.appendChild(notifyContainer);
+  settingsTd.appendChild(notifySeparator);
+  settingsTd.appendChild(allowedOnlyContainer);
+  settingsTd.appendChild(allowedOnlySeparator);
+  settingsTd.appendChild(catContainer);
+  settingsTd.appendChild(catSeparator);
+  settingsTd.appendChild(allowContainer);
+
+  // Function to update UI state based on allowed-only categories
+  const updateChannelCategoryUIState = () => {
+    chrome.storage.local.get('allowedOnlyCategoryList', (data) => {
+      const globalAllowedOnly = data.allowedOnlyCategoryList || [];
+      const hasChannelAllowedOnly = currentAllowedOnly.length > 0;
+      const hasGlobalAllowedOnly = globalAllowedOnly.length > 0;
+      const hasAllowedOnly = hasChannelAllowedOnly || hasGlobalAllowedOnly;
+
+      // グレーアウト: 全体除外の例外
+      allowTagList.style.opacity = hasAllowedOnly ? '0.5' : '1';
+      allowDropdown.style.opacity = hasAllowedOnly ? '0.5' : '1';
+      allowDropdown.disabled = hasAllowedOnly;
+
+      // グレーアウト: このカテゴリを除外
+      catTagList.style.opacity = hasAllowedOnly ? '0.5' : '1';
+      catContentDiv.querySelector('input')?.setAttribute('disabled', hasAllowedOnly);
+      if (hasAllowedOnly && channelCatSearch) {
+        const input = catContentDiv.querySelector('input');
+        if (input) input.disabled = true;
+      } else if (channelCatSearch) {
+        const input = catContentDiv.querySelector('input');
+        if (input) input.disabled = false;
+      }
+    });
+  };
+
+  // Initial renders
+  renderAllowedOnlyTags();
   renderCatTags();
   checkCatOverlap();
+  updateChannelCategoryUIState();
 
   settingsTr.appendChild(settingsTd);
 

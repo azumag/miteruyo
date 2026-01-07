@@ -566,8 +566,46 @@ async function shouldOpenChannel(channel) {
   }
 
   // カテゴリフィルター（game_idで比較、フォールバックとしてgame_nameで比較）
-  // Support new {id, name} object format and old formats for backwards compatibility
-  const storageData = await chrome.storage.local.get(['blockedCategoryList', 'blockedCategoryNames']);
+  // Priority: allowedOnlyCategoryList > blocked/allowed lists
+
+  // Check for allowed-only categories (individual then global)
+  const channelAllowedOnlyList = (channel.allowedOnlyCategoryList || []).map(item =>
+    typeof item === 'string' ? { id: null, name: item } : (item || { id: null, name: '' })
+  ).filter(item => item.name);
+
+  const storageData = await chrome.storage.local.get(['allowedOnlyCategoryList', 'blockedCategoryList', 'blockedCategoryNames']);
+  const globalAllowedOnlyList = (storageData.allowedOnlyCategoryList || []).map(item =>
+    typeof item === 'string' ? { id: null, name: item } : (item || { id: null, name: '' })
+  ).filter(item => item.name);
+
+  // If allowed-only list is set (individual or global), ONLY open if category matches
+  if (channelAllowedOnlyList.length > 0 || globalAllowedOnlyList.length > 0) {
+    const activeAllowedOnlyList = channelAllowedOnlyList.length > 0 ? channelAllowedOnlyList : globalAllowedOnlyList;
+
+    if (!channel.game_id && !channel.game_name) {
+      // No category info - block by default when allowed-only is active
+      console.log('Skipping - no category info with allowed-only filter active:', channel.name);
+      return false;
+    }
+
+    const gameId = channel.game_id;
+    const gameName = channel.game_name?.toLowerCase();
+
+    const isInAllowedOnly = activeAllowedOnlyList.some(cat =>
+      (gameId && cat.id && cat.id === gameId) ||
+      (gameName && cat.name && cat.name.toLowerCase() === gameName)
+    );
+
+    if (!isInAllowedOnly) {
+      console.log('Skipping - not in allowed-only list:', channel.name, channel.game_name, channel.game_id);
+      return false;
+    }
+
+    console.log('Opening - matches allowed-only list:', channel.name, channel.game_name, channel.game_id);
+    return true;
+  }
+
+  // Original blocked/allowed logic (when no allowed-only list is set)
   let globalBlockedList = storageData.blockedCategoryList || [];
 
   // Migrate from old comma-separated format if needed

@@ -48,10 +48,14 @@ Configure via the extension popup:
 - **Auto-close**: Close tabs when streams go offline (channel pages only)
 - **New Window**: Open streams in new windows instead of current window
 - **Skip Sponsored**: Don't auto-open sponsored/branded content streams
-- **Blocked Categories**: Search and select categories to not auto-open (uses Twitch API for category search)
+- **Category Filters**:
+  - **Allowed-Only Categories**: Only open streams in these specific categories (overrides all other filters)
+  - **Blocked Categories**: Search and select categories to not auto-open (uses Twitch API for category search)
 - **Per-channel Settings**:
+  - **Allowed-Only Categories**: Only open this channel when streaming specific categories (overrides all other filters)
   - Allow specific categories (override global blocked list)
   - Block additional categories for specific channels
+- **Priority System**: Allowed-only > Blocked/Allowed lists. When allowed-only is set, blocked/allowed lists are grayed out
 
 ### Context Menu
 Right-click on any Twitch channel link to "Open with Miteruyo" - the tab will be managed (rotation, mute, auto-close).
@@ -185,6 +189,14 @@ Pull requests welcome! Please:
 See LICENSE file (if present)
 
 ## Version History
+
+### v1.5.0 (Pending)
+- **Allowed-Only Category Filter**: New option to specify categories to exclusively open
+  - Global setting: Only open streams in specified categories
+  - Per-channel setting: Only open this channel when streaming specified categories
+  - Priority system: Allowed-only list overrides blocked/allowed category lists
+  - UI feedback: Blocked/allowed category fields are grayed out when allowed-only is active
+  - Works with same category search UI as blocked categories
 
 ### v1.4.0
 - **Category Search UI**: Blocked categories now use incremental search with Twitch API
