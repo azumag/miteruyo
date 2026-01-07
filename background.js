@@ -408,38 +408,58 @@ async function shouldOpenChannel(channel) {
     return false;
   }
 
-  // カテゴリフィルター（カテゴリ名で比較）
-  // Support both new array format and old comma-separated format for backwards compatibility
+  // カテゴリフィルター（game_idで比較、フォールバックとしてgame_nameで比較）
+  // Support new {id, name} object format and old formats for backwards compatibility
   const storageData = await chrome.storage.local.get(['blockedCategoryList', 'blockedCategoryNames']);
   let globalBlockedList = storageData.blockedCategoryList || [];
 
-  // Migrate from old format if needed
+  // Migrate from old comma-separated format if needed
   if (globalBlockedList.length === 0 && storageData.blockedCategoryNames) {
     globalBlockedList = storageData.blockedCategoryNames
       .replace(/\\,/g, '__M_COMMA__')
       .split(',')
       .map(c => c.trim().replace(/__M_COMMA__/g, ','))
-      .filter(c => c);
+      .filter(c => c)
+      .map(name => ({ id: null, name }));
   }
 
-  const channelBlockedList = channel.blockedCategoryList || [];
-  const allowedCategories = channel.allowedCategories || [];
+  // Normalize to {id, name} format if old string array
+  globalBlockedList = globalBlockedList.map(item =>
+    typeof item === 'string' ? { id: null, name: item } : item
+  );
+
+  const channelBlockedList = (channel.blockedCategoryList || []).map(item =>
+    typeof item === 'string' ? { id: null, name: item } : item
+  );
+  const allowedCategoryList = (channel.allowedCategoryList || channel.allowedCategories || []).map(item =>
+    typeof item === 'string' ? { id: null, name: item } : item
+  );
 
   // Combine both global and channel-specific blocked categories
   const combinedBlockedList = [...globalBlockedList, ...channelBlockedList];
 
-  if (combinedBlockedList.length > 0 && channel.game_name) {
-    const gameName = channel.game_name.toLowerCase();
+  if (combinedBlockedList.length > 0 && (channel.game_id || channel.game_name)) {
+    const gameId = channel.game_id;
+    const gameName = channel.game_name?.toLowerCase();
 
-    // Check if this category is explicitly allowed for this channel
-    if (allowedCategories.some(cat => cat.toLowerCase() === gameName)) {
-      console.log('Category allowed by per-channel override:', channel.name, channel.game_name);
+    // Check if this category is explicitly allowed for this channel (by id first, then name)
+    const isAllowed = allowedCategoryList.some(cat =>
+      (gameId && cat.id && cat.id === gameId) ||
+      (gameName && cat.name && cat.name.toLowerCase() === gameName)
+    );
+
+    if (isAllowed) {
+      console.log('Category allowed by per-channel override:', channel.name, channel.game_name, channel.game_id);
       // Skip blocking - this category is allowed
     } else {
-      // Check if category is in blocked list
-      const blockedListLower = combinedBlockedList.map(c => c.toLowerCase());
-      if (blockedListLower.includes(gameName)) {
-        console.log('Skipping blocked category:', channel.name, channel.game_name);
+      // Check if category is in blocked list (by id first, then name as fallback)
+      const isBlocked = combinedBlockedList.some(blocked =>
+        (gameId && blocked.id && blocked.id === gameId) ||
+        (gameName && blocked.name && blocked.name.toLowerCase() === gameName)
+      );
+
+      if (isBlocked) {
+        console.log('Skipping blocked category:', channel.name, channel.game_name, channel.game_id);
         return false;
       }
     }
