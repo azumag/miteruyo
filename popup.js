@@ -272,7 +272,7 @@ async function addChannelToList(channel, newAdded = false) {
   const volLabel = document.createElement('label');
   volLabel.className = 'form-check-label me-3 small';
   volLabel.htmlFor = `vol-check-${channel.name}`;
-  volLabel.textContent = '個別の音量設定';
+  volLabel.textContent = '音量設定';
 
   const volRange = document.createElement('input');
   volRange.type = 'range';
@@ -299,7 +299,7 @@ async function addChannelToList(channel, newAdded = false) {
   volApplyingText.style.display = 'none';
 
   // Apply initial volume state
-  toggleState(volCheck.checked, [volRange, volLabel, volValue]);
+  toggleState(volCheck.checked, [volRange, volValue]);
 
   // Append volume UI elements to container
   volContainer.appendChild(volCheck);
@@ -329,7 +329,7 @@ async function addChannelToList(channel, newAdded = false) {
   // Event Listeners for Volume
   volCheck.addEventListener('change', () => {
     channel.enableCustomVolume = volCheck.checked;
-    toggleState(volCheck.checked, [volRange, volLabel, volValue]);
+    toggleState(volCheck.checked, [volRange, volValue]);
     saveChannelToList(channel);
     if (volCheck.checked) showApplying();
   });
