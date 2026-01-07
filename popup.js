@@ -1056,9 +1056,11 @@ openNewWindow.addEventListener('change', () => {
   chrome.storage.local.set({ isOpenNewWindow: openNewWindow.checked });
 });
 
-enableNotifications.addEventListener('change', () => {
-  chrome.storage.local.set({ isEnabledNotifications: enableNotifications.checked });
-});
+if (enableNotifications) {
+  enableNotifications.addEventListener('change', () => {
+    chrome.storage.local.set({ isEnabledNotifications: enableNotifications.checked });
+  });
+}
 
 async function refreshList() {
   const list = document.getElementsByClassName('channel-tr');

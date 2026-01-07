@@ -198,6 +198,7 @@ async function openInManagedWindow(channelName) {
 ensureAlarmsExist();
 
 chrome.alarms.onAlarm.addListener(function (alarm) {
+  console.log('Alarm fired:', alarm.name);
   if (alarm.name === 'periodicalUpdate') {
     checkStreams();
   }
@@ -327,23 +328,28 @@ async function checkStreams() {
   console.log('checkStreams started at:', new Date().toISOString());
 
   try {
-    const isEnabled = (await chrome.storage.local.get('isEnabled')).isEnabled;
-    const isOpenMultiTwitch = (await chrome.storage.local.get('isOpenMultiTwitch')).isOpenMultiTwitch;
+    const data = await chrome.storage.local.get(['isEnabled', 'isEnabledNotifications', 'isOpenMultiTwitch', 'channels', 'oauth_token']);
+    console.log('checkStreams data:', {
+      isEnabled: data.isEnabled,
+      isEnabledNotifications: data.isEnabledNotifications,
+      channelsCount: data.channels?.length,
+      hasToken: !!data.oauth_token
+    });
 
-    if (!isEnabled) {
-      console.log('checkStreams: extension is disabled');
+    if (!data.isEnabled && !data.isEnabledNotifications) {
+      console.log('checkStreams: both extension and notifications are disabled');
       return;
     }
 
-    const channels = (await chrome.storage.local.get('channels')).channels;
-    const oauth_token = (await chrome.storage.local.get('oauth_token')).oauth_token;
+    const channels = data.channels || [];
+    const oauth_token = data.oauth_token;
 
     if (!oauth_token) {
       console.log('checkStreams: no oauth_token');
       return;
     }
 
-    if (!channels || channels.length === 0) {
+    if (channels.length === 0) {
       console.log('checkStreams: no channels');
       return;
     }
@@ -366,10 +372,16 @@ async function checkStreams() {
     console.log('checkStreams: channels saved');
 
     // 通知の判定
-    const isEnabledNotifications = (await chrome.storage.local.get('isEnabledNotifications')).isEnabledNotifications;
+    const isEnabledNotifications = data.isEnabledNotifications;
     for (let i = 0; i < updatedChannels.length; i++) {
       const newStatus = updatedChannels[i];
       const oldStatus = channels[i]; // channels は更新前のリスト
+
+      console.log(`Notification check for ${newStatus.name}:`, {
+        newLive: newStatus.onLive,
+        oldLive: oldStatus?.onLive,
+        notifySetting: newStatus.notificationSetting || 'global'
+      });
 
       // オフライン -> オンライン への移行を検知
       if (newStatus.onLive && (!oldStatus || !oldStatus.onLive)) {
@@ -387,15 +399,23 @@ async function checkStreams() {
         }
 
         if (shouldNotify) {
+          console.log(`Triggering notification for ${newStatus.name}`);
           showNotification(newStatus);
+        } else {
+          console.log(`Notification skipped for ${newStatus.name} based on settings`);
         }
       }
     }
 
-    if (isOpenMultiTwitch) {
-      channelQueuedStreamsInMultiTwitch();
+    const isOpenMultiTwitch = data.isOpenMultiTwitch;
+    if (data.isEnabled) {
+      if (isOpenMultiTwitch) {
+        channelQueuedStreamsInMultiTwitch();
+      } else {
+        channelQueuedStreams(updatedChannels);
+      }
     } else {
-      channelQueuedStreams(updatedChannels);
+      console.log('checkStreams: Auto-open skipped as isEnabled is false');
     }
 
     // オフラインになったチャンネルのタブを自動で閉じる
@@ -411,48 +431,84 @@ async function checkStreams() {
 }
 
 // オフラインになったチャンネルのタブを閉じる
-async function closeOfflineTabs(channels) {
-  const targetWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
-  if (!targetWindowId) return;
-
-  // ウィンドウが存在するか確認
-  const windowExists = await checkWindowExists(targetWindowId);
-  if (!windowExists) return;
-
-  // オフラインのチャンネル名リストを作成
-  const offlineChannelNames = channels
-    .filter(ch => !ch.onLive)
-    .map(ch => ch.name.toLowerCase());
-
-  if (offlineChannelNames.length === 0) return;
-
-  // 対象ウィンドウのタブを取得
-  const tabs = await chrome.tabs.query({ windowId: targetWindowId });
-
+async function closeOfflineTabs(updatedChannels) {
+  const tabs = await chrome.tabs.query({});
   for (const tab of tabs) {
-    // チャンネルページ以外（directoryなど）はスキップ
-    if (!isTwitchChannelPage(tab.url)) continue;
-
-    try {
-      const url = new URL(tab.url);
-      // URLからチャンネル名を抽出（例: /channelname または /channelname?...）
-      const pathParts = url.pathname.split('/').filter(p => p);
-      if (pathParts.length === 0) continue;
-
-      const channelName = pathParts[0].toLowerCase();
-
-      if (offlineChannelNames.includes(channelName)) {
-        console.log('closeOfflineTabs: closing tab for offline channel:', channelName);
-        await chrome.tabs.remove(tab.id);
+    if (!tab.url) continue;
+    const match = tab.url.match(/https?:\/\/(?:www\.)?twitch\.tv\/([^/?]+)/);
+    if (match) {
+      const channelName = match[1].toLowerCase();
+      // チャンネルリストに含まれており、かつ現在オフラインのものを探す
+      const channel = updatedChannels.find(c => c.name.toLowerCase() === channelName);
+      if (channel && !channel.onLive) {
+        chrome.tabs.remove(tab.id).catch(() => { });
       }
-    } catch {
-      // URLパース失敗時はスキップ
     }
   }
 }
 
-async function channelQueuedStreamsInMultiTwitch() {
+// デスクトップ通知を表示
+function showNotification(channel) {
+  const notificationId = `miteruyo-live-${channel.name}-${Date.now()}`;
+  const options = {
+    type: 'basic',
+    iconUrl: chrome.runtime.getURL('icon.png'),
+    title: chrome.i18n.getMessage('notificationTitle') || '配信開始！',
+    message: chrome.i18n.getMessage('notificationBody', [channel.name]) || `${channel.name} が配信を開始しました！`,
+    priority: 2,
+    eventTime: Date.now(),
+    requireInteraction: false
+  };
+
+  chrome.notifications.create(notificationId, options);
 }
+
+// 通知クリック時のハンドラ
+chrome.notifications.onClicked.addListener((notificationId) => {
+  if (notificationId.startsWith('miteruyo-live-')) {
+    // ID形式: miteruyo-live-channelName-timestamp
+    const parts = notificationId.split('-');
+    if (parts.length >= 3) {
+      const channelName = parts[2]; // miteruyo(0), live(1), channelName(2)
+      openInManagedWindow(channelName);
+      chrome.notifications.clear(notificationId);
+    }
+  }
+});
+
+async function channelQueuedStreamsInMultiTwitch() {
+  const data = await chrome.storage.local.get(['channels', 'isEnabled']);
+  if (!data.isEnabled) return;
+  const channels = data.channels || [];
+  const liveChannels = channels.filter(c => c.onLive && c.onLiveOpen);
+  if (liveChannels.length === 0) return;
+
+  // MultiTwitch URLの作成
+  const channelNames = liveChannels.map(c => c.name).join('/');
+  const multiTwitchUrl = `https://multitwitch.tv/${channelNames}`;
+
+  // すでに開いているウィンドウか新しいウィンドウで開く
+  const windowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
+  openTabIfNotExists({ url: multiTwitchUrl }, windowId);
+}
+
+// メッセージリスナーを追加
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'testNotification') {
+    showNotification({ name: 'TEST_USER' });
+    sendResponse({ status: 'ok' });
+  } else if (message.type === 'clearNotifications') {
+    chrome.notifications.getAll((notifications) => {
+      for (const id in notifications) {
+        if (id.startsWith('miteruyo-live-')) {
+          chrome.notifications.clear(id);
+        }
+      }
+    });
+    sendResponse({ status: 'ok' });
+  }
+  return true;
+});
 
 // チャンネルを開くべきかどうかをチェック
 async function shouldOpenChannel(channel) {
