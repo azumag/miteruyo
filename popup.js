@@ -364,9 +364,16 @@ async function addChannelToList(channel, newAdded = false) {
   priorityLabel.textContent = '優先 ';
 
   const helpIcon = document.createElement('i');
-  helpIcon.className = 'bi bi-question-circle-fill text-muted';
+  helpIcon.className = 'bi bi-question-circle-fill text-muted ms-1';
   helpIcon.style.cursor = 'help';
-  helpIcon.title = '全体設定より個別設定を優先する';
+  helpIcon.setAttribute('data-bs-toggle', 'tooltip');
+  helpIcon.setAttribute('data-bs-title', '全体設定より個別設定を優先');
+
+  // Initialize Bootstrap tooltip for this icon
+  // Note: bootstrap is available globally from bootstrap.bundle.min.js
+  new bootstrap.Tooltip(helpIcon, {
+    trigger: 'hover click'
+  });
 
   thPriority.appendChild(priorityLabel);
   thPriority.appendChild(helpIcon);
@@ -388,19 +395,22 @@ async function addChannelToList(channel, newAdded = false) {
   // brandedTdPriority.style.border = 'none';
 
   const brandedCheckDiv = document.createElement('div');
-  brandedCheckDiv.className = 'd-flex align-items-center'; // Keep in one line if possible
-  const brandedCheck = document.createElement('input');
-  brandedCheck.type = 'checkbox';
-  brandedCheck.className = 'form-check-input me-2';
-  brandedCheck.id = `skipBranded-${channel.name}`;
-  brandedCheck.checked = !!channel.skipBranded;
+  brandedCheckDiv.className = 'd-flex align-items-center form-switch';
+
   const brandedLabel = document.createElement('label');
-  brandedLabel.className = 'form-check-label small';
+  brandedLabel.className = 'form-check-label small me-2';
   brandedLabel.htmlFor = `skipBranded-${channel.name}`;
   brandedLabel.textContent = 'PR配信を開かない';
 
-  brandedCheckDiv.appendChild(brandedCheck);
+  const brandedCheck = document.createElement('input');
+  brandedCheck.type = 'checkbox';
+  brandedCheck.className = 'form-check-input';
+  brandedCheck.role = 'switch';
+  brandedCheck.id = `skipBranded-${channel.name}`;
+  brandedCheck.checked = !!channel.skipBranded;
+
   brandedCheckDiv.appendChild(brandedLabel);
+  brandedCheckDiv.appendChild(brandedCheck);
   brandedTdInput.appendChild(brandedCheckDiv);
 
   const brandedPriority = document.createElement('input');
