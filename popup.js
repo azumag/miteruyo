@@ -263,21 +263,22 @@ async function addChannelToList(channel, newAdded = false) {
 
   const volCheck = document.createElement('input');
   volCheck.type = 'checkbox';
-  volCheck.className = 'form-check-input me-2';
+  volCheck.className = 'form-check-input me-2 flex-shrink-0';
   volCheck.style.width = '1.2em';
   volCheck.style.height = '1.2em';
   volCheck.id = `vol-check-${channel.name}`;
   volCheck.checked = !!channel.enableCustomVolume;
 
   const volLabel = document.createElement('label');
-  volLabel.className = 'form-check-label me-3 small';
+  volLabel.className = 'form-check-label me-3 small flex-shrink-0';
+  volLabel.style.whiteSpace = 'nowrap';
   volLabel.htmlFor = `vol-check-${channel.name}`;
-  volLabel.textContent = '音量設定';
+  volLabel.textContent = '音量';
 
   const volRange = document.createElement('input');
   volRange.type = 'range';
-  volRange.className = 'form-range me-2';
-  volRange.style.width = '100px';
+  volRange.className = 'form-range me-2 flex-grow-1';
+  // Removed fixed width: 100px
 
   volRange.min = 0;
   volRange.max = 100;
