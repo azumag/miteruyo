@@ -182,9 +182,16 @@ document.addEventListener('DOMContentLoaded', function () {
   // 開かないカテゴリ
   const blockedCategoriesMessage = chrome.i18n.getMessage('blockedCategories');
   document.getElementById('blockedCategoriesLabel').textContent = blockedCategoriesMessage;
-  // カテゴリ別音量
-  // const categoryVolumesMessage = chrome.i18n.getMessage('categoryVolumes');
-  // document.querySelector('label[for="categoryVolumes"]').textContent = categoryVolumesMessage;
+
+  // ウィンドウ高さが600px未満なら設定アコーディオンを開く
+  if (window.innerHeight < 600) {
+    const collapseConfig = document.getElementById('collapseConfig');
+    if (collapseConfig) {
+      new bootstrap.Collapse(collapseConfig, {
+        toggle: false
+      }).show();
+    }
+  }
 });
 
 // Global state for blocked categories (array of {id, name} objects)
