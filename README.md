@@ -48,7 +48,10 @@ Configure via the extension popup:
 - **Auto-close**: Close tabs when streams go offline (channel pages only)
 - **New Window**: Open streams in new windows instead of current window
 - **Skip Sponsored**: Don't auto-open sponsored/branded content streams
-- **Blocked Categories**: Comma-separated list of categories to not auto-open (e.g., "Just Chatting, ASMR")
+- **Blocked Categories**: Search and select categories to not auto-open (uses Twitch API for category search)
+- **Per-channel Settings**:
+  - Allow specific categories (override global blocked list)
+  - Block additional categories for specific channels
 
 ### Context Menu
 Right-click on any Twitch channel link to "Open with Miteruyo" - the tab will be managed (rotation, mute, auto-close).
@@ -182,6 +185,13 @@ Pull requests welcome! Please:
 See LICENSE file (if present)
 
 ## Version History
+
+### v1.4.0
+- **Category Search UI**: Blocked categories now use incremental search with Twitch API
+  - Search categories by name and select from dropdown
+  - Display selected categories as tags with delete buttons
+  - Works for both global settings and per-channel settings
+- **Storage Migration**: Automatic migration from comma-separated format to array format
 
 ### v1.1.0
 - **New Features**:

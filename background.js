@@ -409,14 +409,26 @@ async function shouldOpenChannel(channel) {
   }
 
   // カテゴリフィルター（カテゴリ名で比較）
-  const globalBlocked = (await chrome.storage.local.get('blockedCategoryNames')).blockedCategoryNames || '';
-  const channelBlocked = channel.blockedCategories || '';
+  // Support both new array format and old comma-separated format for backwards compatibility
+  const storageData = await chrome.storage.local.get(['blockedCategoryList', 'blockedCategoryNames']);
+  let globalBlockedList = storageData.blockedCategoryList || [];
+
+  // Migrate from old format if needed
+  if (globalBlockedList.length === 0 && storageData.blockedCategoryNames) {
+    globalBlockedList = storageData.blockedCategoryNames
+      .replace(/\\,/g, '__M_COMMA__')
+      .split(',')
+      .map(c => c.trim().replace(/__M_COMMA__/g, ','))
+      .filter(c => c);
+  }
+
+  const channelBlockedList = channel.blockedCategoryList || [];
   const allowedCategories = channel.allowedCategories || [];
 
-  // Combine both (Additive model)
-  const combinedBlocked = [globalBlocked, channelBlocked].filter(s => s.trim()).join(',');
+  // Combine both global and channel-specific blocked categories
+  const combinedBlockedList = [...globalBlockedList, ...channelBlockedList];
 
-  if (combinedBlocked && channel.game_name) {
+  if (combinedBlockedList.length > 0 && channel.game_name) {
     const gameName = channel.game_name.toLowerCase();
 
     // Check if this category is explicitly allowed for this channel
@@ -424,13 +436,9 @@ async function shouldOpenChannel(channel) {
       console.log('Category allowed by per-channel override:', channel.name, channel.game_name);
       // Skip blocking - this category is allowed
     } else {
-      // カンマ区切りの文字列を配列に変換し、小文字で比較（\, はエスケープとして扱う）
-      const blockedList = combinedBlocked
-        .replace(/\\,/g, '__M_COMMA__') // Escape \,
-        .split(',')
-        .map(c => c.trim().replace(/__M_COMMA__/g, ',').toLowerCase())
-        .filter(c => c);
-      if (blockedList.includes(gameName)) {
+      // Check if category is in blocked list
+      const blockedListLower = combinedBlockedList.map(c => c.toLowerCase());
+      if (blockedListLower.includes(gameName)) {
         console.log('Skipping blocked category:', channel.name, channel.game_name);
         return false;
       }

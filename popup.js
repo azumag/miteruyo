@@ -9,7 +9,8 @@ const enableTabMute = document.getElementById('enableTabMute');
 const enableAutoClose = document.getElementById('enableAutoClose');
 const tabRotationInterval = document.getElementById('tabRotationInterval');
 const skipBrandedContent = document.getElementById('skipBrandedContent');
-const blockedCategoriesInput = document.getElementById('blockedCategories');
+const blockedCategoriesTagList = document.getElementById('blockedCategoriesTagList');
+const blockedCategoriesSearchContainer = document.getElementById('blockedCategoriesSearch');
 
 const loginTwitch = document.getElementById('loginTwitch');
 
@@ -18,6 +19,123 @@ const liveFilterSwitch = document.getElementById('liveFilterSwitch');
 const twitchDomain = 'https://www.twitch.tv';
 // const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx'; // for prod
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
+
+// Category search using Twitch API
+async function searchCategories(query) {
+  if (!query || query.length < 1) return [];
+
+  const data = await chrome.storage.local.get('oauth_token');
+  if (!data.oauth_token?.oauth_token) return [];
+
+  const url = `https://api.twitch.tv/helix/search/categories?query=${encodeURIComponent(query)}&first=10`;
+  const options = {
+    headers: {
+      'Client-ID': clientId,
+      'Authorization': `Bearer ${data.oauth_token.oauth_token}`,
+    },
+  };
+
+  try {
+    const response = await fetch(url, options);
+    const result = await response.json();
+    return result.data || [];
+  } catch (error) {
+    console.error('Category search error:', error);
+    return [];
+  }
+}
+
+// Create category search input with dropdown
+function createCategorySearchInput(options) {
+  const { onSelect, placeholder = 'カテゴリを検索...', existingCategories = [] } = options;
+
+  const container = document.createElement('div');
+  container.className = 'position-relative';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'form-control form-control-sm';
+  input.placeholder = placeholder;
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'dropdown-menu w-100';
+  dropdown.style.maxHeight = '200px';
+  dropdown.style.overflowY = 'auto';
+
+  container.appendChild(input);
+  container.appendChild(dropdown);
+
+  let searchTimer = null;
+
+  input.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    const query = input.value.trim();
+
+    if (query.length < 1) {
+      dropdown.classList.remove('show');
+      return;
+    }
+
+    searchTimer = setTimeout(async () => {
+      const results = await searchCategories(query);
+      dropdown.innerHTML = '';
+
+      if (results.length === 0) {
+        const noResult = document.createElement('div');
+        noResult.className = 'dropdown-item disabled text-muted';
+        noResult.textContent = '見つかりません';
+        dropdown.appendChild(noResult);
+      } else {
+        results.forEach(cat => {
+          // Skip if already in the list
+          if (existingCategories.includes(cat.name)) return;
+
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'dropdown-item d-flex align-items-center';
+
+          if (cat.box_art_url) {
+            const img = document.createElement('img');
+            img.src = cat.box_art_url.replace('{width}', '20').replace('{height}', '27');
+            img.className = 'me-2';
+            img.style.width = '20px';
+            img.style.height = '27px';
+            item.appendChild(img);
+          }
+
+          const name = document.createElement('span');
+          name.textContent = cat.name;
+          item.appendChild(name);
+
+          item.addEventListener('click', () => {
+            onSelect(cat.name);
+            input.value = '';
+            dropdown.classList.remove('show');
+          });
+
+          dropdown.appendChild(item);
+        });
+      }
+
+      dropdown.classList.add('show');
+    }, 300);
+  });
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!container.contains(e.target)) {
+      dropdown.classList.remove('show');
+    }
+  });
+
+  // Update existing categories reference
+  container.updateExistingCategories = (categories) => {
+    existingCategories.length = 0;
+    existingCategories.push(...categories);
+  };
+
+  return container;
+}
 
 // For debugging
 // chrome.storage.local.get(null, (data) => {
@@ -67,6 +185,56 @@ document.addEventListener('DOMContentLoaded', function () {
   // document.querySelector('label[for="categoryVolumes"]').textContent = categoryVolumesMessage;
 });
 
+// Global state for blocked categories
+let globalBlockedCategories = [];
+
+// Migrate old comma-separated format to array format
+async function migrateBlockedCategories() {
+  const data = await chrome.storage.local.get(['blockedCategoryNames', 'blockedCategoryList']);
+  // If already migrated (array exists) or no old data, skip
+  if (data.blockedCategoryList !== undefined) {
+    return data.blockedCategoryList;
+  }
+  // Migrate from old format
+  if (data.blockedCategoryNames && typeof data.blockedCategoryNames === 'string') {
+    const categories = data.blockedCategoryNames
+      .replace(/\\,/g, '__M_COMMA__')
+      .split(',')
+      .map(c => c.replace(/__M_COMMA__/g, ',').trim())
+      .filter(c => c);
+    await chrome.storage.local.set({ blockedCategoryList: categories });
+    return categories;
+  }
+  return [];
+}
+
+// Render global blocked categories tag list
+function renderGlobalBlockedTags() {
+  blockedCategoriesTagList.innerHTML = '';
+  globalBlockedCategories.forEach(cat => {
+    const tag = document.createElement('span');
+    tag.className = 'badge bg-danger d-flex align-items-center';
+    tag.textContent = cat;
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'btn-close btn-close-white ms-1';
+    deleteBtn.style.fontSize = '0.6em';
+    deleteBtn.addEventListener('click', () => {
+      globalBlockedCategories = globalBlockedCategories.filter(c => c !== cat);
+      chrome.storage.local.set({ blockedCategoryList: globalBlockedCategories });
+      renderGlobalBlockedTags();
+      globalCategorySearch?.updateExistingCategories(globalBlockedCategories);
+    });
+
+    tag.appendChild(deleteBtn);
+    blockedCategoriesTagList.appendChild(tag);
+  });
+}
+
+// Global category search instance
+let globalCategorySearch = null;
+
 chrome.storage.local.get(
   {
     channels: [],
@@ -80,7 +248,6 @@ chrome.storage.local.get(
     isEnabledTabMute: false,
     isEnabledAutoClose: false,
     isSkipBrandedContent: false,
-    blockedCategoryNames: '',
   },
   async (data) => {
     loading.hidden = false;
@@ -93,7 +260,25 @@ chrome.storage.local.get(
     enableTabRotation.checked = data.isEnabledTabRotation;
     enableAutoClose.checked = data.isEnabledAutoClose;
     skipBrandedContent.checked = data.isSkipBrandedContent;
-    blockedCategoriesInput.value = data.blockedCategoryNames;
+
+    // Initialize global blocked categories
+    globalBlockedCategories = await migrateBlockedCategories();
+    renderGlobalBlockedTags();
+
+    // Setup category search
+    globalCategorySearch = createCategorySearchInput({
+      onSelect: (categoryName) => {
+        if (!globalBlockedCategories.includes(categoryName)) {
+          globalBlockedCategories.push(categoryName);
+          chrome.storage.local.set({ blockedCategoryList: globalBlockedCategories });
+          renderGlobalBlockedTags();
+          globalCategorySearch.updateExistingCategories(globalBlockedCategories);
+        }
+      },
+      placeholder: 'カテゴリを検索して追加...',
+      existingCategories: [...globalBlockedCategories],
+    });
+    blockedCategoriesSearchContainer.appendChild(globalCategorySearch);
 
     if (data.oauth_token) {
       const connected = await checkTwitchConnection(data.oauth_token);
@@ -487,19 +672,16 @@ async function addChannelToList(channel, newAdded = false) {
       allowDropdown.remove(1);
     }
 
-    chrome.storage.local.get('blockedCategoryNames', (data) => {
-      const globalBlocked = data.blockedCategoryNames || '';
-      if (globalBlocked.trim()) {
-        const categories = globalBlocked.replace(/\\,/g, '__M_COMMA__').split(',').map(c => c.replace(/__M_COMMA__/g, ',').trim()).filter(c => c);
-        categories.forEach(cat => {
-          if (!currentAllowed.includes(cat)) {
-            const option = document.createElement('option');
-            option.value = cat;
-            option.textContent = cat;
-            allowDropdown.appendChild(option);
-          }
-        });
-      }
+    chrome.storage.local.get('blockedCategoryList', (data) => {
+      const categories = data.blockedCategoryList || [];
+      categories.forEach(cat => {
+        if (!currentAllowed.includes(cat)) {
+          const option = document.createElement('option');
+          option.value = cat;
+          option.textContent = cat;
+          allowDropdown.appendChild(option);
+        }
+      });
       // Reset to default option
       allowDropdown.selectedIndex = 0;
     });
@@ -523,7 +705,7 @@ async function addChannelToList(channel, newAdded = false) {
 
   // Listen for global settings changes to update dropdown
   const storageChangeListener = (changes, areaName) => {
-    if (areaName === 'local' && changes.blockedCategoryNames) {
+    if (areaName === 'local' && changes.blockedCategoryList) {
       updateDropdownOptions();
     }
   };
@@ -561,35 +743,39 @@ async function addChannelToList(channel, newAdded = false) {
   catLabelDiv.appendChild(catHelpIcon);
   catContainer.appendChild(catLabelDiv);
 
-  const catInputDiv = document.createElement('div');
-  catInputDiv.className = 'ps-3';
+  const catContentDiv = document.createElement('div');
+  catContentDiv.className = 'ps-3';
 
-  const catInput = document.createElement('input');
-  catInput.type = 'text';
-  catInput.id = `blockedCats-${channel.name}`;
-  catInput.className = 'form-control form-control-sm';
-  catInput.placeholder = 'カテゴリ名 (カンマ区切り)';
-  catInput.value = channel.blockedCategories || '';
+  // Migrate old comma-separated format to array if needed
+  let channelBlockedCategories = channel.blockedCategoryList || [];
+  if (!channel.blockedCategoryList && channel.blockedCategories) {
+    // Migrate from old format
+    channelBlockedCategories = channel.blockedCategories
+      .replace(/\\,/g, '__M_COMMA__')
+      .split(',')
+      .map(c => c.replace(/__M_COMMA__/g, ',').trim())
+      .filter(c => c);
+    channel.blockedCategoryList = channelBlockedCategories;
+    saveChannelToList(channel);
+  }
+
+  // Tag list for channel-specific blocked categories
+  const catTagList = document.createElement('div');
+  catTagList.className = 'd-flex flex-wrap gap-1 mb-1';
 
   const catAlert = document.createElement('div');
   catAlert.className = 'alert alert-warning py-1 px-2 mt-1 small d-none';
   catAlert.role = 'alert';
 
-  catInputDiv.appendChild(catInput);
-  catInputDiv.appendChild(catAlert);
-  catContainer.appendChild(catInputDiv);
-  settingsTd.appendChild(catContainer);
-
   const checkCatOverlap = () => {
-    chrome.storage.local.get('blockedCategoryNames', (data) => {
-      const globalBlocked = data.blockedCategoryNames || '';
-      if (!globalBlocked.trim()) {
+    chrome.storage.local.get('blockedCategoryList', (data) => {
+      const globalBlocked = data.blockedCategoryList || [];
+      if (globalBlocked.length === 0) {
         catAlert.classList.add('d-none');
         return;
       }
-      const globalList = globalBlocked.replace(/\\,/g, '__M_COMMA__').split(',').map(c => c.replace(/__M_COMMA__/g, ',').trim().toLowerCase()).filter(c => c);
-      const localList = catInput.value.replace(/\\,/g, '__M_COMMA__').split(',').map(c => c.replace(/__M_COMMA__/g, ',').trim().toLowerCase()).filter(c => c);
-      const overlap = localList.filter(c => globalList.includes(c));
+      const globalList = globalBlocked.map(c => c.toLowerCase());
+      const overlap = channelBlockedCategories.filter(c => globalList.includes(c.toLowerCase()));
       if (overlap.length > 0) {
         catAlert.textContent = `以下は全体設定で既に指定されています: ${overlap.join(', ')}`;
         catAlert.classList.remove('d-none');
@@ -599,14 +785,56 @@ async function addChannelToList(channel, newAdded = false) {
     });
   };
 
-  const saveCatSettings = () => {
-    channel.blockedCategories = catInput.value;
-    saveChannelToList(channel);
-    checkCatOverlap();
+  // Function to render the blocked tags
+  const renderCatTags = () => {
+    catTagList.innerHTML = '';
+    channelBlockedCategories.forEach(cat => {
+      const tag = document.createElement('span');
+      tag.className = 'badge bg-danger d-flex align-items-center';
+      tag.textContent = cat;
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'btn-close btn-close-white ms-1';
+      deleteBtn.style.fontSize = '0.6em';
+      deleteBtn.addEventListener('click', () => {
+        channelBlockedCategories = channelBlockedCategories.filter(c => c !== cat);
+        channel.blockedCategoryList = channelBlockedCategories;
+        saveChannelToList(channel);
+        renderCatTags();
+        channelCatSearch?.updateExistingCategories(channelBlockedCategories);
+        checkCatOverlap();
+      });
+
+      tag.appendChild(deleteBtn);
+      catTagList.appendChild(tag);
+    });
   };
-  catInput.addEventListener('change', saveCatSettings);
-  catInput.addEventListener('input', checkCatOverlap);
-  // Initial check
+
+  // Create category search for this channel
+  const channelCatSearch = createCategorySearchInput({
+    onSelect: (categoryName) => {
+      if (!channelBlockedCategories.includes(categoryName)) {
+        channelBlockedCategories.push(categoryName);
+        channel.blockedCategoryList = channelBlockedCategories;
+        saveChannelToList(channel);
+        renderCatTags();
+        channelCatSearch.updateExistingCategories(channelBlockedCategories);
+        checkCatOverlap();
+      }
+    },
+    placeholder: 'カテゴリを検索して追加...',
+    existingCategories: [...channelBlockedCategories],
+  });
+
+  catContentDiv.appendChild(catTagList);
+  catContentDiv.appendChild(channelCatSearch);
+  catContentDiv.appendChild(catAlert);
+  catContainer.appendChild(catContentDiv);
+  settingsTd.appendChild(catContainer);
+
+  // Initial render
+  renderCatTags();
   checkCatOverlap();
 
   settingsTr.appendChild(settingsTd);
@@ -696,10 +924,6 @@ skipBrandedContent.addEventListener('change', () => {
   chrome.storage.local.set({ isSkipBrandedContent: skipBrandedContent.checked });
 });
 
-
-blockedCategoriesInput.addEventListener('change', () => {
-  chrome.storage.local.set({ blockedCategoryNames: blockedCategoriesInput.value });
-});
 
 liveFilterSwitch.addEventListener('change', async () => {
   await chrome.storage.local.set({ isLiveFilter: liveFilterSwitch.checked });
