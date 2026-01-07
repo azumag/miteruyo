@@ -541,52 +541,22 @@ async function addChannelToList(channel, newAdded = false) {
   volValue.className = 'small';
   volValue.textContent = `${volRange.value}%`;
 
-  // Spinner for applying state
-  const volSpinner = document.createElement('div');
-  volSpinner.className = 'spinner-border spinner-border-sm text-primary me-1';
-  volSpinner.style.display = 'none';
-  volSpinner.setAttribute('role', 'status');
-
-  const volApplyingText = document.createElement('span');
-  volApplyingText.className = 'small text-primary me-2';
-  volApplyingText.textContent = '適用中...';
-  volApplyingText.style.display = 'none';
-
   // Apply initial volume state
   toggleState(volCheck.checked, [volRange, volValue]);
 
   // Append volume UI elements to container
   volContainer.appendChild(volCheck);
   volContainer.appendChild(volLabel);
-  volContainer.appendChild(volSpinner);
-  volContainer.appendChild(volApplyingText);
   volContainer.appendChild(volRange);
   volContainer.appendChild(volValue);
 
   settingsTd.appendChild(volContainer);
-
-  // Volume timer and applying indicator
-  let volTimer;
-  const showApplying = () => {
-    volRange.style.display = 'none';
-    volValue.style.display = 'none';
-    volSpinner.style.display = 'inline-block';
-    volApplyingText.style.display = 'inline';
-    clearTimeout(volTimer);
-    volTimer = setTimeout(() => {
-      volSpinner.style.display = 'none';
-      volApplyingText.style.display = 'none';
-      volRange.style.display = '';
-      volValue.style.display = '';
-    }, 5000);
-  };
 
   // Event Listeners for Volume
   volCheck.addEventListener('change', () => {
     channel.enableCustomVolume = volCheck.checked;
     toggleState(volCheck.checked, [volRange, volValue]);
     saveChannelToList(channel);
-    if (volCheck.checked) showApplying();
   });
 
   volRange.addEventListener('input', () => {
@@ -596,7 +566,6 @@ async function addChannelToList(channel, newAdded = false) {
   volRange.addEventListener('change', () => {
     channel.customVolume = parseInt(volRange.value, 10);
     saveChannelToList(channel);
-    showApplying();
   });
 
   // Add separator after volume

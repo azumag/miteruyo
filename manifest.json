@@ -1,11 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Miteruyo",
-<<<<<<< HEAD
-  "version": "1.9.0",
-=======
-  "version": "1.9.2",
->>>>>>> main
+  "version": "1.9.3",
   "description": "Twitch channel list and automatically opens specified channels when they start streaming.",
   "default_locale": "ja",
   "permissions": [
