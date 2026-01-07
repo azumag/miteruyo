@@ -450,11 +450,30 @@ async function closeOfflineTabs(updatedChannels) {
 // デスクトップ通知を表示
 function showNotification(channel) {
   const notificationId = `miteruyo-live-${channel.name}-${Date.now()}`;
+
+  // Build notification message with title and category
+  let message = '';
+
+  // Add stream title if available
+  if (channel.title) {
+    message = channel.title;
+    // Add category if available
+    if (channel.game_name) {
+      message += `\n【${channel.game_name}】`;
+    }
+  } else if (channel.game_name) {
+    // Only category available
+    message = `【${channel.game_name}】`;
+  } else {
+    // Fallback to default message
+    message = chrome.i18n.getMessage('notificationTitle') || '配信開始！';
+  }
+
   const options = {
     type: 'basic',
     iconUrl: chrome.runtime.getURL('icon.png'),
-    title: chrome.i18n.getMessage('notificationTitle') || '配信開始！',
-    message: chrome.i18n.getMessage('notificationBody', [channel.name]) || `${channel.name} が配信を開始しました！`,
+    title: chrome.i18n.getMessage('notificationBody', [channel.name]) || `${channel.name} が配信を開始しました！`,
+    message: message,
     priority: 2,
     eventTime: Date.now(),
     requireInteraction: false
@@ -495,7 +514,11 @@ async function channelQueuedStreamsInMultiTwitch() {
 // メッセージリスナーを追加
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'testNotification') {
-    showNotification({ name: 'TEST_USER' });
+    showNotification({
+      name: 'TEST_USER',
+      title: 'テスト配信タイトル / Test Stream Title',
+      game_name: 'Just Chatting'
+    });
     sendResponse({ status: 'ok' });
   } else if (message.type === 'clearNotifications') {
     chrome.notifications.getAll((notifications) => {

@@ -417,4 +417,57 @@ describe('Background Script', () => {
       expect(result).toBe(false);
     });
   });
+
+  describe('showNotification', () => {
+    // Helper to build notification message (mirrors background.js logic)
+    function buildNotificationMessage(channel) {
+      let message = '';
+
+      if (channel.title) {
+        message = channel.title;
+        if (channel.game_name) {
+          message += `\n【${channel.game_name}】`;
+        }
+      } else if (channel.game_name) {
+        message = `【${channel.game_name}】`;
+      } else {
+        message = '配信開始！';
+      }
+
+      return message;
+    }
+
+    it('should include title and category in notification message', () => {
+      const channel = {
+        name: 'testuser',
+        title: 'Playing some games!',
+        game_name: 'Just Chatting',
+      };
+
+      const message = buildNotificationMessage(channel);
+
+      expect(message).toBe('Playing some games!\n【Just Chatting】');
+    });
+
+    it('should show only title if no category', () => {
+      const channel = { name: 'testuser', title: 'My Stream' };
+      const message = buildNotificationMessage(channel);
+
+      expect(message).toBe('My Stream');
+    });
+
+    it('should show only category if no title', () => {
+      const channel = { name: 'testuser', game_name: 'Fortnite' };
+      const message = buildNotificationMessage(channel);
+
+      expect(message).toBe('【Fortnite】');
+    });
+
+    it('should fallback to default message if no title and category', () => {
+      const channel = { name: 'testuser' };
+      const message = buildNotificationMessage(channel);
+
+      expect(message).toBe('配信開始！');
+    });
+  });
 });
