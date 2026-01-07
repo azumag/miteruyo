@@ -409,14 +409,13 @@ async function shouldOpenChannel(channel) {
   }
 
   // カテゴリフィルター（カテゴリ名で比較）
-  let blockedCategoryNames = (await chrome.storage.local.get('blockedCategoryNames')).blockedCategoryNames || '';
+  const globalBlocked = (await chrome.storage.local.get('blockedCategoryNames')).blockedCategoryNames || '';
+  const channelBlocked = channel.blockedCategories || '';
 
-  // Check per-channel priority for Blocked Categories
-  if (channel.enablePriorityBlockedCategories) {
-    blockedCategoryNames = channel.blockedCategories || '';
-  }
+  // Combine both (Additive model)
+  const combinedBlocked = [globalBlocked, channelBlocked].filter(s => s.trim()).join(',');
 
-  if (blockedCategoryNames && channel.game_name) {
+  if (combinedBlocked && channel.game_name) {
     // カンマ区切りの文字列を配列に変換し、小文字で比較（\, はエスケープとして扱う）
     const blockedList = blockedCategoryNames
       .replace(/\\,/g, '__M_COMMA__') // Escape \,

@@ -400,62 +400,18 @@ async function addChannelToList(channel, newAdded = false) {
     showApplying();
   });
 
-  // New Settings Table
-  const settingsTable = document.createElement('table');
-  settingsTable.className = 'table table-sm table-bordered mb-0 mt-3 align-middle bg-white'; // Added table-bordered and bg-white
+  // --- Blocked Categories Settings ---
+  const catContainer = document.createElement('div');
+  catContainer.className = 'mt-3 mb-1';
 
-  // Header
-  const thead = document.createElement('thead');
-  const theadTr = document.createElement('tr');
-  const thBlank = document.createElement('th');
-  // thBlank.style.borderBottom = '1px solid #dee2e6'; // Handled by table-bordered
-
-  const thPriority = document.createElement('th');
-  thPriority.style.width = '60px'; // Slightly wider for icon
-  thPriority.className = 'text-center small';
-  // thPriority.style.borderBottom = '1px solid #dee2e6'; // Handled by table-bordered
-
-  const priorityLabel = document.createElement('span');
-  priorityLabel.textContent = '優先 ';
-
-  const helpIcon = document.createElement('i');
-  helpIcon.className = 'bi bi-question-circle-fill text-muted ms-1';
-  helpIcon.style.cursor = 'help';
-  helpIcon.setAttribute('data-bs-toggle', 'tooltip');
-  helpIcon.setAttribute('data-bs-title', '全体設定より個別設定を優先');
-
-  // Initialize Bootstrap tooltip for this icon
-  // Note: bootstrap is available globally from bootstrap.bundle.min.js
-  new bootstrap.Tooltip(helpIcon, {
-    trigger: 'hover click'
-  });
-
-  thPriority.appendChild(priorityLabel);
-  thPriority.appendChild(helpIcon);
-
-  theadTr.appendChild(thBlank);
-  theadTr.appendChild(thPriority);
-  thead.appendChild(theadTr);
-  settingsTable.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
-
-  // Blocked Categories Row (Only category settings remain in table)
-  const catTr = document.createElement('tr');
-  // catTr.style.borderBottom = '1px solid #dee2e6'; // Handled by table-bordered
-  const catTdInput = document.createElement('td');
-  // catTdInput.style.border = 'none';
-  const catTdPriority = document.createElement('td');
-  catTdPriority.className = 'text-center align-middle';
-  // catTdPriority.style.border = 'none';
-
-  // Label
-  const catLabel = document.createElement('label');
-  catLabel.className = 'form-label small mb-1';
-  catLabel.htmlFor = `blockedCats-${channel.name}`;
+  const catLabel = document.createElement('div');
+  catLabel.className = 'small mb-1';
   catLabel.textContent = '開かないカテゴリ';
+  catContainer.appendChild(catLabel);
 
-  // Input
+  const catInputDiv = document.createElement('div');
+  catInputDiv.className = 'ps-3';
+
   const catInput = document.createElement('input');
   catInput.type = 'text';
   catInput.id = `blockedCats-${channel.name}`;
@@ -463,33 +419,16 @@ async function addChannelToList(channel, newAdded = false) {
   catInput.placeholder = 'カテゴリ名 (カンマ区切り)';
   catInput.value = channel.blockedCategories || '';
 
-  const catInputGroup = document.createElement('div');
-  catInputGroup.appendChild(catLabel);
-  catInputGroup.appendChild(catInput);
+  catInputDiv.appendChild(catInput);
+  catContainer.appendChild(catInputDiv);
+  settingsTd.appendChild(catContainer);
 
-  catTdInput.appendChild(catInputGroup);
-
-  const catPriority = document.createElement('input');
-  catPriority.type = 'checkbox';
-  catPriority.className = 'form-check-input';
-  catPriority.checked = !!channel.enablePriorityBlockedCategories;
-  catTdPriority.appendChild(catPriority);
-
-  catTr.appendChild(catTdInput);
-  catTr.appendChild(catTdPriority);
-  tbody.appendChild(catTr);
-
-  // Function to save category settings
   const saveCatSettings = () => {
     channel.blockedCategories = catInput.value;
-    channel.enablePriorityBlockedCategories = catPriority.checked;
     saveChannelToList(channel);
   };
   catInput.addEventListener('change', saveCatSettings);
-  catPriority.addEventListener('change', saveCatSettings);
 
-  settingsTable.appendChild(tbody);
-  settingsTd.appendChild(settingsTable);
   settingsTr.appendChild(settingsTd);
 
   channelTable.appendChild(settingsTr);
