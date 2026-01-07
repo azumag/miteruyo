@@ -63,5 +63,9 @@
 				"content": "$1"
 			}
 		}
+	},
+	"addToMiteruyo": {
+		"message": "Miteruyoに追加",
+		"description": "チャンネルをMiteruyoに追加するコンテキストメニュー項目"
 	}
 }

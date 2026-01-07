@@ -63,5 +63,9 @@
 				"content": "$1"
 			}
 		}
+	},
+	"addToMiteruyo": {
+		"message": "Add to Miteruyo",
+		"description": "Context menu item to add a channel to Miteruyo"
 	}
 }
