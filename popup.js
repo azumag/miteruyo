@@ -130,6 +130,7 @@ async function addChannelToList(channel, newAdded = false) {
   const pauseMsg = chrome.i18n.getMessage('pause');
 
   const tr = document.createElement('tr');
+  tr.className = 'align-middle'; // Ensure vertical centering
   tr.classList.add('channel-tr');
 
   // 1. Live Status & On/Off Switch
@@ -248,39 +249,91 @@ async function addChannelToList(channel, newAdded = false) {
   settingsTd.colSpan = 3;
   settingsTd.className = 'bg-light p-2';
 
+  // Function to toggle opacity/disabled state
+  const toggleState = (isEnabled, elements) => {
+    elements.forEach(el => {
+      if ('disabled' in el) el.disabled = !isEnabled;
+      el.style.opacity = isEnabled ? '1' : '0.5';
+    });
+  };
+
   // Custom Volume Control
   const volContainer = document.createElement('div');
-  volContainer.className = 'd-flex align-items-center';
+  volContainer.className = 'd-flex align-items-center mb-3';
 
   const volCheck = document.createElement('input');
   volCheck.type = 'checkbox';
-  volCheck.className = 'form-check-input me-2';
+  volCheck.className = 'form-check-input me-2 flex-shrink-0';
+  volCheck.style.width = '1.2em';
+  volCheck.style.height = '1.2em';
   volCheck.id = `vol-check-${channel.name}`;
   volCheck.checked = !!channel.enableCustomVolume;
 
   const volLabel = document.createElement('label');
-  volLabel.className = 'form-check-label me-3 small';
+  volLabel.className = 'form-check-label me-3 small flex-shrink-0';
+  volLabel.style.whiteSpace = 'nowrap';
   volLabel.htmlFor = `vol-check-${channel.name}`;
-  volLabel.textContent = '個別の音量設定';
+  volLabel.textContent = '音量';
 
   const volRange = document.createElement('input');
   volRange.type = 'range';
-  volRange.className = 'form-range me-2';
-  volRange.style.width = '100px';
+  volRange.className = 'form-range me-2 flex-grow-1';
+  // Removed fixed width: 100px
+
   volRange.min = 0;
   volRange.max = 100;
   volRange.value = channel.customVolume !== undefined ? channel.customVolume : 50;
-  volRange.disabled = !volCheck.checked;
 
   const volValue = document.createElement('span');
   volValue.className = 'small';
   volValue.textContent = `${volRange.value}%`;
 
+  // Spinner for applying state
+  const volSpinner = document.createElement('div');
+  volSpinner.className = 'spinner-border spinner-border-sm text-primary me-1';
+  volSpinner.style.display = 'none';
+  volSpinner.setAttribute('role', 'status');
+
+  const volApplyingText = document.createElement('span');
+  volApplyingText.className = 'small text-primary me-2';
+  volApplyingText.textContent = '適用中...';
+  volApplyingText.style.display = 'none';
+
+  // Apply initial volume state
+  toggleState(volCheck.checked, [volRange, volValue]);
+
+  // Append volume UI elements to container
+  volContainer.appendChild(volCheck);
+  volContainer.appendChild(volLabel);
+  volContainer.appendChild(volSpinner);
+  volContainer.appendChild(volApplyingText);
+  volContainer.appendChild(volRange);
+  volContainer.appendChild(volValue);
+
+  settingsTd.appendChild(volContainer);
+
+  // Volume timer and applying indicator
+  let volTimer;
+  const showApplying = () => {
+    volRange.style.display = 'none';
+    volValue.style.display = 'none';
+    volSpinner.style.display = 'inline-block';
+    volApplyingText.style.display = 'inline';
+    clearTimeout(volTimer);
+    volTimer = setTimeout(() => {
+      volSpinner.style.display = 'none';
+      volApplyingText.style.display = 'none';
+      volRange.style.display = '';
+      volValue.style.display = '';
+    }, 2000);
+  };
+
   // Event Listeners for Volume
   volCheck.addEventListener('change', () => {
     channel.enableCustomVolume = volCheck.checked;
-    volRange.disabled = !volCheck.checked;
+    toggleState(volCheck.checked, [volRange, volValue]);
     saveChannelToList(channel);
+    if (volCheck.checked) showApplying();
   });
 
   volRange.addEventListener('input', () => {
@@ -290,14 +343,272 @@ async function addChannelToList(channel, newAdded = false) {
   volRange.addEventListener('change', () => {
     channel.customVolume = parseInt(volRange.value, 10);
     saveChannelToList(channel);
+    showApplying();
   });
 
-  volContainer.appendChild(volCheck);
-  volContainer.appendChild(volLabel);
-  volContainer.appendChild(volRange);
-  volContainer.appendChild(volValue);
+  // Add separator after volume
+  const volSeparator = document.createElement('hr');
+  volSeparator.className = 'my-2';
+  settingsTd.appendChild(volSeparator);
 
-  settingsTd.appendChild(volContainer);
+  // --- Branded Content Settings ---
+  const brandedContainer = document.createElement('div');
+  brandedContainer.className = 'mb-1';
+
+  const brandedLabel = document.createElement('div');
+  brandedLabel.className = 'small mb-1';
+  brandedLabel.textContent = 'PR配信';
+  brandedContainer.appendChild(brandedLabel);
+
+  const brandedRadioGroup = document.createElement('div');
+  brandedRadioGroup.className = 'ps-3'; // Slight indentation
+
+  const createBrandedRadio = (id, value, labelText) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'form-check mb-1';
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.className = 'form-check-input';
+    input.name = `branded-${channel.name}`;
+    input.id = `branded-${id}-${channel.name}`;
+    input.value = value;
+    const label = document.createElement('label');
+    label.className = 'form-check-label small';
+    label.htmlFor = `branded-${id}-${channel.name}`;
+    label.textContent = labelText;
+    wrapper.appendChild(input);
+    wrapper.appendChild(label);
+    return { wrapper, input };
+  };
+
+  const { wrapper: openWrapper, input: radioOpenInput } = createBrandedRadio('open', 'open', '開く');
+  const { wrapper: blockWrapper, input: radioBlockInput } = createBrandedRadio('block', 'block', '開かない');
+  const { wrapper: globalWrapper, input: radioGlobalInput } = createBrandedRadio('global', 'global', '全体設定に従う');
+
+  const brandedSetting = channel.brandedContentSetting || 'global';
+  if (brandedSetting === 'open') radioOpenInput.checked = true;
+  else if (brandedSetting === 'block') radioBlockInput.checked = true;
+  else radioGlobalInput.checked = true;
+
+  brandedRadioGroup.appendChild(openWrapper);
+  brandedRadioGroup.appendChild(blockWrapper);
+  brandedRadioGroup.appendChild(globalWrapper);
+  brandedContainer.appendChild(brandedRadioGroup);
+  settingsTd.appendChild(brandedContainer);
+
+  const saveBrandedSettings = () => {
+    if (radioOpenInput.checked) channel.brandedContentSetting = 'open';
+    else if (radioBlockInput.checked) channel.brandedContentSetting = 'block';
+    else channel.brandedContentSetting = 'global';
+    saveChannelToList(channel);
+  };
+  radioOpenInput.addEventListener('change', saveBrandedSettings);
+  radioBlockInput.addEventListener('change', saveBrandedSettings);
+  radioGlobalInput.addEventListener('change', saveBrandedSettings);
+
+  // Add separator after PR settings
+  const prSeparator = document.createElement('hr');
+  prSeparator.className = 'my-2';
+  settingsTd.appendChild(prSeparator);
+
+  // --- Allow Categories Settings (override global blocked) ---
+  const allowContainer = document.createElement('div');
+  allowContainer.className = 'mb-1';
+
+  const allowLabelDiv = document.createElement('div');
+  allowLabelDiv.className = 'd-flex align-items-center mb-1';
+
+  const allowLabel = document.createElement('span');
+  allowLabel.className = 'small';
+  allowLabel.textContent = '開くカテゴリ';
+
+  const allowHelpIcon = document.createElement('i');
+  allowHelpIcon.className = 'bi bi-question-circle-fill text-muted ms-1';
+  allowHelpIcon.style.cursor = 'help';
+  allowHelpIcon.setAttribute('data-bs-toggle', 'tooltip');
+  allowHelpIcon.setAttribute('data-bs-title', '全体設定で設定した除外カテゴリのうち、個別に開くカテゴリ');
+  new bootstrap.Tooltip(allowHelpIcon, { trigger: 'hover click' });
+
+  allowLabelDiv.appendChild(allowLabel);
+  allowLabelDiv.appendChild(allowHelpIcon);
+  allowContainer.appendChild(allowLabelDiv);
+
+  const allowContentDiv = document.createElement('div');
+  allowContentDiv.className = 'ps-3';
+
+  // Tag list container
+  const allowTagList = document.createElement('div');
+  allowTagList.className = 'd-flex flex-wrap gap-1 mb-1';
+
+  // Dropdown for adding
+  const allowDropdown = document.createElement('select');
+  allowDropdown.className = 'form-select form-select-sm';
+  allowDropdown.id = `allowCats-dropdown-${channel.name}`;
+
+  const defaultOption = document.createElement('option');
+  defaultOption.value = '';
+  defaultOption.textContent = '追加...';
+  defaultOption.disabled = true;
+  defaultOption.selected = true;
+  allowDropdown.appendChild(defaultOption);
+
+  // Current allowed categories
+  let currentAllowed = channel.allowedCategories || [];
+
+  // Function to render the tag list
+  const renderAllowTags = () => {
+    allowTagList.innerHTML = '';
+    currentAllowed.forEach(cat => {
+      const tag = document.createElement('span');
+      tag.className = 'badge bg-success d-flex align-items-center';
+      tag.textContent = cat;
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'btn-close btn-close-white ms-1';
+      deleteBtn.style.fontSize = '0.6em';
+      deleteBtn.addEventListener('click', () => {
+        currentAllowed = currentAllowed.filter(c => c !== cat);
+        channel.allowedCategories = currentAllowed;
+        saveChannelToList(channel);
+        renderAllowTags();
+        updateDropdownOptions();
+      });
+
+      tag.appendChild(deleteBtn);
+      allowTagList.appendChild(tag);
+    });
+  };
+
+  // Function to update dropdown options
+  const updateDropdownOptions = () => {
+    // Clear existing options except the first one
+    while (allowDropdown.options.length > 1) {
+      allowDropdown.remove(1);
+    }
+
+    chrome.storage.local.get('blockedCategoryNames', (data) => {
+      const globalBlocked = data.blockedCategoryNames || '';
+      if (globalBlocked.trim()) {
+        const categories = globalBlocked.replace(/\\,/g, '__M_COMMA__').split(',').map(c => c.replace(/__M_COMMA__/g, ',').trim()).filter(c => c);
+        categories.forEach(cat => {
+          if (!currentAllowed.includes(cat)) {
+            const option = document.createElement('option');
+            option.value = cat;
+            option.textContent = cat;
+            allowDropdown.appendChild(option);
+          }
+        });
+      }
+      // Reset to default option
+      allowDropdown.selectedIndex = 0;
+    });
+  };
+
+  // Handle dropdown selection
+  allowDropdown.addEventListener('change', () => {
+    const selected = allowDropdown.value;
+    if (selected && !currentAllowed.includes(selected)) {
+      currentAllowed.push(selected);
+      channel.allowedCategories = currentAllowed;
+      saveChannelToList(channel);
+      renderAllowTags();
+      updateDropdownOptions();
+    }
+  });
+
+  // Initial render
+  renderAllowTags();
+  updateDropdownOptions();
+
+  // Listen for global settings changes to update dropdown
+  const storageChangeListener = (changes, areaName) => {
+    if (areaName === 'local' && changes.blockedCategoryNames) {
+      updateDropdownOptions();
+    }
+  };
+  chrome.storage.onChanged.addListener(storageChangeListener);
+
+  allowContentDiv.appendChild(allowTagList);
+  allowContentDiv.appendChild(allowDropdown);
+  allowContainer.appendChild(allowContentDiv);
+  settingsTd.appendChild(allowContainer);
+
+  // Add separator after Allow Categories
+  const allowSeparator = document.createElement('hr');
+  allowSeparator.className = 'my-2';
+  settingsTd.appendChild(allowSeparator);
+
+  // --- Blocked Categories Settings ---
+  const catContainer = document.createElement('div');
+  catContainer.className = 'mb-1';
+
+  const catLabelDiv = document.createElement('div');
+  catLabelDiv.className = 'd-flex align-items-center mb-1';
+
+  const catLabel = document.createElement('span');
+  catLabel.className = 'small';
+  catLabel.textContent = '開かないカテゴリ';
+
+  const catHelpIcon = document.createElement('i');
+  catHelpIcon.className = 'bi bi-question-circle-fill text-muted ms-1';
+  catHelpIcon.style.cursor = 'help';
+  catHelpIcon.setAttribute('data-bs-toggle', 'tooltip');
+  catHelpIcon.setAttribute('data-bs-title', '全体設定に追加する除外カテゴリ');
+  new bootstrap.Tooltip(catHelpIcon, { trigger: 'hover click' });
+
+  catLabelDiv.appendChild(catLabel);
+  catLabelDiv.appendChild(catHelpIcon);
+  catContainer.appendChild(catLabelDiv);
+
+  const catInputDiv = document.createElement('div');
+  catInputDiv.className = 'ps-3';
+
+  const catInput = document.createElement('input');
+  catInput.type = 'text';
+  catInput.id = `blockedCats-${channel.name}`;
+  catInput.className = 'form-control form-control-sm';
+  catInput.placeholder = 'カテゴリ名 (カンマ区切り)';
+  catInput.value = channel.blockedCategories || '';
+
+  const catAlert = document.createElement('div');
+  catAlert.className = 'alert alert-warning py-1 px-2 mt-1 small d-none';
+  catAlert.role = 'alert';
+
+  catInputDiv.appendChild(catInput);
+  catInputDiv.appendChild(catAlert);
+  catContainer.appendChild(catInputDiv);
+  settingsTd.appendChild(catContainer);
+
+  const checkCatOverlap = () => {
+    chrome.storage.local.get('blockedCategoryNames', (data) => {
+      const globalBlocked = data.blockedCategoryNames || '';
+      if (!globalBlocked.trim()) {
+        catAlert.classList.add('d-none');
+        return;
+      }
+      const globalList = globalBlocked.replace(/\\,/g, '__M_COMMA__').split(',').map(c => c.replace(/__M_COMMA__/g, ',').trim().toLowerCase()).filter(c => c);
+      const localList = catInput.value.replace(/\\,/g, '__M_COMMA__').split(',').map(c => c.replace(/__M_COMMA__/g, ',').trim().toLowerCase()).filter(c => c);
+      const overlap = localList.filter(c => globalList.includes(c));
+      if (overlap.length > 0) {
+        catAlert.textContent = `以下は全体設定で既に指定されています: ${overlap.join(', ')}`;
+        catAlert.classList.remove('d-none');
+      } else {
+        catAlert.classList.add('d-none');
+      }
+    });
+  };
+
+  const saveCatSettings = () => {
+    channel.blockedCategories = catInput.value;
+    saveChannelToList(channel);
+    checkCatOverlap();
+  };
+  catInput.addEventListener('change', saveCatSettings);
+  catInput.addEventListener('input', checkCatOverlap);
+  // Initial check
+  checkCatOverlap();
+
   settingsTr.appendChild(settingsTd);
 
   channelTable.appendChild(settingsTr);

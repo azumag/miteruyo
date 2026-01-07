@@ -381,9 +381,24 @@ async function shouldOpenChannel(channel) {
   if (!channel.onLive || !channel.onLiveOpen) return false;
 
   // プロモーション配信フィルター
-  const skipBranded = (await chrome.storage.local.get('isSkipBrandedContent')).isSkipBrandedContent;
+  // New: Use per-channel brandedContentSetting ('open', 'block', 'global')
+  const brandedSetting = channel.brandedContentSetting || 'global';
+  let skipBranded;
+
+  if (brandedSetting === 'open') {
+    // Always allow branded content for this channel
+    skipBranded = false;
+  } else if (brandedSetting === 'block') {
+    // Always block branded content for this channel
+    skipBranded = true;
+  } else {
+    // Follow global setting
+    skipBranded = (await chrome.storage.local.get('isSkipBrandedContent')).isSkipBrandedContent;
+  }
+
   console.log('shouldOpenChannel check:', {
     channel: channel.name,
+    brandedSetting,
     skipBranded,
     is_branded_content: channel.is_branded_content,
     typeof_branded: typeof channel.is_branded_content
@@ -394,17 +409,31 @@ async function shouldOpenChannel(channel) {
   }
 
   // カテゴリフィルター（カテゴリ名で比較）
-  const blockedCategoryNames = (await chrome.storage.local.get('blockedCategoryNames')).blockedCategoryNames || '';
-  if (blockedCategoryNames && channel.game_name) {
-    // カンマ区切りの文字列を配列に変換し、小文字で比較（\, はエスケープとして扱う）
-    const blockedList = blockedCategoryNames
-      .replace(/\\,/g, '__M_COMMA__') // Escape \,
-      .split(',')
-      .map(c => c.trim().replace(/__M_COMMA__/g, ',').toLowerCase())
-      .filter(c => c);
-    if (blockedList.includes(channel.game_name.toLowerCase())) {
-      console.log('Skipping blocked category:', channel.name, channel.game_name);
-      return false;
+  const globalBlocked = (await chrome.storage.local.get('blockedCategoryNames')).blockedCategoryNames || '';
+  const channelBlocked = channel.blockedCategories || '';
+  const allowedCategories = channel.allowedCategories || [];
+
+  // Combine both (Additive model)
+  const combinedBlocked = [globalBlocked, channelBlocked].filter(s => s.trim()).join(',');
+
+  if (combinedBlocked && channel.game_name) {
+    const gameName = channel.game_name.toLowerCase();
+
+    // Check if this category is explicitly allowed for this channel
+    if (allowedCategories.some(cat => cat.toLowerCase() === gameName)) {
+      console.log('Category allowed by per-channel override:', channel.name, channel.game_name);
+      // Skip blocking - this category is allowed
+    } else {
+      // カンマ区切りの文字列を配列に変換し、小文字で比較（\, はエスケープとして扱う）
+      const blockedList = combinedBlocked
+        .replace(/\\,/g, '__M_COMMA__') // Escape \,
+        .split(',')
+        .map(c => c.trim().replace(/__M_COMMA__/g, ',').toLowerCase())
+        .filter(c => c);
+      if (blockedList.includes(gameName)) {
+        console.log('Skipping blocked category:', channel.name, channel.game_name);
+        return false;
+      }
     }
   }
 
