@@ -341,7 +341,6 @@ async function addChannelToList(channel, newAdded = false) {
 
   // 1. Live Status & On/Off Switch
   const statusTd = document.createElement('td');
-  statusTd.classList.add('pe-0'); // Remove right padding
   const statusContainer = document.createElement('div');
   statusContainer.className = 'd-flex align-items-center gap-1';
   statusTd.appendChild(statusContainer);
@@ -1067,9 +1066,9 @@ function checkTwitchConnection(oauthToken) {
 function rewriteNeedsLoginButton(isOk) {
   const mainElements = document.getElementById('main');
   if (isOk) {
-    loginTwitch.textContent = 'connected';
+    loginTwitch.textContent = 'Connected';
   } else {
-    loginTwitch.textContent = 'please login twitch';
+    loginTwitch.textContent = 'Please login to Twitch';
   }
   loginTwitch.disabled = isOk;
   mainElements.hidden = !isOk;
