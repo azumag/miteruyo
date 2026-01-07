@@ -82,6 +82,15 @@ chrome.runtime.onInstalled.addListener((details) => {
     contexts: ['link'],
     targetUrlPatterns: ['*://*.twitch.tv/*']
   });
+
+  // Miteruyoに追加
+  chrome.contextMenus.create({
+    id: 'addToMiteruyo',
+    title: chrome.i18n.getMessage('addToMiteruyo') || 'Miteruyoに追加',
+    contexts: ['link', 'page'],
+    targetUrlPatterns: ['*://*.twitch.tv/*'], // For link context
+    documentUrlPatterns: ['*://*.twitch.tv/*'] // For page context
+  });
 });
 
 // コンテキストメニューのクリックハンドラ
@@ -105,6 +114,49 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
       await openInManagedWindow(channelName);
     } catch (error) {
       console.error('Error opening from context menu:', error);
+    }
+  }
+
+  if (info.menuItemId === 'addToMiteruyo') {
+    const targetUrl = info.linkUrl || info.pageUrl;
+    if (!isTwitchChannelPage(targetUrl)) {
+      console.log('Not a channel page:', targetUrl);
+      return;
+    }
+
+    try {
+      const url = new URL(targetUrl);
+      const pathParts = url.pathname.split('/').filter(p => p);
+      if (pathParts.length === 0) return;
+
+      const channelName = pathParts[0];
+      console.log('Adding channel from context menu:', channelName);
+
+      const channel = {
+        name: channelName,
+        categoriesFilter: '',
+        tagsFilter: '',
+        onLiveOpen: true,
+      };
+
+      const data = await chrome.storage.local.get('channels');
+      const channels = data.channels || [];
+      const index = channels.findIndex((c) => c?.name === channel.name);
+
+      if (index === -1) {
+        // nullを削除
+        const filteredChannels = channels.filter(c => c !== null);
+        const newChannels = [...filteredChannels, channel];
+        await chrome.storage.local.set({ channels: newChannels });
+        console.log('Channel added:', channelName);
+
+        // ステータスを即座に更新するためにチェックを実行
+        checkStreams();
+      } else {
+        console.log('Channel already exists:', channelName);
+      }
+    } catch (error) {
+      console.error('Error adding from context menu:', error);
     }
   }
 });

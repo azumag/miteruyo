@@ -52,7 +52,20 @@
 		"description": "Label for option to skip branded/sponsored content."
 	},
 	"blockedCategories": {
-		"message": "Blocked categories (comma-separated)",
+		"message": "Blocked categories",
 		"description": "Label for blocked category names input."
+	},
+	"confirmDelete": {
+		"message": "Are you sure you want to delete $channel$?",
+		"description": "Confirmation message when deleting a channel",
+		"placeholders": {
+			"channel": {
+				"content": "$1"
+			}
+		}
+	},
+	"addToMiteruyo": {
+		"message": "Add to Miteruyo",
+		"description": "Context menu item to add a channel to Miteruyo"
 	}
 }

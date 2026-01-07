@@ -182,9 +182,16 @@ document.addEventListener('DOMContentLoaded', function () {
   // 開かないカテゴリ
   const blockedCategoriesMessage = chrome.i18n.getMessage('blockedCategories');
   document.getElementById('blockedCategoriesLabel').textContent = blockedCategoriesMessage;
-  // カテゴリ別音量
-  // const categoryVolumesMessage = chrome.i18n.getMessage('categoryVolumes');
-  // document.querySelector('label[for="categoryVolumes"]').textContent = categoryVolumesMessage;
+
+  // ウィンドウ高さが600px未満なら設定アコーディオンを開く
+  if (window.innerHeight < 600) {
+    const collapseConfig = document.getElementById('collapseConfig');
+    if (collapseConfig) {
+      new bootstrap.Collapse(collapseConfig, {
+        toggle: false
+      }).show();
+    }
+  }
 });
 
 // Global state for blocked categories (array of {id, name} objects)
@@ -334,7 +341,6 @@ async function addChannelToList(channel, newAdded = false) {
 
   // 1. Live Status & On/Off Switch
   const statusTd = document.createElement('td');
-  statusTd.classList.add('pe-0'); // Remove right padding
   const statusContainer = document.createElement('div');
   statusContainer.className = 'd-flex align-items-center gap-1';
   statusTd.appendChild(statusContainer);
@@ -345,19 +351,21 @@ async function addChannelToList(channel, newAdded = false) {
 
   if (channel.onLive) {
     openButton.textContent = channel.onLiveOpen ? 'LIVE' : 'Pause';
-    openButton.setAttribute('class', 'btn btn-outline-success btn-sm min-width-');
-    openButton.style.width = '60px';
+    openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
+    openButton.style.width = '72px';
     openButton.addEventListener('click', () => {
       openInManagedWindow(channel.name);
     });
   } else {
     openButton.textContent = channel.onLiveOpen ? 'OFFLINE' : pauseMsg;
     openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
+    openButton.style.width = '72px';
   }
 
   if (channel.status === 'error') {
     openButton.textContent = 'NOT FOUND';
     openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
+    openButton.style.width = '72px';
   }
 
   // On/Off Switch
@@ -376,13 +384,14 @@ async function addChannelToList(channel, newAdded = false) {
     if (channel.onLive) {
       openButton.textContent = channel.onLiveOpen ? 'LIVE' : pauseMsg;
       openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
-      openButton.style.width = '60px';
+      openButton.style.width = '72px';
       openButton.addEventListener('click', () => {
         openInManagedWindow(channel.name);
       });
     } else {
       openButton.textContent = channel.onLiveOpen ? 'OFFLINE' : pauseMsg;
       openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
+      openButton.style.width = '72px';
     }
   });
 
@@ -426,13 +435,16 @@ async function addChannelToList(channel, newAdded = false) {
   removeButton.className = 'bi bi-trash';
   removeButton.style.cursor = 'pointer';
   removeButton.addEventListener('click', () => {
-    // Remove settings row if exists
-    const nextRow = tr.nextSibling;
-    if (nextRow && nextRow.classList.contains('settings-tr')) {
-      nextRow.remove();
+    const confirmMessage = chrome.i18n.getMessage('confirmDelete', channel.name);
+    if (window.confirm(confirmMessage)) {
+      // Remove settings row if exists
+      const nextRow = tr.nextSibling;
+      if (nextRow && nextRow.classList.contains('settings-tr')) {
+        nextRow.remove();
+      }
+      tr.remove();
+      removeChannel(channel);
     }
-    tr.remove();
-    removeChannel(channel);
   });
   removetd.appendChild(removeButton);
   tr.appendChild(removetd);
@@ -1054,9 +1066,9 @@ function checkTwitchConnection(oauthToken) {
 function rewriteNeedsLoginButton(isOk) {
   const mainElements = document.getElementById('main');
   if (isOk) {
-    loginTwitch.textContent = 'connected';
+    loginTwitch.textContent = 'Connected';
   } else {
-    loginTwitch.textContent = 'please login twitch';
+    loginTwitch.textContent = 'Please login to Twitch';
   }
   loginTwitch.disabled = isOk;
   mainElements.hidden = !isOk;
