@@ -9,7 +9,8 @@ const enableTabMute = document.getElementById('enableTabMute');
 const enableAutoClose = document.getElementById('enableAutoClose');
 const tabRotationInterval = document.getElementById('tabRotationInterval');
 const skipBrandedContent = document.getElementById('skipBrandedContent');
-const blockedCategoriesInput = document.getElementById('blockedCategories');
+const blockedCategoriesTagList = document.getElementById('blockedCategoriesTagList');
+const blockedCategoriesSearchContainer = document.getElementById('blockedCategoriesSearch');
 
 const loginTwitch = document.getElementById('loginTwitch');
 
@@ -18,6 +19,125 @@ const liveFilterSwitch = document.getElementById('liveFilterSwitch');
 const twitchDomain = 'https://www.twitch.tv';
 // const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx'; // for prod
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
+
+// Category search using Twitch API
+async function searchCategories(query) {
+  if (!query || query.length < 1) return [];
+
+  const data = await chrome.storage.local.get('oauth_token');
+  if (!data.oauth_token?.oauth_token) return [];
+
+  const url = `https://api.twitch.tv/helix/search/categories?query=${encodeURIComponent(query)}&first=10`;
+  const options = {
+    headers: {
+      'Client-ID': clientId,
+      'Authorization': `Bearer ${data.oauth_token.oauth_token}`,
+    },
+  };
+
+  try {
+    const response = await fetch(url, options);
+    const result = await response.json();
+    return result.data || [];
+  } catch (error) {
+    console.error('Category search error:', error);
+    return [];
+  }
+}
+
+// Create category search input with dropdown
+// existingCategories is an array of {id, name} objects
+function createCategorySearchInput(options) {
+  const { onSelect, placeholder = 'カテゴリを検索...', existingCategories = [] } = options;
+
+  const container = document.createElement('div');
+  container.className = 'position-relative';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'form-control form-control-sm';
+  input.placeholder = placeholder;
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'dropdown-menu w-100';
+  dropdown.style.maxHeight = '200px';
+  dropdown.style.overflowY = 'auto';
+
+  container.appendChild(input);
+  container.appendChild(dropdown);
+
+  let searchTimer = null;
+
+  input.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    const query = input.value.trim();
+
+    if (query.length < 1) {
+      dropdown.classList.remove('show');
+      return;
+    }
+
+    searchTimer = setTimeout(async () => {
+      const results = await searchCategories(query);
+      dropdown.innerHTML = '';
+
+      if (results.length === 0) {
+        const noResult = document.createElement('div');
+        noResult.className = 'dropdown-item disabled text-muted';
+        noResult.textContent = '見つかりません';
+        dropdown.appendChild(noResult);
+      } else {
+        results.forEach(cat => {
+          // Skip if already in the list (compare by id)
+          if (existingCategories.some(c => c.id === cat.id)) return;
+
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'dropdown-item d-flex align-items-center';
+
+          if (cat.box_art_url) {
+            const img = document.createElement('img');
+            img.src = cat.box_art_url.replace('{width}', '20').replace('{height}', '27');
+            img.className = 'me-2';
+            img.style.width = '20px';
+            img.style.height = '27px';
+            item.appendChild(img);
+          }
+
+          const name = document.createElement('span');
+          name.textContent = cat.name;
+          item.appendChild(name);
+
+          item.addEventListener('click', () => {
+            // Pass both id and name
+            onSelect({ id: cat.id, name: cat.name });
+            input.value = '';
+            dropdown.classList.remove('show');
+          });
+
+          dropdown.appendChild(item);
+        });
+      }
+
+      dropdown.classList.add('show');
+    }, 300);
+  });
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!container.contains(e.target)) {
+      dropdown.classList.remove('show');
+    }
+  });
+
+  // Update existing categories reference (array of {id, name})
+  container.updateExistingCategories = (categories) => {
+    existingCategories.length = 0;
+    existingCategories.push(...categories);
+  };
+
+  return container;
+}
 
 // For debugging
 // chrome.storage.local.get(null, (data) => {
@@ -61,11 +181,72 @@ document.addEventListener('DOMContentLoaded', function () {
   document.querySelector('label[for="skipBrandedContent"]').textContent = skipBrandedContentMessage;
   // 開かないカテゴリ
   const blockedCategoriesMessage = chrome.i18n.getMessage('blockedCategories');
-  document.querySelector('label[for="blockedCategories"]').textContent = blockedCategoriesMessage;
+  document.getElementById('blockedCategoriesLabel').textContent = blockedCategoriesMessage;
   // カテゴリ別音量
   // const categoryVolumesMessage = chrome.i18n.getMessage('categoryVolumes');
   // document.querySelector('label[for="categoryVolumes"]').textContent = categoryVolumesMessage;
 });
+
+// Global state for blocked categories (array of {id, name} objects)
+let globalBlockedCategories = [];
+
+// Migrate old formats to new {id, name} array format
+async function migrateBlockedCategories() {
+  const data = await chrome.storage.local.get(['blockedCategoryNames', 'blockedCategoryList']);
+
+  // Check if already in new format (array of objects with id)
+  if (data.blockedCategoryList && Array.isArray(data.blockedCategoryList)) {
+    // Check if it's already in {id, name} format
+    if (data.blockedCategoryList.length === 0 || (data.blockedCategoryList[0] && typeof data.blockedCategoryList[0] === 'object' && data.blockedCategoryList[0].id)) {
+      return data.blockedCategoryList;
+    }
+    // Migrate from string array to object array (id will be name for backwards compatibility)
+    const migrated = data.blockedCategoryList.map(name => ({ id: null, name }));
+    await chrome.storage.local.set({ blockedCategoryList: migrated });
+    return migrated;
+  }
+
+  // Migrate from old comma-separated format
+  if (data.blockedCategoryNames && typeof data.blockedCategoryNames === 'string') {
+    const categories = data.blockedCategoryNames
+      .replace(/\\,/g, '__M_COMMA__')
+      .split(',')
+      .map(c => c.replace(/__M_COMMA__/g, ',').trim())
+      .filter(c => c)
+      .map(name => ({ id: null, name })); // id is null for legacy data
+    await chrome.storage.local.set({ blockedCategoryList: categories });
+    return categories;
+  }
+
+  return [];
+}
+
+// Render global blocked categories tag list
+function renderGlobalBlockedTags() {
+  blockedCategoriesTagList.innerHTML = '';
+  globalBlockedCategories.forEach(cat => {
+    const tag = document.createElement('span');
+    tag.className = 'badge bg-danger d-flex align-items-center';
+    tag.textContent = cat.name;
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'btn-close btn-close-white ms-1';
+    deleteBtn.style.fontSize = '0.6em';
+    deleteBtn.addEventListener('click', () => {
+      globalBlockedCategories = globalBlockedCategories.filter(c => c.id !== cat.id || c.name !== cat.name);
+      chrome.storage.local.set({ blockedCategoryList: globalBlockedCategories });
+      renderGlobalBlockedTags();
+      globalCategorySearch?.updateExistingCategories(globalBlockedCategories);
+    });
+
+    tag.appendChild(deleteBtn);
+    blockedCategoriesTagList.appendChild(tag);
+  });
+}
+
+// Global category search instance
+let globalCategorySearch = null;
 
 chrome.storage.local.get(
   {
@@ -80,7 +261,6 @@ chrome.storage.local.get(
     isEnabledTabMute: false,
     isEnabledAutoClose: false,
     isSkipBrandedContent: false,
-    blockedCategoryNames: '',
   },
   async (data) => {
     loading.hidden = false;
@@ -93,7 +273,26 @@ chrome.storage.local.get(
     enableTabRotation.checked = data.isEnabledTabRotation;
     enableAutoClose.checked = data.isEnabledAutoClose;
     skipBrandedContent.checked = data.isSkipBrandedContent;
-    blockedCategoriesInput.value = data.blockedCategoryNames;
+
+    // Initialize global blocked categories
+    globalBlockedCategories = await migrateBlockedCategories();
+    renderGlobalBlockedTags();
+
+    // Setup category search
+    globalCategorySearch = createCategorySearchInput({
+      onSelect: (category) => {
+        // category is {id, name} object
+        if (!globalBlockedCategories.some(c => c.id === category.id)) {
+          globalBlockedCategories.push(category);
+          chrome.storage.local.set({ blockedCategoryList: globalBlockedCategories });
+          renderGlobalBlockedTags();
+          globalCategorySearch.updateExistingCategories(globalBlockedCategories);
+        }
+      },
+      placeholder: 'カテゴリを検索して追加...',
+      existingCategories: [...globalBlockedCategories],
+    });
+    blockedCategoriesSearchContainer.appendChild(globalCategorySearch);
 
     if (data.oauth_token) {
       const connected = await checkTwitchConnection(data.oauth_token);
@@ -452,8 +651,17 @@ async function addChannelToList(channel, newAdded = false) {
   defaultOption.selected = true;
   allowDropdown.appendChild(defaultOption);
 
-  // Current allowed categories
-  let currentAllowed = channel.allowedCategories || [];
+  // Current allowed categories (array of {id, name} or legacy string array)
+  // Migrate legacy format if needed
+  let currentAllowed = channel.allowedCategoryList || [];
+  if (currentAllowed.length === 0 && channel.allowedCategories && Array.isArray(channel.allowedCategories)) {
+    // Migrate from old string array format
+    currentAllowed = channel.allowedCategories.map(name =>
+      typeof name === 'string' ? { id: null, name } : name
+    );
+    channel.allowedCategoryList = currentAllowed;
+    saveChannelToList(channel);
+  }
 
   // Function to render the tag list
   const renderAllowTags = () => {
@@ -461,15 +669,15 @@ async function addChannelToList(channel, newAdded = false) {
     currentAllowed.forEach(cat => {
       const tag = document.createElement('span');
       tag.className = 'badge bg-success d-flex align-items-center';
-      tag.textContent = cat;
+      tag.textContent = cat.name;
 
       const deleteBtn = document.createElement('button');
       deleteBtn.type = 'button';
       deleteBtn.className = 'btn-close btn-close-white ms-1';
       deleteBtn.style.fontSize = '0.6em';
       deleteBtn.addEventListener('click', () => {
-        currentAllowed = currentAllowed.filter(c => c !== cat);
-        channel.allowedCategories = currentAllowed;
+        currentAllowed = currentAllowed.filter(c => c.id !== cat.id || c.name !== cat.name);
+        channel.allowedCategoryList = currentAllowed;
         saveChannelToList(channel);
         renderAllowTags();
         updateDropdownOptions();
@@ -480,26 +688,27 @@ async function addChannelToList(channel, newAdded = false) {
     });
   };
 
-  // Function to update dropdown options
+  // Function to update dropdown options (from global blocked list)
   const updateDropdownOptions = () => {
     // Clear existing options except the first one
     while (allowDropdown.options.length > 1) {
       allowDropdown.remove(1);
     }
 
-    chrome.storage.local.get('blockedCategoryNames', (data) => {
-      const globalBlocked = data.blockedCategoryNames || '';
-      if (globalBlocked.trim()) {
-        const categories = globalBlocked.replace(/\\,/g, '__M_COMMA__').split(',').map(c => c.replace(/__M_COMMA__/g, ',').trim()).filter(c => c);
-        categories.forEach(cat => {
-          if (!currentAllowed.includes(cat)) {
-            const option = document.createElement('option');
-            option.value = cat;
-            option.textContent = cat;
-            allowDropdown.appendChild(option);
-          }
-        });
-      }
+    chrome.storage.local.get('blockedCategoryList', (data) => {
+      const categories = data.blockedCategoryList || [];
+      categories.forEach(cat => {
+        // Check if already in allowed list (by id or name)
+        const isAlreadyAllowed = currentAllowed.some(c =>
+          (cat.id && c.id === cat.id) || c.name === cat.name
+        );
+        if (!isAlreadyAllowed) {
+          const option = document.createElement('option');
+          option.value = JSON.stringify(cat); // Store full object
+          option.textContent = cat.name;
+          allowDropdown.appendChild(option);
+        }
+      });
       // Reset to default option
       allowDropdown.selectedIndex = 0;
     });
@@ -507,13 +716,19 @@ async function addChannelToList(channel, newAdded = false) {
 
   // Handle dropdown selection
   allowDropdown.addEventListener('change', () => {
-    const selected = allowDropdown.value;
-    if (selected && !currentAllowed.includes(selected)) {
-      currentAllowed.push(selected);
-      channel.allowedCategories = currentAllowed;
-      saveChannelToList(channel);
-      renderAllowTags();
-      updateDropdownOptions();
+    const selectedValue = allowDropdown.value;
+    if (selectedValue) {
+      const selected = JSON.parse(selectedValue);
+      const isAlreadyAllowed = currentAllowed.some(c =>
+        (selected.id && c.id === selected.id) || c.name === selected.name
+      );
+      if (!isAlreadyAllowed) {
+        currentAllowed.push(selected);
+        channel.allowedCategoryList = currentAllowed;
+        saveChannelToList(channel);
+        renderAllowTags();
+        updateDropdownOptions();
+      }
     }
   });
 
@@ -523,7 +738,7 @@ async function addChannelToList(channel, newAdded = false) {
 
   // Listen for global settings changes to update dropdown
   const storageChangeListener = (changes, areaName) => {
-    if (areaName === 'local' && changes.blockedCategoryNames) {
+    if (areaName === 'local' && changes.blockedCategoryList) {
       updateDropdownOptions();
     }
   };
@@ -561,37 +776,53 @@ async function addChannelToList(channel, newAdded = false) {
   catLabelDiv.appendChild(catHelpIcon);
   catContainer.appendChild(catLabelDiv);
 
-  const catInputDiv = document.createElement('div');
-  catInputDiv.className = 'ps-3';
+  const catContentDiv = document.createElement('div');
+  catContentDiv.className = 'ps-3';
 
-  const catInput = document.createElement('input');
-  catInput.type = 'text';
-  catInput.id = `blockedCats-${channel.name}`;
-  catInput.className = 'form-control form-control-sm';
-  catInput.placeholder = 'カテゴリ名 (カンマ区切り)';
-  catInput.value = channel.blockedCategories || '';
+  // Migrate old formats to {id, name} array if needed
+  let channelBlockedCategories = channel.blockedCategoryList || [];
+  // Check if it's in old string array or comma-separated format
+  if (channelBlockedCategories.length > 0 && typeof channelBlockedCategories[0] === 'string') {
+    // Migrate from string array
+    channelBlockedCategories = channelBlockedCategories.map(name => ({ id: null, name }));
+    channel.blockedCategoryList = channelBlockedCategories;
+    saveChannelToList(channel);
+  } else if (channelBlockedCategories.length === 0 && channel.blockedCategories) {
+    // Migrate from old comma-separated format
+    channelBlockedCategories = channel.blockedCategories
+      .replace(/\\,/g, '__M_COMMA__')
+      .split(',')
+      .map(c => c.replace(/__M_COMMA__/g, ',').trim())
+      .filter(c => c)
+      .map(name => ({ id: null, name }));
+    channel.blockedCategoryList = channelBlockedCategories;
+    saveChannelToList(channel);
+  }
+
+  // Tag list for channel-specific blocked categories
+  const catTagList = document.createElement('div');
+  catTagList.className = 'd-flex flex-wrap gap-1 mb-1';
 
   const catAlert = document.createElement('div');
   catAlert.className = 'alert alert-warning py-1 px-2 mt-1 small d-none';
   catAlert.role = 'alert';
 
-  catInputDiv.appendChild(catInput);
-  catInputDiv.appendChild(catAlert);
-  catContainer.appendChild(catInputDiv);
-  settingsTd.appendChild(catContainer);
-
   const checkCatOverlap = () => {
-    chrome.storage.local.get('blockedCategoryNames', (data) => {
-      const globalBlocked = data.blockedCategoryNames || '';
-      if (!globalBlocked.trim()) {
+    chrome.storage.local.get('blockedCategoryList', (data) => {
+      const globalBlocked = data.blockedCategoryList || [];
+      if (globalBlocked.length === 0) {
         catAlert.classList.add('d-none');
         return;
       }
-      const globalList = globalBlocked.replace(/\\,/g, '__M_COMMA__').split(',').map(c => c.replace(/__M_COMMA__/g, ',').trim().toLowerCase()).filter(c => c);
-      const localList = catInput.value.replace(/\\,/g, '__M_COMMA__').split(',').map(c => c.replace(/__M_COMMA__/g, ',').trim().toLowerCase()).filter(c => c);
-      const overlap = localList.filter(c => globalList.includes(c));
+      // Compare by id (if available) or name
+      const overlap = channelBlockedCategories.filter(local =>
+        globalBlocked.some(g =>
+          (local.id && g.id && local.id === g.id) ||
+          local.name.toLowerCase() === g.name.toLowerCase()
+        )
+      );
       if (overlap.length > 0) {
-        catAlert.textContent = `以下は全体設定で既に指定されています: ${overlap.join(', ')}`;
+        catAlert.textContent = `以下は全体設定で既に指定されています: ${overlap.map(c => c.name).join(', ')}`;
         catAlert.classList.remove('d-none');
       } else {
         catAlert.classList.add('d-none');
@@ -599,14 +830,57 @@ async function addChannelToList(channel, newAdded = false) {
     });
   };
 
-  const saveCatSettings = () => {
-    channel.blockedCategories = catInput.value;
-    saveChannelToList(channel);
-    checkCatOverlap();
+  // Function to render the blocked tags
+  const renderCatTags = () => {
+    catTagList.innerHTML = '';
+    channelBlockedCategories.forEach(cat => {
+      const tag = document.createElement('span');
+      tag.className = 'badge bg-danger d-flex align-items-center';
+      tag.textContent = cat.name;
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'btn-close btn-close-white ms-1';
+      deleteBtn.style.fontSize = '0.6em';
+      deleteBtn.addEventListener('click', () => {
+        channelBlockedCategories = channelBlockedCategories.filter(c => c.id !== cat.id || c.name !== cat.name);
+        channel.blockedCategoryList = channelBlockedCategories;
+        saveChannelToList(channel);
+        renderCatTags();
+        channelCatSearch?.updateExistingCategories(channelBlockedCategories);
+        checkCatOverlap();
+      });
+
+      tag.appendChild(deleteBtn);
+      catTagList.appendChild(tag);
+    });
   };
-  catInput.addEventListener('change', saveCatSettings);
-  catInput.addEventListener('input', checkCatOverlap);
-  // Initial check
+
+  // Create category search for this channel
+  const channelCatSearch = createCategorySearchInput({
+    onSelect: (category) => {
+      // category is {id, name} object
+      if (!channelBlockedCategories.some(c => c.id === category.id)) {
+        channelBlockedCategories.push(category);
+        channel.blockedCategoryList = channelBlockedCategories;
+        saveChannelToList(channel);
+        renderCatTags();
+        channelCatSearch.updateExistingCategories(channelBlockedCategories);
+        checkCatOverlap();
+      }
+    },
+    placeholder: 'カテゴリを検索して追加...',
+    existingCategories: [...channelBlockedCategories],
+  });
+
+  catContentDiv.appendChild(catTagList);
+  catContentDiv.appendChild(channelCatSearch);
+  catContentDiv.appendChild(catAlert);
+  catContainer.appendChild(catContentDiv);
+  settingsTd.appendChild(catContainer);
+
+  // Initial render
+  renderCatTags();
   checkCatOverlap();
 
   settingsTr.appendChild(settingsTd);
@@ -696,10 +970,6 @@ skipBrandedContent.addEventListener('change', () => {
   chrome.storage.local.set({ isSkipBrandedContent: skipBrandedContent.checked });
 });
 
-
-blockedCategoriesInput.addEventListener('change', () => {
-  chrome.storage.local.set({ blockedCategoryNames: blockedCategoriesInput.value });
-});
 
 liveFilterSwitch.addEventListener('change', async () => {
   await chrome.storage.local.set({ isLiveFilter: liveFilterSwitch.checked });
