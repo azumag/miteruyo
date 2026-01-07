@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', function () {
   document.querySelector('label[for="skipBrandedContent"]').textContent = skipBrandedContentMessage;
   // 開かないカテゴリ
   const blockedCategoriesMessage = chrome.i18n.getMessage('blockedCategories');
-  document.querySelector('label[for="blockedCategories"]').textContent = blockedCategoriesMessage;
+  document.getElementById('blockedCategoriesLabel').textContent = blockedCategoriesMessage;
   // カテゴリ別音量
   // const categoryVolumesMessage = chrome.i18n.getMessage('categoryVolumes');
   // document.querySelector('label[for="categoryVolumes"]').textContent = categoryVolumesMessage;
