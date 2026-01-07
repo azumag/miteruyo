@@ -104,5 +104,25 @@
 	"notificationOff": {
 		"message": "出さない",
 		"description": "個別設定の通知設定（オフ）"
+	},
+	"about": {
+		"message": "Miteruyoについて",
+		"description": "Aboutボタン/タイトル"
+	},
+	"version": {
+		"message": "バージョン",
+		"description": "バージョン情報ラベル"
+	},
+	"support": {
+		"message": "ご支援",
+		"description": "支援リンク用ラベル"
+	},
+	"supportMessage": {
+		"message": "気に入ったらご支援頂けますと幸いです",
+		"description": "支援のお願いメッセージ"
+	},
+	"githubLink": {
+		"message": "GitHubリポジトリ",
+		"description": "GitHubリンクのテキスト"
 	}
 }

@@ -103,6 +103,26 @@
 	},
 	"notificationOff": {
 		"message": "Off",
-		"description": "Per-channel setting option (Off)"
+		"description": "Per-channel notification setting (Off)"
+	},
+	"about": {
+		"message": "About Miteruyo",
+		"description": "About button/title"
+	},
+	"version": {
+		"message": "Version",
+		"description": "Version info label"
+	},
+	"support": {
+		"message": "Support",
+		"description": "Support link label"
+	},
+	"supportMessage": {
+		"message": "If you like this extension, please consider supporting me!",
+		"description": "Support request message"
+	},
+	"githubLink": {
+		"message": "GitHub Repository",
+		"description": "GitHub link text"
 	}
 }
