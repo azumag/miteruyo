@@ -67,5 +67,38 @@
 	"addToMiteruyo": {
 		"message": "Miteruyoに追加",
 		"description": "チャンネルをMiteruyoに追加するコンテキストメニュー項目"
+	},
+	"enableNotifications": {
+		"message": "デスクトップ通知を出す",
+		"description": "全体設定のデスクトップ通知ラベル"
+	},
+	"notificationTitle": {
+		"message": "配信開始！",
+		"description": "デスクトップ通知のタイトル"
+	},
+	"notificationBody": {
+		"message": "$channel$が配信を開始しました！",
+		"description": "デスクトップ通知の本文",
+		"placeholders": {
+			"channel": {
+				"content": "$1"
+			}
+		}
+	},
+	"notificationSetting": {
+		"message": "通知",
+		"description": "個別設定の通知設定ラベル"
+	},
+	"notificationGlobal": {
+		"message": "全体設定に従う",
+		"description": "個別設定の通知設定（全体）"
+	},
+	"notificationOn": {
+		"message": "出す",
+		"description": "個別設定の通知設定（オン）"
+	},
+	"notificationOff": {
+		"message": "出さない",
+		"description": "個別設定の通知設定（オフ）"
 	}
 }

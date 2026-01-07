@@ -365,6 +365,33 @@ async function checkStreams() {
     await chrome.storage.local.set({ channels: updatedChannels });
     console.log('checkStreams: channels saved');
 
+    // 通知の判定
+    const isEnabledNotifications = (await chrome.storage.local.get('isEnabledNotifications')).isEnabledNotifications;
+    for (let i = 0; i < updatedChannels.length; i++) {
+      const newStatus = updatedChannels[i];
+      const oldStatus = channels[i]; // channels は更新前のリスト
+
+      // オフライン -> オンライン への移行を検知
+      if (newStatus.onLive && (!oldStatus || !oldStatus.onLive)) {
+        // 通知設定の確認
+        const notifySetting = newStatus.notificationSetting || 'global';
+        let shouldNotify = false;
+
+        if (notifySetting === 'on') {
+          shouldNotify = true;
+        } else if (notifySetting === 'off') {
+          shouldNotify = false;
+        } else {
+          // global settings
+          shouldNotify = isEnabledNotifications;
+        }
+
+        if (shouldNotify) {
+          showNotification(newStatus);
+        }
+      }
+    }
+
     if (isOpenMultiTwitch) {
       channelQueuedStreamsInMultiTwitch();
     } else {

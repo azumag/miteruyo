@@ -13,6 +13,7 @@ const blockedCategoriesTagList = document.getElementById('blockedCategoriesTagLi
 const blockedCategoriesSearchContainer = document.getElementById('blockedCategoriesSearch');
 
 const loginTwitch = document.getElementById('loginTwitch');
+const enableNotifications = document.getElementById('enableNotifications');
 
 const liveFilterSwitch = document.getElementById('liveFilterSwitch');
 
@@ -183,6 +184,10 @@ document.addEventListener('DOMContentLoaded', function () {
   const blockedCategoriesMessage = chrome.i18n.getMessage('blockedCategories');
   document.getElementById('blockedCategoriesLabel').textContent = blockedCategoriesMessage;
 
+  // デスクトップ通知を出す
+  const enableNotificationsMessage = chrome.i18n.getMessage('enableNotifications');
+  document.querySelector('label[for="enableNotifications"]').textContent = enableNotificationsMessage;
+
   // ウィンドウ高さが600px未満なら設定アコーディオンを開く
   if (window.innerHeight < 600) {
     const collapseConfig = document.getElementById('collapseConfig');
@@ -268,6 +273,7 @@ chrome.storage.local.get(
     isEnabledTabMute: false,
     isEnabledAutoClose: false,
     isSkipBrandedContent: false,
+    isEnabledNotifications: false, // Added this line
   },
   async (data) => {
     loading.hidden = false;
@@ -280,6 +286,7 @@ chrome.storage.local.get(
     enableTabRotation.checked = data.isEnabledTabRotation;
     enableAutoClose.checked = data.isEnabledAutoClose;
     skipBrandedContent.checked = data.isSkipBrandedContent;
+    enableNotifications.checked = data.isEnabledNotifications; // Added this line
 
     // Initialize global blocked categories
     globalBlockedCategories = await migrateBlockedCategories();
@@ -597,25 +604,82 @@ async function addChannelToList(channel, newAdded = false) {
   const { wrapper: globalWrapper, input: radioGlobalInput } = createBrandedRadio('global', 'global', '全体設定に従う');
 
   const brandedSetting = channel.brandedContentSetting || 'global';
-  if (brandedSetting === 'open') radioOpenInput.checked = true;
-  else if (brandedSetting === 'block') radioBlockInput.checked = true;
-  else radioGlobalInput.checked = true;
+  radioGlobalInput.checked = brandedSetting === 'global';
+  radioOpenInput.checked = brandedSetting === 'open';
+  radioBlockInput.checked = brandedSetting === 'block';
 
+  brandedRadioGroup.appendChild(globalWrapper);
   brandedRadioGroup.appendChild(openWrapper);
   brandedRadioGroup.appendChild(blockWrapper);
-  brandedRadioGroup.appendChild(globalWrapper);
+
   brandedContainer.appendChild(brandedRadioGroup);
   settingsTd.appendChild(brandedContainer);
 
-  const saveBrandedSettings = () => {
-    if (radioOpenInput.checked) channel.brandedContentSetting = 'open';
+  const brandedChangeHandler = () => {
+    if (radioGlobalInput.checked) channel.brandedContentSetting = 'global';
+    else if (radioOpenInput.checked) channel.brandedContentSetting = 'open';
     else if (radioBlockInput.checked) channel.brandedContentSetting = 'block';
-    else channel.brandedContentSetting = 'global';
     saveChannelToList(channel);
   };
-  radioOpenInput.addEventListener('change', saveBrandedSettings);
-  radioBlockInput.addEventListener('change', saveBrandedSettings);
-  radioGlobalInput.addEventListener('change', saveBrandedSettings);
+  radioGlobalInput.addEventListener('change', brandedChangeHandler);
+  radioOpenInput.addEventListener('change', brandedChangeHandler);
+  radioBlockInput.addEventListener('change', brandedChangeHandler);
+
+  // --- Notification Settings ---
+  const notifyContainer = document.createElement('div');
+  notifyContainer.className = 'mb-1';
+
+  const notifyLabel = document.createElement('div');
+  notifyLabel.className = 'small mb-1';
+  notifyLabel.textContent = chrome.i18n.getMessage('notificationSetting') || '通知';
+  notifyContainer.appendChild(notifyLabel);
+
+  const notifyRadioGroup = document.createElement('div');
+  notifyRadioGroup.className = 'ps-3';
+
+  const createNotifyRadio = (id, value, labelText) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'form-check mb-1';
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.className = 'form-check-input';
+    input.name = `notify-${channel.name}`;
+    input.id = `notify-${id}-${channel.name}`;
+    input.value = value;
+    const label = document.createElement('label');
+    label.className = 'form-check-label small';
+    label.htmlFor = `notify-${id}-${channel.name}`;
+    label.textContent = labelText;
+    wrapper.appendChild(input);
+    wrapper.appendChild(label);
+    return { wrapper, input };
+  };
+
+  const { wrapper: notifyGlobalWrapper, input: notifyGlobalInput } = createNotifyRadio('global', 'global', chrome.i18n.getMessage('notificationGlobal') || '全体設定に従う');
+  const { wrapper: notifyOnWrapper, input: notifyOnInput } = createNotifyRadio('on', 'on', chrome.i18n.getMessage('notificationOn') || '出す');
+  const { wrapper: notifyOffWrapper, input: notifyOffInput } = createNotifyRadio('off', 'off', chrome.i18n.getMessage('notificationOff') || '出さない');
+
+  const notifySetting = channel.notificationSetting || 'global';
+  notifyGlobalInput.checked = notifySetting === 'global';
+  notifyOnInput.checked = notifySetting === 'on';
+  notifyOffInput.checked = notifySetting === 'off';
+
+  notifyRadioGroup.appendChild(notifyGlobalWrapper);
+  notifyRadioGroup.appendChild(notifyOnWrapper);
+  notifyRadioGroup.appendChild(notifyOffWrapper);
+
+  notifyContainer.appendChild(notifyRadioGroup);
+  settingsTd.appendChild(notifyContainer);
+
+  const notifyChangeHandler = () => {
+    if (notifyGlobalInput.checked) channel.notificationSetting = 'global';
+    else if (notifyOnInput.checked) channel.notificationSetting = 'on';
+    else if (notifyOffInput.checked) channel.notificationSetting = 'off';
+    saveChannelToList(channel);
+  };
+  notifyGlobalInput.addEventListener('change', notifyChangeHandler);
+  notifyOnInput.addEventListener('change', notifyChangeHandler);
+  notifyOffInput.addEventListener('change', notifyChangeHandler);
 
   // Add separator after PR settings
   const prSeparator = document.createElement('hr');
@@ -990,6 +1054,10 @@ liveFilterSwitch.addEventListener('change', async () => {
 
 openNewWindow.addEventListener('change', () => {
   chrome.storage.local.set({ isOpenNewWindow: openNewWindow.checked });
+});
+
+enableNotifications.addEventListener('change', () => {
+  chrome.storage.local.set({ isEnabledNotifications: enableNotifications.checked });
 });
 
 async function refreshList() {

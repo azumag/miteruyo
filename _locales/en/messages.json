@@ -67,5 +67,38 @@
 	"addToMiteruyo": {
 		"message": "Add to Miteruyo",
 		"description": "Context menu item to add a channel to Miteruyo"
+	},
+	"enableNotifications": {
+		"message": "Desktop Notifications",
+		"description": "Global settings label for desktop notifications"
+	},
+	"notificationTitle": {
+		"message": "Stream Live!",
+		"description": "Title for desktop notification"
+	},
+	"notificationBody": {
+		"message": "$channel$ is now live!",
+		"description": "Body for desktop notification",
+		"placeholders": {
+			"channel": {
+				"content": "$1"
+			}
+		}
+	},
+	"notificationSetting": {
+		"message": "Notifications",
+		"description": "Per-channel setting label for notifications"
+	},
+	"notificationGlobal": {
+		"message": "Global",
+		"description": "Per-channel setting option (Global)"
+	},
+	"notificationOn": {
+		"message": "On",
+		"description": "Per-channel setting option (On)"
+	},
+	"notificationOff": {
+		"message": "Off",
+		"description": "Per-channel setting option (Off)"
 	}
 }
