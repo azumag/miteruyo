@@ -13,6 +13,7 @@ export default [
         ...globals.browser,
         ...globals.webextensions,
         chrome: 'readonly',
+        bootstrap: 'readonly',
       },
     },
     rules: {

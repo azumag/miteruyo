@@ -1,4 +1,4 @@
-let currentChannel = '';
+
 
 
 // URLからチャンネル名を取得

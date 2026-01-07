@@ -1104,30 +1104,7 @@ async function checkStream(channel) {
   return channel;
 }
 
-async function saveChannel(channel) {
-  const channels = (await chrome.storage.local.get('channels')).channels;
-  const index = channels.findIndex((c) => c?.name === channel.name);
 
-  if (index !== -1) {
-    channels.splice(index, 1);
-  }
-
-  // nullを削除
-  const filteredChannels = channels.filter(c => c !== null);
-  const newChannels = [...filteredChannels, channel];
-  await chrome.storage.local.set({ channels: newChannels });
-}
-
-function deleteNullChannel() {
-  chrome.storage.local.get('channels', (data) => {
-    const newChannels = data.channels.filter(c => c !== null);
-    chrome.storage.local.set({ channels: newChannels });
-  });
-}
-
-function flushAuthToken() {
-  chrome.storage.local.set({ oauth_token: null });
-}
 
 // Miteruyoの管理対象ウィンドウでタブを開く
 async function openInManagedWindow(channelName) {

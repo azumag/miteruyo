@@ -1,5 +1,4 @@
 const twitchDomain = 'https://www.twitch.tv';
-const multiTwitchURL = 'https://www.multitwitch.tv/';
 
 // const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx'; // for prod
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
@@ -205,7 +204,7 @@ async function checkTabRotate() {
 
   const enableTabMute = (await chrome.storage.local.get('isEnabledTabMute')).isEnabledTabMute;
 
-  chrome.windows.get(targetWindowId, (window) => {
+  chrome.windows.get(targetWindowId, (_window) => {
     if (chrome.runtime.lastError) {
       // console.error(chrome.runtime.lastError);
       // Clear the targetWindowId if the window does not exist
@@ -518,7 +517,7 @@ function channelURL(channel) {
 
 async function checkWindowExists(windowId) {
   return new Promise((resolve) => {
-    chrome.windows.get(windowId, { populate: false }, (window) => {
+    chrome.windows.get(windowId, { populate: false }, (_window) => {
       if (chrome.runtime.lastError) {
         // Window not found
         resolve(false);
