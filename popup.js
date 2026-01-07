@@ -395,10 +395,10 @@ async function addChannelToList(channel, newAdded = false) {
   // brandedTdPriority.style.border = 'none';
 
   const brandedCheckDiv = document.createElement('div');
-  brandedCheckDiv.className = 'd-flex align-items-center form-switch';
+  brandedCheckDiv.className = 'd-flex align-items-center justify-content-between form-switch';
 
   const brandedLabel = document.createElement('label');
-  brandedLabel.className = 'form-check-label small me-2';
+  brandedLabel.className = 'form-check-label small';
   brandedLabel.htmlFor = `skipBranded-${channel.name}`;
   brandedLabel.textContent = 'PR配信を開かない';
 
@@ -408,6 +408,7 @@ async function addChannelToList(channel, newAdded = false) {
   brandedCheck.role = 'switch';
   brandedCheck.id = `skipBranded-${channel.name}`;
   brandedCheck.checked = !!channel.skipBranded;
+  brandedCheck.style.transform = 'scale(0.8)';
 
   brandedCheckDiv.appendChild(brandedLabel);
   brandedCheckDiv.appendChild(brandedCheck);
