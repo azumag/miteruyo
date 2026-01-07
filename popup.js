@@ -521,6 +521,14 @@ async function addChannelToList(channel, newAdded = false) {
   renderAllowTags();
   updateDropdownOptions();
 
+  // Listen for global settings changes to update dropdown
+  const storageChangeListener = (changes, areaName) => {
+    if (areaName === 'local' && changes.blockedCategoryNames) {
+      updateDropdownOptions();
+    }
+  };
+  chrome.storage.onChanged.addListener(storageChangeListener);
+
   allowContentDiv.appendChild(allowTagList);
   allowContentDiv.appendChild(allowDropdown);
   allowContainer.appendChild(allowContentDiv);
