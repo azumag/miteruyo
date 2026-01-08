@@ -12,6 +12,9 @@ A Chrome extension that monitors Twitch channels and automatically opens streams
   - Auto-close tabs when streams go offline
 - **Multiple Window Support**: Open streams in specific windows or across multiple windows
 - **Multi-Twitch Integration**: Support for watching multiple streams simultaneously
+- **Desktop Notifications**: Get notified when monitored channels go live
+- **Per-channel Volume Control**: Set custom volume for each channel
+- **Category Filtering**: Only auto-open streams from specific categories
 
 ## Improvements (v1.0.11+)
 
@@ -190,20 +193,38 @@ See LICENSE file (if present)
 
 ## Version History
 
-### v1.5.0 (Pending)
-- **Allowed-Only Category Filter**: New option to specify categories to exclusively open
-  - Global setting: Only open streams in specified categories
-  - Per-channel setting: Only open this channel when streaming specified categories
-  - Priority system: Allowed-only list overrides blocked/allowed category lists
-  - UI feedback: Blocked/allowed category fields are grayed out when allowed-only is active
-  - Works with same category search UI as blocked categories
+### v1.9.4
+- **Chrome Web Store Optimization**: Removed unnecessary `web_accessible_resources` declaration
+
+### v1.9.3
+- Updated version numbering and UI polish
+
+### v1.9.0
+- **About Page**: Added extenstion information with localization support
+- OFUSE donation link integration
+
+### v1.6.0 - v1.8.3
+- **Desktop Notifications**:
+  - Show notifications when monitored channels go live
+  - Display stream title and category in notification
+  - Click notification to open channel
+  - macOS display improvements
 
 ### v1.4.0
 - **Category Search UI**: Blocked categories now use incremental search with Twitch API
   - Search categories by name and select from dropdown
   - Display selected categories as tags with delete buttons
   - Works for both global settings and per-channel settings
+- **Allowed-Only Category Filter**: Priority system for category filtering
+  - Allowed-only list overrides blocked/allowed lists
+  - Works for both global and per-channel settings
 - **Storage Migration**: Automatic migration from comma-separated format to array format
+- **UI Improvements**: Help icons with tooltips for all settings
+
+### v1.2.0
+- **Per-channel Volume Control**: Set custom volume for each monitored channel
+- **Category Filtering**: Block specific categories from auto-opening
+- Default volume set to 100%
 
 ### v1.1.0
 - **New Features**:
