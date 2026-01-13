@@ -1,0 +1,92 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          # Extract version from tag (v1.9.5 -> 1.9.5)
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Update manifest.json version
+        run: |
+          # Update version in manifest.json
+          jq '.version = "${{ steps.get_version.outputs.VERSION }}"' manifest.json > manifest.tmp.json
+          mv manifest.tmp.json manifest.json
+          cat manifest.json
+
+      - name: Replace clientId in popup.js
+        run: |
+          # Replace development clientId with production clientId
+          sed -i "s/const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';/const clientId = '${{ secrets.TWITCH_CLIENT_ID_PROD }}';/" popup.js
+          # Verify replacement
+          grep "const clientId" popup.js
+
+      - name: Replace clientId in background.js
+        run: |
+          # Replace development clientId with production clientId
+          sed -i "s/const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';/const clientId = '${{ secrets.TWITCH_CLIENT_ID_PROD }}';/" background.js
+          # Verify replacement
+          grep "const clientId" background.js
+
+      - name: Create release ZIP
+        run: |
+          # Create ZIP excluding development files
+          zip -r miteruyo-${{ steps.get_version.outputs.VERSION }}.zip . \
+            -x "node_modules/*" \
+            -x "tests/*" \
+            -x "screenshots/*" \
+            -x ".git/*" \
+            -x ".github/*" \
+            -x ".claude/*" \
+            -x "scripts/*" \
+            -x "*.md" \
+            -x "package.json" \
+            -x "package-lock.json" \
+            -x "vitest.config.js" \
+            -x "eslint.config.js" \
+            -x ".gitignore" \
+            -x ".DS_Store" \
+            -x "*.zip"
+
+          # List ZIP contents for verification
+          echo "=== ZIP contents ==="
+          unzip -l miteruyo-${{ steps.get_version.outputs.VERSION }}.zip
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: miteruyo-${{ steps.get_version.outputs.VERSION }}.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
