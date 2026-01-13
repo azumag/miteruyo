@@ -418,6 +418,172 @@ describe('Background Script', () => {
     });
   });
 
+  describe('tabRotationAlarm', () => {
+    it('should create tabRotationAlarm only when isEnabledTabRotation is true', async () => {
+      chromeMock.alarms.get.mockResolvedValue(null);
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabledTabRotation: true,
+        tabRotationInterval: 5,
+      });
+
+      async function ensureTabRotationAlarm() {
+        const tabRotationAlarm = await chrome.alarms.get('tabRotationAlarm');
+        if (!tabRotationAlarm) {
+          const data = await chrome.storage.local.get(['tabRotationInterval', 'isEnabledTabRotation']);
+          if (data.isEnabledTabRotation) {
+            const interval = Math.max(1, parseInt(data.tabRotationInterval, 10) || 5);
+            chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
+          }
+        }
+      }
+
+      await ensureTabRotationAlarm();
+
+      expect(chromeMock.alarms.create).toHaveBeenCalledWith('tabRotationAlarm', {
+        periodInMinutes: 5,
+      });
+    });
+
+    it('should not create tabRotationAlarm when isEnabledTabRotation is false', async () => {
+      chromeMock.alarms.get.mockResolvedValue(null);
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabledTabRotation: false,
+        tabRotationInterval: 5,
+      });
+
+      async function ensureTabRotationAlarm() {
+        const tabRotationAlarm = await chrome.alarms.get('tabRotationAlarm');
+        if (!tabRotationAlarm) {
+          const data = await chrome.storage.local.get(['tabRotationInterval', 'isEnabledTabRotation']);
+          if (data.isEnabledTabRotation) {
+            const interval = Math.max(1, parseInt(data.tabRotationInterval, 10) || 5);
+            chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
+          }
+        }
+      }
+
+      await ensureTabRotationAlarm();
+
+      expect(chromeMock.alarms.create).not.toHaveBeenCalled();
+    });
+
+    it('should use default interval of 5 when tabRotationInterval is not set', async () => {
+      chromeMock.alarms.get.mockResolvedValue(null);
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabledTabRotation: true,
+      });
+
+      async function ensureTabRotationAlarm() {
+        const tabRotationAlarm = await chrome.alarms.get('tabRotationAlarm');
+        if (!tabRotationAlarm) {
+          const data = await chrome.storage.local.get(['tabRotationInterval', 'isEnabledTabRotation']);
+          if (data.isEnabledTabRotation) {
+            const interval = Math.max(1, parseInt(data.tabRotationInterval, 10) || 5);
+            chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
+          }
+        }
+      }
+
+      await ensureTabRotationAlarm();
+
+      expect(chromeMock.alarms.create).toHaveBeenCalledWith('tabRotationAlarm', {
+        periodInMinutes: 5,
+      });
+    });
+  });
+
+  describe('windowRemovalListener', () => {
+    it('should clear lastOpenWindowId when managed window is closed', async () => {
+      const managedWindowId = 123;
+      chromeMock.storage.local.get.mockResolvedValue({ lastOpenWindowId: managedWindowId });
+
+      async function onWindowRemoved(windowId) {
+        const data = await chrome.storage.local.get('lastOpenWindowId');
+        if (windowId === data.lastOpenWindowId) {
+          await chrome.storage.local.set({ lastOpenWindowId: null });
+        }
+      }
+
+      await onWindowRemoved(managedWindowId);
+
+      expect(chromeMock.storage.local.set).toHaveBeenCalledWith({ lastOpenWindowId: null });
+    });
+
+    it('should not clear lastOpenWindowId when different window is closed', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({ lastOpenWindowId: 123 });
+
+      async function onWindowRemoved(windowId) {
+        const data = await chrome.storage.local.get('lastOpenWindowId');
+        if (windowId === data.lastOpenWindowId) {
+          await chrome.storage.local.set({ lastOpenWindowId: null });
+        }
+      }
+
+      await onWindowRemoved(456);
+
+      expect(chromeMock.storage.local.set).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('storageChangeListener for tab rotation', () => {
+    it('should recreate alarm when isEnabledTabRotation changes to true', async () => {
+      chromeMock.alarms.get.mockResolvedValue(null);
+      chromeMock.alarms.clear.mockResolvedValue(true);
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabledTabRotation: true,
+        tabRotationInterval: 3,
+      });
+
+      async function onStorageChanged(changes, area) {
+        if (area === 'local' && (changes.isEnabledTabRotation || changes.tabRotationInterval)) {
+          const tabRotationAlarm = await chrome.alarms.get('tabRotationAlarm');
+          if (tabRotationAlarm) {
+            await chrome.alarms.clear('tabRotationAlarm');
+          }
+          const data = await chrome.storage.local.get(['tabRotationInterval', 'isEnabledTabRotation']);
+          if (data.isEnabledTabRotation) {
+            const interval = Math.max(1, parseInt(data.tabRotationInterval, 10) || 5);
+            chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
+          }
+        }
+      }
+
+      await onStorageChanged({ isEnabledTabRotation: { newValue: true } }, 'local');
+
+      expect(chromeMock.alarms.create).toHaveBeenCalledWith('tabRotationAlarm', {
+        periodInMinutes: 3,
+      });
+    });
+
+    it('should clear alarm when isEnabledTabRotation changes to false', async () => {
+      chromeMock.alarms.get.mockResolvedValue({ name: 'tabRotationAlarm' });
+      chromeMock.alarms.clear.mockResolvedValue(true);
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabledTabRotation: false,
+        tabRotationInterval: 3,
+      });
+
+      async function onStorageChanged(changes, area) {
+        if (area === 'local' && (changes.isEnabledTabRotation || changes.tabRotationInterval)) {
+          const tabRotationAlarm = await chrome.alarms.get('tabRotationAlarm');
+          if (tabRotationAlarm) {
+            await chrome.alarms.clear('tabRotationAlarm');
+          }
+          const data = await chrome.storage.local.get(['tabRotationInterval', 'isEnabledTabRotation']);
+          if (data.isEnabledTabRotation) {
+            const interval = Math.max(1, parseInt(data.tabRotationInterval, 10) || 5);
+            chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
+          }
+        }
+      }
+
+      await onStorageChanged({ isEnabledTabRotation: { newValue: false } }, 'local');
+
+      expect(chromeMock.alarms.clear).toHaveBeenCalledWith('tabRotationAlarm');
+      expect(chromeMock.alarms.create).not.toHaveBeenCalled();
+    });
+  });
+
   describe('showNotification', () => {
     // Helper to build notification message (mirrors background.js logic)
     function buildNotificationMessage(channel) {

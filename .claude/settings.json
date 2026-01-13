@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(agent-browser open \"chrome-extension://mbbepalicikbhhcklnnahekghbhiamfb/popup.html\" --headed)"
+    ]
+  }
+}

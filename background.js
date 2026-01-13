@@ -52,10 +52,11 @@ async function ensureAlarmsExist() {
   // tabRotationAlarm アラームの確認
   const tabRotationAlarm = await chrome.alarms.get('tabRotationAlarm');
   if (!tabRotationAlarm) {
-    const data = await chrome.storage.local.get('tabRotationInterval');
-    if (data.tabRotationInterval) {
-      // 最小値を1分に制限
-      const interval = Math.max(1, parseInt(data.tabRotationInterval, 10) || 1);
+    const data = await chrome.storage.local.get(['tabRotationInterval', 'isEnabledTabRotation']);
+    // タブローテーションが有効な場合のみアラームを作成
+    if (data.isEnabledTabRotation) {
+      // 最小値を1分に制限、デフォルト値は5分
+      const interval = Math.max(1, parseInt(data.tabRotationInterval, 10) || 5);
       console.log('Creating tabRotationAlarm with interval:', interval);
       chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
     }
@@ -207,16 +208,31 @@ chrome.alarms.onAlarm.addListener(function (alarm) {
   }
 });
 
-// tab Rotation Interval が変更されたときにアラームの間隔を更新
-chrome.storage.onChanged.addListener((changes) => {
-  for (let key in changes) {
-    if (key === 'tabRotationInterval') {
-      // アラームを一度削除
-      chrome.alarms.clear('tabRotationAlarm');
-      // 新しい間隔でアラームを作成（最小値1分）
-      const interval = Math.max(1, parseInt(changes[key].newValue, 10) || 1);
-      chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
+// tab Rotation の設定が変更されたときにアラームを更新
+chrome.storage.onChanged.addListener(async (changes, area) => {
+  if (area === 'local' && (changes.isEnabledTabRotation || changes.tabRotationInterval)) {
+    // 設定変更時はアラームを再設定（ensureAlarmsExistに処理を統合）
+    const tabRotationAlarm = await chrome.alarms.get('tabRotationAlarm');
+    if (tabRotationAlarm) {
+      await chrome.alarms.clear('tabRotationAlarm');
     }
+    const data = await chrome.storage.local.get(['tabRotationInterval', 'isEnabledTabRotation']);
+    if (data.isEnabledTabRotation) {
+      const interval = Math.max(1, parseInt(data.tabRotationInterval, 10) || 5);
+      console.log('Tab rotation settings changed, creating alarm with interval:', interval);
+      chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
+    } else {
+      console.log('Tab rotation disabled, alarm cleared');
+    }
+  }
+});
+
+// ウィンドウが閉じられたときに lastOpenWindowId をクリア
+chrome.windows.onRemoved.addListener(async (windowId) => {
+  const data = await chrome.storage.local.get('lastOpenWindowId');
+  if (windowId === data.lastOpenWindowId) {
+    console.log('Managed window closed, clearing lastOpenWindowId');
+    await chrome.storage.local.set({ lastOpenWindowId: null });
   }
 });
 
@@ -259,9 +275,9 @@ async function checkTabRotate() {
 
   chrome.windows.get(targetWindowId, (_window) => {
     if (chrome.runtime.lastError) {
-      // console.error(chrome.runtime.lastError);
-      // Clear the targetWindowId if the window does not exist
-      // chrome.storage.local.set({ targetWindowId: null });
+      console.log('Tab rotation: target window not found, clearing lastOpenWindowId');
+      chrome.storage.local.set({ lastOpenWindowId: null });
+      return;
     } else {
       // If the window exists, switch tabs
       chrome.tabs.query({ windowId: targetWindowId }, async (tabs) => {

@@ -1,5 +1,10 @@
 # CLAUDE.md
 
+# LAW
+あなたはプロジェクトマネージャとしてふるまい、自分で実装をしない
+全ての作業を subagent および task agent に移譲してください
+
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
