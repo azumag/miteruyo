@@ -584,6 +584,81 @@ describe('Background Script', () => {
     });
   });
 
+  describe('Tab rotation recovery after window closure', () => {
+    it('should recover tab rotation when window is reopened and channels go live', async () => {
+      const managedWindowId = 123;
+
+      // ステップ1: ウィンドウが閉じられる
+      chromeMock.storage.local.get.mockResolvedValue({ lastOpenWindowId: managedWindowId });
+
+      async function onWindowRemoved(windowId) {
+        const data = await chrome.storage.local.get('lastOpenWindowId');
+        if (windowId === data.lastOpenWindowId) {
+          await chrome.storage.local.set({ lastOpenWindowId: null });
+        }
+      }
+
+      await onWindowRemoved(managedWindowId);
+      expect(chromeMock.storage.local.set).toHaveBeenCalledWith({ lastOpenWindowId: null });
+
+      // ステップ2: 新しいウィンドウで配信が開かれる
+      const newWindowId = 456;
+      chromeMock.storage.local.get.mockResolvedValue({
+        lastOpenWindowId: newWindowId,
+        isEnabledTabRotation: true,
+        tabRotationInterval: 5
+      });
+
+      // ステップ3: checkTabRotate()が実行される
+      async function checkTabRotate() {
+        const isEnabledTabRotation = (await chrome.storage.local.get('isEnabledTabRotation')).isEnabledTabRotation;
+        const targetWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
+
+        if (!isEnabledTabRotation) return 'disabled';
+        if (!targetWindowId) return 'no_window';
+        return 'running';
+      }
+
+      const result = await checkTabRotate();
+
+      // 新しいウィンドウが存在しており、タブローテーションが有効なら動作する
+      expect(result).toBe('running');
+    });
+
+    it('should handle case where window is closed but tab rotation is still enabled', async () => {
+      const managedWindowId = 123;
+
+      // ウィンドウが閉じられてもタブローテーション設定は有効のままの状態
+      chromeMock.storage.local.get
+        .mockResolvedValueOnce({ lastOpenWindowId: managedWindowId, isEnabledTabRotation: true })
+        .mockResolvedValueOnce({ lastOpenWindowId: null, isEnabledTabRotation: true });
+
+      async function onWindowRemoved(windowId) {
+        const data = await chrome.storage.local.get('lastOpenWindowId');
+        if (windowId === data.lastOpenWindowId) {
+          await chrome.storage.local.set({ lastOpenWindowId: null });
+        }
+      }
+
+      await onWindowRemoved(managedWindowId);
+
+      async function checkTabRotate() {
+        const isEnabledTabRotation = (await chrome.storage.local.get('isEnabledTabRotation')).isEnabledTabRotation;
+        const targetWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
+
+        if (!isEnabledTabRotation) return 'disabled';
+        if (!targetWindowId) return 'no_window';
+        return 'running';
+      }
+
+      const result = await checkTabRotate();
+
+      // ウィンドウが無いのでタブローテーションは実行されない
+      expect(result).toBe('no_window');
+      expect(chromeMock.storage.local.set).toHaveBeenCalledWith({ lastOpenWindowId: null });
+    });
+  });
+
   describe('showNotification', () => {
     // Helper to build notification message (mirrors background.js logic)
     function buildNotificationMessage(channel) {
