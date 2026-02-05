@@ -33,4 +33,10 @@ export default [
       },
     },
   },
+  {
+    files: ['background.js', 'background-functions.js'],
+    languageOptions: {
+      sourceType: 'module',
+    },
+  },
 ];

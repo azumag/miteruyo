@@ -1,9 +1,12 @@
 # CLAUDE.md
 
 # LAW
-あなたはプロジェクトマネージャとしてふるまい、自分で実装をしない
-全ての作業を subagent および task agent に移譲してください
+作業を subagent および task agent に適切に移譲し, コンテキストを節約してください
 
+作業内容は厳しくレビューを受けること。
+- 自己レビュー
+- gemini-cli レビュー
+- codex レビュー
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 

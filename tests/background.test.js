@@ -1,5 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createChromeMock, createFetchMock } from './setup.js';
+import { createChromeMock } from './setup.js';
+import {
+  ensureAlarmsExist,
+  shouldOpenChannel,
+  onWindowRemoved,
+  onStorageChangedForTabRotation,
+  isTwitchChannelPage,
+  showNotification,
+  checkTabRotate,
+  checkStreams,
+} from '../background-functions.js';
 
 describe('Background Script', () => {
   let chromeMock;
@@ -19,35 +29,45 @@ describe('Background Script', () => {
     vi.clearAllMocks();
   });
 
+  describe('isTwitchChannelPage', () => {
+    it('should return true for valid channel URLs', () => {
+      expect(isTwitchChannelPage('https://www.twitch.tv/testuser')).toBe(true);
+      expect(isTwitchChannelPage('https://twitch.tv/testuser')).toBe(true);
+    });
+
+    it('should return false for system pages', () => {
+      expect(isTwitchChannelPage('https://www.twitch.tv/directory')).toBe(false);
+      expect(isTwitchChannelPage('https://www.twitch.tv/settings')).toBe(false);
+    });
+
+    it('should return false for invalid inputs', () => {
+      expect(isTwitchChannelPage(null)).toBe(false);
+      expect(isTwitchChannelPage('')).toBe(false);
+      expect(isTwitchChannelPage('https://example.com')).toBe(false);
+    });
+  });
+
   describe('ensureAlarmsExist', () => {
     it('should create periodicalUpdate alarm if it does not exist', async () => {
+      // Mock: no alarms exist, tab rotation disabled
       chromeMock.alarms.get.mockResolvedValue(null);
-      chromeMock.storage.local.get.mockResolvedValue({});
-
-      // Inline implementation for testing
-      async function ensureAlarmsExist() {
-        const existingAlarm = await chrome.alarms.get('periodicalUpdate');
-        if (!existingAlarm) {
-          chrome.alarms.create('periodicalUpdate', { periodInMinutes: 1 });
-        }
-      }
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabledTabRotation: false,
+      });
 
       await ensureAlarmsExist();
 
+      expect(chromeMock.alarms.get).toHaveBeenCalledWith('periodicalUpdate');
       expect(chromeMock.alarms.create).toHaveBeenCalledWith('periodicalUpdate', {
         periodInMinutes: 1,
       });
     });
 
     it('should not create alarm if it already exists', async () => {
-      chromeMock.alarms.get.mockResolvedValue({ name: 'periodicalUpdate' });
-
-      async function ensureAlarmsExist() {
-        const existingAlarm = await chrome.alarms.get('periodicalUpdate');
-        if (!existingAlarm) {
-          chrome.alarms.create('periodicalUpdate', { periodInMinutes: 1 });
-        }
-      }
+      // Mock: periodicalUpdate exists, tabRotationAlarm exists
+      chromeMock.alarms.get
+        .mockResolvedValueOnce({ name: 'periodicalUpdate' })
+        .mockResolvedValueOnce({ name: 'tabRotationAlarm' });
 
       await ensureAlarmsExist();
 
@@ -55,171 +75,191 @@ describe('Background Script', () => {
     });
   });
 
-  describe('checkStream', () => {
+  describe('checkStream (integration)', () => {
     it('should return online status when stream is live', async () => {
       const mockStreamData = {
-        data: [
-          {
-            game_name: 'Test Game',
-            title: 'Test Stream',
-            viewer_count: 100,
-            tags: ['tag1'],
-          },
-        ],
+        data: [{
+          game_name: 'Test Game',
+          game_id: '123',
+          title: 'Test Stream',
+          viewer_count: 100,
+          tags: ['tag1'],
+          user_id: '12345',
+        }],
       };
 
-      globalThis.fetch = createFetchMock({
-        'https://api.twitch.tv/helix/streams?user_login=testchannel': mockStreamData,
+      const mockChannelData = {
+        data: [{ is_branded_content: false }],
+      };
+
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockStreamData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockChannelData),
+        });
+
+      // checkStreams calls the internal checkStream function
+      // Set up storage so checkStreams will process our channel
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [{ name: 'testchannel', onLiveOpen: false }],
+        oauth_token: { oauth_token: 'test_token' },
+        isEnabledAutoClose: false,
       });
 
-      // Inline implementation for testing
-      async function checkStream(channel, oauth_token) {
-        if (!channel) return null;
-        const url = `https://api.twitch.tv/helix/streams?user_login=${channel.name}`;
-        const response = await fetch(url, {
-          headers: {
-            'Client-ID': 'test',
-            Authorization: 'Bearer ' + oauth_token.oauth_token,
-          },
-        });
-        const data = await response.json();
+      await checkStreams();
 
-        if (data.data.length > 0) {
-          const stream = data.data[0];
-          return {
-            ...channel,
-            onLive: true,
-            game_name: stream.game_name,
-            title: stream.title,
-            viewer_count: stream.viewer_count,
-            status: 'online',
-          };
-        } else {
-          return { ...channel, onLive: false, status: 'offline' };
-        }
-      }
-
-      const result = await checkStream(
-        { name: 'testchannel' },
-        { oauth_token: 'test_token' }
+      // Verify that channels were updated with online status
+      const setCall = chromeMock.storage.local.set.mock.calls.find(
+        call => call[0].channels
       );
-
-      expect(result.onLive).toBe(true);
-      expect(result.status).toBe('online');
-      expect(result.game_name).toBe('Test Game');
-      expect(result.viewer_count).toBe(100);
+      expect(setCall).toBeDefined();
+      const updatedChannels = setCall[0].channels;
+      expect(updatedChannels[0].onLive).toBe(true);
+      expect(updatedChannels[0].status).toBe('online');
+      expect(updatedChannels[0].game_name).toBe('Test Game');
+      expect(updatedChannels[0].game_id).toBe('123');
+      expect(updatedChannels[0].viewer_count).toBe(100);
+      expect(updatedChannels[0].is_branded_content).toBe(false);
+      expect(updatedChannels[0].lastChecked).toBeDefined();
     });
 
     it('should return offline status when stream is not live', async () => {
-      globalThis.fetch = createFetchMock({
-        'https://api.twitch.tv/helix/streams?user_login=offlinechannel': { data: [] },
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
       });
 
-      async function checkStream(channel, oauth_token) {
-        if (!channel) return null;
-        const url = `https://api.twitch.tv/helix/streams?user_login=${channel.name}`;
-        const response = await fetch(url, {
-          headers: {
-            'Client-ID': 'test',
-            Authorization: 'Bearer ' + oauth_token.oauth_token,
-          },
-        });
-        const data = await response.json();
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [{ name: 'offlinechannel', onLiveOpen: false }],
+        oauth_token: { oauth_token: 'test_token' },
+        isEnabledAutoClose: false,
+      });
 
-        if (data.data.length > 0) {
-          return { ...channel, onLive: true, status: 'online' };
-        } else {
-          return { ...channel, onLive: false, status: 'offline' };
-        }
-      }
+      await checkStreams();
 
-      const result = await checkStream(
-        { name: 'offlinechannel' },
-        { oauth_token: 'test_token' }
+      const setCall = chromeMock.storage.local.set.mock.calls.find(
+        call => call[0].channels
       );
-
-      expect(result.onLive).toBe(false);
-      expect(result.status).toBe('offline');
+      expect(setCall).toBeDefined();
+      const updatedChannels = setCall[0].channels;
+      expect(updatedChannels[0].onLive).toBe(false);
+      expect(updatedChannels[0].status).toBe('offline');
+      expect(updatedChannels[0].lastChecked).toBeDefined();
     });
 
-    it('should return null for null channel', async () => {
-      async function checkStream(channel) {
-        if (!channel) return null;
-        return channel;
-      }
+    it('should handle null channel gracefully in checkStreams', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+      });
 
-      const result = await checkStream(null);
-      expect(result).toBeNull();
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [null],
+        oauth_token: { oauth_token: 'test_token' },
+        isEnabledAutoClose: false,
+      });
+
+      await checkStreams();
+
+      const setCall = chromeMock.storage.local.set.mock.calls.find(
+        call => call[0].channels
+      );
+      expect(setCall).toBeDefined();
+      // null channel returns null from checkStream
+      expect(setCall[0].channels[0]).toBeNull();
     });
   });
 
-  describe('checkStreams', () => {
-    it('should skip if extension is disabled', async () => {
-      chromeMock.storage.local.get.mockResolvedValue({ isEnabled: false });
+  describe('checkStreams (integration)', () => {
+    it('should skip if both extension and notifications are disabled', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: false,
+        isEnabledNotifications: false,
+        channels: [],
+        oauth_token: null,
+      });
 
-      async function checkStreams() {
-        const isEnabled = (await chrome.storage.local.get('isEnabled')).isEnabled;
-        if (!isEnabled) return 'disabled';
-        return 'enabled';
-      }
+      await checkStreams();
 
-      const result = await checkStreams();
-      expect(result).toBe('disabled');
+      // Should not save any channels since it returned early
+      const setCall = chromeMock.storage.local.set.mock.calls.find(
+        call => call[0].channels
+      );
+      expect(setCall).toBeUndefined();
     });
 
     it('should skip if no oauth token', async () => {
-      chromeMock.storage.local.get
-        .mockResolvedValueOnce({ isEnabled: true })
-        .mockResolvedValueOnce({ isOpenMultiTwitch: false })
-        .mockResolvedValueOnce({ channels: [] })
-        .mockResolvedValueOnce({ oauth_token: null });
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [{ name: 'test' }],
+        oauth_token: null,
+      });
 
-      async function checkStreams() {
-        const isEnabled = (await chrome.storage.local.get('isEnabled')).isEnabled;
-        if (!isEnabled) return 'disabled';
-        await chrome.storage.local.get('isOpenMultiTwitch');
-        await chrome.storage.local.get('channels');
-        const oauth_token = (await chrome.storage.local.get('oauth_token')).oauth_token;
-        if (!oauth_token) return 'no_token';
-        return 'ok';
-      }
+      await checkStreams();
 
-      const result = await checkStreams();
-      expect(result).toBe('no_token');
+      // Should not save any channels since it returned early
+      const setCall = chromeMock.storage.local.set.mock.calls.find(
+        call => call[0].channels
+      );
+      expect(setCall).toBeUndefined();
     });
   });
 
   describe('Parallel processing', () => {
     it('should process multiple channels in parallel', async () => {
       const channels = [
-        { name: 'channel1' },
-        { name: 'channel2' },
-        { name: 'channel3' },
+        { name: 'channel1', onLiveOpen: false },
+        { name: 'channel2', onLiveOpen: false },
+        { name: 'channel3', onLiveOpen: false },
       ];
 
-      globalThis.fetch = vi.fn().mockImplementation((_url) => {
+      globalThis.fetch = vi.fn().mockImplementation(() => {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ data: [] }),
         });
       });
 
-      async function checkStream(channel, _oauth_token) {
-        const url = `https://api.twitch.tv/helix/streams?user_login=${channel.name}`;
-        await fetch(url);
-        return { ...channel, status: 'offline' };
-      }
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: channels,
+        oauth_token: { oauth_token: 'test' },
+        isEnabledAutoClose: false,
+      });
 
-      const results = await Promise.all(
-        channels.map((channel) => checkStream(channel, { oauth_token: 'test' }))
+      await checkStreams();
+
+      const setCall = chromeMock.storage.local.set.mock.calls.find(
+        call => call[0].channels
       );
-
-      expect(results).toHaveLength(3);
+      expect(setCall).toBeDefined();
+      expect(setCall[0].channels).toHaveLength(3);
+      // Each channel triggers one fetch (offline channels don't need 2nd fetch)
       expect(globalThis.fetch).toHaveBeenCalledTimes(3);
     });
 
     it('should handle errors gracefully in parallel processing', async () => {
-      const channels = [{ name: 'channel1' }, { name: 'error_channel' }];
+      const channels = [
+        { name: 'channel1', onLiveOpen: false },
+        { name: 'error_channel', onLiveOpen: false },
+      ];
 
       globalThis.fetch = vi.fn().mockImplementation((url) => {
         if (url.includes('error_channel')) {
@@ -231,34 +271,29 @@ describe('Background Script', () => {
         });
       });
 
-      async function checkStream(channel) {
-        const url = `https://api.twitch.tv/helix/streams?user_login=${channel.name}`;
-        const response = await fetch(url);
-        const data = await response.json();
-        return { ...channel, status: data.data.length > 0 ? 'online' : 'offline' };
-      }
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: channels,
+        oauth_token: { oauth_token: 'test' },
+        isEnabledAutoClose: false,
+      });
 
-      const results = await Promise.all(
-        channels.map((channel) =>
-          checkStream(channel).catch(() => ({ ...channel, status: 'error' }))
-        )
+      await checkStreams();
+
+      const setCall = chromeMock.storage.local.set.mock.calls.find(
+        call => call[0].channels
       );
-
-      expect(results).toHaveLength(2);
-      expect(results[0].status).toBe('offline');
-      expect(results[1].status).toBe('error');
+      expect(setCall).toBeDefined();
+      expect(setCall[0].channels).toHaveLength(2);
+      expect(setCall[0].channels[0].status).toBe('offline');
+      expect(setCall[0].channels[1].status).toBe('error');
     });
   });
 
   describe('shouldOpenChannel', () => {
     it('should return false if channel is not live', async () => {
-      chromeMock.storage.local.get.mockResolvedValue({});
-
-      async function shouldOpenChannel(channel) {
-        if (!channel.onLive || !channel.onLiveOpen) return false;
-        return true;
-      }
-
       const result = await shouldOpenChannel({ name: 'test', onLive: false, onLiveOpen: true });
       expect(result).toBe(false);
     });
@@ -266,27 +301,10 @@ describe('Background Script', () => {
     it('should block channel with allowed-only list when category does not match', async () => {
       chromeMock.storage.local.get.mockResolvedValue({
         allowedOnlyCategoryList: [{ id: '123', name: 'Test Game' }],
+        blockedCategoryList: [],
+        blockedCategoryNames: '',
+        isSkipBrandedContent: false,
       });
-
-      async function shouldOpenChannel(channel) {
-        if (!channel.onLive || !channel.onLiveOpen) return false;
-
-        const storageData = await chrome.storage.local.get(['allowedOnlyCategoryList']);
-        const globalAllowedOnlyList = (storageData.allowedOnlyCategoryList || []);
-
-        if (globalAllowedOnlyList.length > 0) {
-          if (!channel.game_id && !channel.game_name) return false;
-          const gameId = channel.game_id;
-          const gameName = channel.game_name?.toLowerCase();
-          const isInAllowedOnly = globalAllowedOnlyList.some(
-            (cat) =>
-              (gameId && cat.id && cat.id === gameId) ||
-              (gameName && cat.name && cat.name.toLowerCase() === gameName)
-          );
-          return isInAllowedOnly;
-        }
-        return true;
-      }
 
       const result = await shouldOpenChannel({
         name: 'test',
@@ -301,27 +319,10 @@ describe('Background Script', () => {
     it('should open channel with allowed-only list when category matches', async () => {
       chromeMock.storage.local.get.mockResolvedValue({
         allowedOnlyCategoryList: [{ id: '123', name: 'Test Game' }],
+        blockedCategoryList: [],
+        blockedCategoryNames: '',
+        isSkipBrandedContent: false,
       });
-
-      async function shouldOpenChannel(channel) {
-        if (!channel.onLive || !channel.onLiveOpen) return false;
-
-        const storageData = await chrome.storage.local.get(['allowedOnlyCategoryList']);
-        const globalAllowedOnlyList = storageData.allowedOnlyCategoryList || [];
-
-        if (globalAllowedOnlyList.length > 0) {
-          if (!channel.game_id && !channel.game_name) return false;
-          const gameId = channel.game_id;
-          const gameName = channel.game_name?.toLowerCase();
-          const isInAllowedOnly = globalAllowedOnlyList.some(
-            (cat) =>
-              (gameId && cat.id && cat.id === gameId) ||
-              (gameName && cat.name && cat.name.toLowerCase() === gameName)
-          );
-          return isInAllowedOnly;
-        }
-        return true;
-      }
 
       const result = await shouldOpenChannel({
         name: 'test',
@@ -336,31 +337,10 @@ describe('Background Script', () => {
     it('should prioritize channel allowed-only list over global allowed-only list', async () => {
       chromeMock.storage.local.get.mockResolvedValue({
         allowedOnlyCategoryList: [{ id: '123', name: 'Global Game' }],
+        blockedCategoryList: [],
+        blockedCategoryNames: '',
+        isSkipBrandedContent: false,
       });
-
-      async function shouldOpenChannel(channel) {
-        if (!channel.onLive || !channel.onLiveOpen) return false;
-
-        const channelAllowedOnlyList = channel.allowedOnlyCategoryList || [];
-        const storageData = await chrome.storage.local.get(['allowedOnlyCategoryList']);
-        const globalAllowedOnlyList = storageData.allowedOnlyCategoryList || [];
-
-        if (channelAllowedOnlyList.length > 0 || globalAllowedOnlyList.length > 0) {
-          const activeAllowedOnlyList =
-            channelAllowedOnlyList.length > 0 ? channelAllowedOnlyList : globalAllowedOnlyList;
-
-          if (!channel.game_id && !channel.game_name) return false;
-          const gameId = channel.game_id;
-          const gameName = channel.game_name?.toLowerCase();
-          const isInAllowedOnly = activeAllowedOnlyList.some(
-            (cat) =>
-              (gameId && cat.id && cat.id === gameId) ||
-              (gameName && cat.name && cat.name.toLowerCase() === gameName)
-          );
-          return isInAllowedOnly;
-        }
-        return true;
-      }
 
       const result = await shouldOpenChannel({
         name: 'test',
@@ -377,35 +357,9 @@ describe('Background Script', () => {
       chromeMock.storage.local.get.mockResolvedValue({
         allowedOnlyCategoryList: [],
         blockedCategoryList: [{ id: '123', name: 'Blocked Game' }],
+        blockedCategoryNames: '',
+        isSkipBrandedContent: false,
       });
-
-      async function shouldOpenChannel(channel) {
-        if (!channel.onLive || !channel.onLiveOpen) return false;
-
-        const channelAllowedOnlyList = channel.allowedOnlyCategoryList || [];
-        const storageData = await chrome.storage.local.get([
-          'allowedOnlyCategoryList',
-          'blockedCategoryList',
-        ]);
-        const globalAllowedOnlyList = storageData.allowedOnlyCategoryList || [];
-
-        if (channelAllowedOnlyList.length > 0 || globalAllowedOnlyList.length > 0) {
-          return false; // simplified for test
-        }
-
-        const globalBlockedList = storageData.blockedCategoryList || [];
-        if (globalBlockedList.length > 0 && (channel.game_id || channel.game_name)) {
-          const gameId = channel.game_id;
-          const gameName = channel.game_name?.toLowerCase();
-          const isBlocked = globalBlockedList.some(
-            (blocked) =>
-              (gameId && blocked.id && blocked.id === gameId) ||
-              (gameName && blocked.name && blocked.name.toLowerCase() === gameName)
-          );
-          if (isBlocked) return false;
-        }
-        return true;
-      }
 
       const result = await shouldOpenChannel({
         name: 'test',
@@ -415,6 +369,46 @@ describe('Background Script', () => {
         game_name: 'Blocked Game',
       });
       expect(result).toBe(false);
+    });
+
+    it('should block branded content when isSkipBrandedContent is true', async () => {
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string' && keys === 'isSkipBrandedContent') {
+          return Promise.resolve({ isSkipBrandedContent: true });
+        }
+        return Promise.resolve({
+          allowedOnlyCategoryList: [],
+          blockedCategoryList: [],
+          blockedCategoryNames: '',
+        });
+      });
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        is_branded_content: true,
+        game_name: 'Test Game',
+      });
+      expect(result).toBe(false);
+    });
+
+    it('should allow branded content when channel brandedContentSetting is open', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({
+        allowedOnlyCategoryList: [],
+        blockedCategoryList: [],
+        blockedCategoryNames: '',
+      });
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        is_branded_content: true,
+        brandedContentSetting: 'open',
+        game_name: 'Test Game',
+      });
+      expect(result).toBe(true);
     });
   });
 
@@ -426,18 +420,7 @@ describe('Background Script', () => {
         tabRotationInterval: 5,
       });
 
-      async function ensureTabRotationAlarm() {
-        const tabRotationAlarm = await chrome.alarms.get('tabRotationAlarm');
-        if (!tabRotationAlarm) {
-          const data = await chrome.storage.local.get(['tabRotationInterval', 'isEnabledTabRotation']);
-          if (data.isEnabledTabRotation) {
-            const interval = Math.max(1, parseInt(data.tabRotationInterval, 10) || 5);
-            chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
-          }
-        }
-      }
-
-      await ensureTabRotationAlarm();
+      await ensureAlarmsExist();
 
       expect(chromeMock.alarms.create).toHaveBeenCalledWith('tabRotationAlarm', {
         periodInMinutes: 5,
@@ -445,25 +428,18 @@ describe('Background Script', () => {
     });
 
     it('should not create tabRotationAlarm when isEnabledTabRotation is false', async () => {
-      chromeMock.alarms.get.mockResolvedValue(null);
+      // periodicalUpdate already exists, tabRotationAlarm does not
+      chromeMock.alarms.get
+        .mockResolvedValueOnce({ name: 'periodicalUpdate' })
+        .mockResolvedValueOnce(null);
       chromeMock.storage.local.get.mockResolvedValue({
         isEnabledTabRotation: false,
         tabRotationInterval: 5,
       });
 
-      async function ensureTabRotationAlarm() {
-        const tabRotationAlarm = await chrome.alarms.get('tabRotationAlarm');
-        if (!tabRotationAlarm) {
-          const data = await chrome.storage.local.get(['tabRotationInterval', 'isEnabledTabRotation']);
-          if (data.isEnabledTabRotation) {
-            const interval = Math.max(1, parseInt(data.tabRotationInterval, 10) || 5);
-            chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
-          }
-        }
-      }
+      await ensureAlarmsExist();
 
-      await ensureTabRotationAlarm();
-
+      // Only periodicalUpdate check should not trigger create
       expect(chromeMock.alarms.create).not.toHaveBeenCalled();
     });
 
@@ -473,18 +449,7 @@ describe('Background Script', () => {
         isEnabledTabRotation: true,
       });
 
-      async function ensureTabRotationAlarm() {
-        const tabRotationAlarm = await chrome.alarms.get('tabRotationAlarm');
-        if (!tabRotationAlarm) {
-          const data = await chrome.storage.local.get(['tabRotationInterval', 'isEnabledTabRotation']);
-          if (data.isEnabledTabRotation) {
-            const interval = Math.max(1, parseInt(data.tabRotationInterval, 10) || 5);
-            chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
-          }
-        }
-      }
-
-      await ensureTabRotationAlarm();
+      await ensureAlarmsExist();
 
       expect(chromeMock.alarms.create).toHaveBeenCalledWith('tabRotationAlarm', {
         periodInMinutes: 5,
@@ -497,13 +462,6 @@ describe('Background Script', () => {
       const managedWindowId = 123;
       chromeMock.storage.local.get.mockResolvedValue({ lastOpenWindowId: managedWindowId });
 
-      async function onWindowRemoved(windowId) {
-        const data = await chrome.storage.local.get('lastOpenWindowId');
-        if (windowId === data.lastOpenWindowId) {
-          await chrome.storage.local.set({ lastOpenWindowId: null });
-        }
-      }
-
       await onWindowRemoved(managedWindowId);
 
       expect(chromeMock.storage.local.set).toHaveBeenCalledWith({ lastOpenWindowId: null });
@@ -511,13 +469,6 @@ describe('Background Script', () => {
 
     it('should not clear lastOpenWindowId when different window is closed', async () => {
       chromeMock.storage.local.get.mockResolvedValue({ lastOpenWindowId: 123 });
-
-      async function onWindowRemoved(windowId) {
-        const data = await chrome.storage.local.get('lastOpenWindowId');
-        if (windowId === data.lastOpenWindowId) {
-          await chrome.storage.local.set({ lastOpenWindowId: null });
-        }
-      }
 
       await onWindowRemoved(456);
 
@@ -534,21 +485,10 @@ describe('Background Script', () => {
         tabRotationInterval: 3,
       });
 
-      async function onStorageChanged(changes, area) {
-        if (area === 'local' && (changes.isEnabledTabRotation || changes.tabRotationInterval)) {
-          const tabRotationAlarm = await chrome.alarms.get('tabRotationAlarm');
-          if (tabRotationAlarm) {
-            await chrome.alarms.clear('tabRotationAlarm');
-          }
-          const data = await chrome.storage.local.get(['tabRotationInterval', 'isEnabledTabRotation']);
-          if (data.isEnabledTabRotation) {
-            const interval = Math.max(1, parseInt(data.tabRotationInterval, 10) || 5);
-            chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
-          }
-        }
-      }
-
-      await onStorageChanged({ isEnabledTabRotation: { newValue: true } }, 'local');
+      await onStorageChangedForTabRotation(
+        { isEnabledTabRotation: { newValue: true } },
+        'local'
+      );
 
       expect(chromeMock.alarms.create).toHaveBeenCalledWith('tabRotationAlarm', {
         periodInMinutes: 3,
@@ -563,23 +503,22 @@ describe('Background Script', () => {
         tabRotationInterval: 3,
       });
 
-      async function onStorageChanged(changes, area) {
-        if (area === 'local' && (changes.isEnabledTabRotation || changes.tabRotationInterval)) {
-          const tabRotationAlarm = await chrome.alarms.get('tabRotationAlarm');
-          if (tabRotationAlarm) {
-            await chrome.alarms.clear('tabRotationAlarm');
-          }
-          const data = await chrome.storage.local.get(['tabRotationInterval', 'isEnabledTabRotation']);
-          if (data.isEnabledTabRotation) {
-            const interval = Math.max(1, parseInt(data.tabRotationInterval, 10) || 5);
-            chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
-          }
-        }
-      }
-
-      await onStorageChanged({ isEnabledTabRotation: { newValue: false } }, 'local');
+      await onStorageChangedForTabRotation(
+        { isEnabledTabRotation: { newValue: false } },
+        'local'
+      );
 
       expect(chromeMock.alarms.clear).toHaveBeenCalledWith('tabRotationAlarm');
+      expect(chromeMock.alarms.create).not.toHaveBeenCalled();
+    });
+
+    it('should ignore changes from non-local storage area', async () => {
+      await onStorageChangedForTabRotation(
+        { isEnabledTabRotation: { newValue: true } },
+        'sync'
+      );
+
+      expect(chromeMock.alarms.get).not.toHaveBeenCalled();
       expect(chromeMock.alarms.create).not.toHaveBeenCalled();
     });
   });
@@ -588,127 +527,75 @@ describe('Background Script', () => {
     it('should recover tab rotation when window is reopened and channels go live', async () => {
       const managedWindowId = 123;
 
-      // ステップ1: ウィンドウが閉じられる
+      // Step 1: Window is closed
       chromeMock.storage.local.get.mockResolvedValue({ lastOpenWindowId: managedWindowId });
-
-      async function onWindowRemoved(windowId) {
-        const data = await chrome.storage.local.get('lastOpenWindowId');
-        if (windowId === data.lastOpenWindowId) {
-          await chrome.storage.local.set({ lastOpenWindowId: null });
-        }
-      }
-
       await onWindowRemoved(managedWindowId);
       expect(chromeMock.storage.local.set).toHaveBeenCalledWith({ lastOpenWindowId: null });
 
-      // ステップ2: 新しいウィンドウで配信が開かれる
+      // Step 2: checkTabRotate sees new window
       const newWindowId = 456;
       chromeMock.storage.local.get.mockResolvedValue({
         lastOpenWindowId: newWindowId,
         isEnabledTabRotation: true,
-        tabRotationInterval: 5
+        isEnabledTabMute: false,
       });
 
-      // ステップ3: checkTabRotate()が実行される
-      async function checkTabRotate() {
-        const isEnabledTabRotation = (await chrome.storage.local.get('isEnabledTabRotation')).isEnabledTabRotation;
-        const targetWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
+      // checkTabRotate calls chrome.windows.get with callback
+      // It should proceed since targetWindowId is set
+      await checkTabRotate();
 
-        if (!isEnabledTabRotation) return 'disabled';
-        if (!targetWindowId) return 'no_window';
-        return 'running';
-      }
-
-      const result = await checkTabRotate();
-
-      // 新しいウィンドウが存在しており、タブローテーションが有効なら動作する
-      expect(result).toBe('running');
+      // Verify it attempted to get the window
+      expect(chromeMock.windows.get).toHaveBeenCalled();
     });
 
     it('should handle case where window is closed but tab rotation is still enabled', async () => {
       const managedWindowId = 123;
 
-      // ウィンドウが閉じられてもタブローテーション設定は有効のままの状態
-      chromeMock.storage.local.get
-        .mockResolvedValueOnce({ lastOpenWindowId: managedWindowId, isEnabledTabRotation: true })
-        .mockResolvedValueOnce({ lastOpenWindowId: null, isEnabledTabRotation: true });
-
-      async function onWindowRemoved(windowId) {
-        const data = await chrome.storage.local.get('lastOpenWindowId');
-        if (windowId === data.lastOpenWindowId) {
-          await chrome.storage.local.set({ lastOpenWindowId: null });
-        }
-      }
-
+      // Window is closed
+      chromeMock.storage.local.get.mockResolvedValueOnce({ lastOpenWindowId: managedWindowId });
       await onWindowRemoved(managedWindowId);
 
-      async function checkTabRotate() {
-        const isEnabledTabRotation = (await chrome.storage.local.get('isEnabledTabRotation')).isEnabledTabRotation;
-        const targetWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
+      // checkTabRotate should exit early since lastOpenWindowId is null
+      chromeMock.storage.local.get
+        .mockResolvedValueOnce({ isEnabledTabRotation: true })
+        .mockResolvedValueOnce({ lastOpenWindowId: null });
 
-        if (!isEnabledTabRotation) return 'disabled';
-        if (!targetWindowId) return 'no_window';
-        return 'running';
-      }
+      await checkTabRotate();
 
-      const result = await checkTabRotate();
-
-      // ウィンドウが無いのでタブローテーションは実行されない
-      expect(result).toBe('no_window');
-      expect(chromeMock.storage.local.set).toHaveBeenCalledWith({ lastOpenWindowId: null });
+      // Should not try to get any window since targetWindowId is null
+      expect(chromeMock.windows.get).not.toHaveBeenCalled();
     });
   });
 
   describe('showNotification', () => {
-    // Helper to build notification message (mirrors background.js logic)
-    function buildNotificationMessage(channel) {
-      let message = '';
-
-      if (channel.title) {
-        message = channel.title;
-        if (channel.game_name) {
-          message += `\n【${channel.game_name}】`;
-        }
-      } else if (channel.game_name) {
-        message = `【${channel.game_name}】`;
-      } else {
-        message = '配信開始！';
-      }
-
-      return message;
-    }
-
-    it('should include title and category in notification message', () => {
-      const channel = {
+    it('should create notification with title and category', () => {
+      showNotification({
         name: 'testuser',
         title: 'Playing some games!',
         game_name: 'Just Chatting',
-      };
+      });
 
-      const message = buildNotificationMessage(channel);
-
-      expect(message).toBe('Playing some games!\n【Just Chatting】');
+      expect(chromeMock.notifications.create).toHaveBeenCalledTimes(1);
+      const [, options] = chromeMock.notifications.create.mock.calls[0];
+      expect(options.message).toBe('Playing some games!\n【Just Chatting】');
     });
 
-    it('should show only title if no category', () => {
-      const channel = { name: 'testuser', title: 'My Stream' };
-      const message = buildNotificationMessage(channel);
-
-      expect(message).toBe('My Stream');
+    it('should create notification with only title if no category', () => {
+      showNotification({ name: 'testuser', title: 'My Stream' });
+      const [, options] = chromeMock.notifications.create.mock.calls[0];
+      expect(options.message).toBe('My Stream');
     });
 
-    it('should show only category if no title', () => {
-      const channel = { name: 'testuser', game_name: 'Fortnite' };
-      const message = buildNotificationMessage(channel);
-
-      expect(message).toBe('【Fortnite】');
+    it('should create notification with only category if no title', () => {
+      showNotification({ name: 'testuser', game_name: 'Fortnite' });
+      const [, options] = chromeMock.notifications.create.mock.calls[0];
+      expect(options.message).toBe('【Fortnite】');
     });
 
     it('should fallback to default message if no title and category', () => {
-      const channel = { name: 'testuser' };
-      const message = buildNotificationMessage(channel);
-
-      expect(message).toBe('配信開始！');
+      showNotification({ name: 'testuser' });
+      const [, options] = chromeMock.notifications.create.mock.calls[0];
+      expect(options.message).toBe('配信開始！');
     });
   });
 });
