@@ -24,18 +24,27 @@ const twitchDomain = 'https://www.twitch.tv';
 // const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx'; // for prod
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
 
+// Migrate old nested token format { oauth_token: "token" } (object) to flat string "token"
+function migrateOAuthToken(token) {
+  if (token && typeof token === 'object' && token.oauth_token) {
+    return token.oauth_token;
+  }
+  return token;
+}
+
 // Category search using Twitch API
 async function searchCategories(query) {
   if (!query || query.length < 1) return [];
 
   const data = await chrome.storage.local.get('oauth_token');
-  if (!data.oauth_token?.oauth_token) return [];
+  const token = migrateOAuthToken(data.oauth_token);
+  if (!token) return [];
 
   const url = `https://api.twitch.tv/helix/search/categories?query=${encodeURIComponent(query)}&first=10`;
   const options = {
     headers: {
       'Client-ID': clientId,
-      'Authorization': `Bearer ${data.oauth_token.oauth_token}`,
+      'Authorization': `Bearer ${token}`,
     },
   };
 
@@ -445,8 +454,13 @@ chrome.storage.local.get(
     // Update UI state based on allowed-only categories
     updateGlobalCategoryUIState();
 
-    if (data.oauth_token) {
-      const connected = await checkTwitchConnection(data.oauth_token);
+    const migratedToken = migrateOAuthToken(data.oauth_token);
+    // Persist migrated token if format changed
+    if (migratedToken && data.oauth_token !== migratedToken) {
+      await chrome.storage.local.set({ oauth_token: migratedToken });
+    }
+    if (migratedToken) {
+      const connected = await checkTwitchConnection(migratedToken);
       if (connected) updateList(data.channels);
     } else {
       rewriteNeedsLoginButton(false);
@@ -1313,22 +1327,28 @@ async function refreshList() {
 
 loginTwitch.addEventListener('click', () => {
   console.log(chrome.identity.getRedirectURL());
+  const state = crypto.randomUUID();
   chrome.identity.launchWebAuthFlow({
     url: 'https://id.twitch.tv/oauth2/authorize?' +
       `client_id=${clientId}&` +
       `redirect_uri=${chrome.identity.getRedirectURL()}&` +
       'response_type=token&' +
-      'scope=user:read:email',
+      'scope=user:read:email&' +
+      `state=${state}`,
     interactive: true
   }, responseUrl => {
     console.log({ responseUrl });
     if (responseUrl) {
       let hash = new URL(responseUrl).hash;
       let result = parseHashToObj(hash);
-      let oauth_token = { oauth_token: result.access_token };
+      if (result.state !== state) {
+        console.error('OAuth state mismatch: possible CSRF attack');
+        rewriteNeedsLoginButton(false);
+        return;
+      }
+      const oauth_token = result.access_token;
       chrome.storage.local.set({ oauth_token });
       checkTwitchConnection(oauth_token);
-      console.log(oauth_token);
     } else {
       console.error('Invalid response URL:', responseUrl);
       loginTwitch.text = 'login fail: please login twitch';
@@ -1347,22 +1367,14 @@ function parseHashToObj(hash) {
 
 function checkTwitchConnection(oauthToken) {
   console.log('checkTwitch');
-  const token = oauthToken.oauth_token;
-  const url = 'https://api.twitch.tv/helix/users?login=azumagbanjo';
-  // const url = "https://api.twitch.tv/helix/users?login=azumagdev";
-  const headers = {
-    'Client-Id': clientId,
-    'Authorization': 'Bearer ' + token,
-  };
-  const options = {
-    'method': 'GET',
-    'headers': headers,
-  };
-  return fetch(url, options)
+  const token = oauthToken;
+  return fetch('https://id.twitch.tv/oauth2/validate', {
+    headers: { 'Authorization': 'OAuth ' + token },
+  })
     .then(response => {
       console.log(response);
       rewriteNeedsLoginButton(response.ok);
-      return true;
+      return response.ok;
     })
     .catch(error => {
       console.error(error);
@@ -1385,14 +1397,14 @@ function rewriteNeedsLoginButton(isOk) {
 async function checkStream(channel) {
   if (!channel) return;
 
-  const oauth_token = (await chrome.storage.local.get('oauth_token')).oauth_token;
+  const oauth_token = migrateOAuthToken((await chrome.storage.local.get('oauth_token')).oauth_token);
 
   const url = `https://api.twitch.tv/helix/streams?user_login=${channel.name}`;
   const options = {
     headers: {
       'Client-ID': clientId,
       'Accept': 'application/vnd.twitchtv.v5+json',
-      'Authorization': 'Bearer ' + oauth_token.oauth_token,
+      'Authorization': 'Bearer ' + oauth_token,
     },
   };
 

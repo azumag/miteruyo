@@ -9,6 +9,8 @@ import {
   showNotification,
   checkTabRotate,
   checkStreams,
+  validateToken,
+  migrateOAuthToken,
 } from '../background-functions.js';
 
 describe('Background Script', () => {
@@ -109,7 +111,7 @@ describe('Background Script', () => {
         isEnabledNotifications: false,
         isOpenMultiTwitch: false,
         channels: [{ name: 'testchannel', onLiveOpen: false }],
-        oauth_token: { oauth_token: 'test_token' },
+        oauth_token: 'test_token',
         isEnabledAutoClose: false,
       });
 
@@ -141,7 +143,7 @@ describe('Background Script', () => {
         isEnabledNotifications: false,
         isOpenMultiTwitch: false,
         channels: [{ name: 'offlinechannel', onLiveOpen: false }],
-        oauth_token: { oauth_token: 'test_token' },
+        oauth_token: 'test_token',
         isEnabledAutoClose: false,
       });
 
@@ -168,7 +170,7 @@ describe('Background Script', () => {
         isEnabledNotifications: false,
         isOpenMultiTwitch: false,
         channels: [null],
-        oauth_token: { oauth_token: 'test_token' },
+        oauth_token: 'test_token',
         isEnabledAutoClose: false,
       });
 
@@ -240,7 +242,7 @@ describe('Background Script', () => {
         isEnabledNotifications: false,
         isOpenMultiTwitch: false,
         channels: channels,
-        oauth_token: { oauth_token: 'test' },
+        oauth_token: 'test',
         isEnabledAutoClose: false,
       });
 
@@ -276,7 +278,7 @@ describe('Background Script', () => {
         isEnabledNotifications: false,
         isOpenMultiTwitch: false,
         channels: channels,
-        oauth_token: { oauth_token: 'test' },
+        oauth_token: 'test',
         isEnabledAutoClose: false,
       });
 
@@ -596,6 +598,74 @@ describe('Background Script', () => {
       showNotification({ name: 'testuser' });
       const [, options] = chromeMock.notifications.create.mock.calls[0];
       expect(options.message).toBe('配信開始！');
+    });
+  });
+
+  describe('validateToken', () => {
+    it('should return true when token is valid', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true });
+      const result = await validateToken('valid_token');
+      expect(result).toBe(true);
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        'https://id.twitch.tv/oauth2/validate',
+        { headers: { 'Authorization': 'OAuth valid_token' } }
+      );
+    });
+
+    it('should return false when token is invalid', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: false });
+      const result = await validateToken('invalid_token');
+      expect(result).toBe(false);
+    });
+
+    it('should return false on network error', async () => {
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
+      const result = await validateToken('any_token');
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('migrateOAuthToken', () => {
+    it('should extract token from old nested format', () => {
+      const result = migrateOAuthToken({ oauth_token: 'my_token' });
+      expect(result).toBe('my_token');
+    });
+
+    it('should return string token as-is', () => {
+      const result = migrateOAuthToken('my_token');
+      expect(result).toBe('my_token');
+    });
+
+    it('should return null/undefined as-is', () => {
+      expect(migrateOAuthToken(null)).toBeNull();
+      expect(migrateOAuthToken(undefined)).toBeUndefined();
+    });
+  });
+
+  describe('checkStreams token migration', () => {
+    it('should migrate old nested token format and persist it', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+      });
+
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [{ name: 'testchannel', onLiveOpen: false }],
+        oauth_token: { oauth_token: 'old_format_token' },
+        isEnabledAutoClose: false,
+      });
+
+      await checkStreams();
+
+      // Should persist migrated token
+      const tokenSetCall = chromeMock.storage.local.set.mock.calls.find(
+        call => typeof call[0].oauth_token === 'string'
+      );
+      expect(tokenSetCall).toBeDefined();
+      expect(tokenSetCall[0].oauth_token).toBe('old_format_token');
     });
   });
 });

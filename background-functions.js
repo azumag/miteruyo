@@ -172,6 +172,25 @@ export async function checkTabRotate() {
 
 }
 
+// Migrate old nested token format { oauth_token: "token" } (object) to flat string "token"
+export function migrateOAuthToken(token) {
+  if (token && typeof token === 'object' && token.oauth_token) {
+    return token.oauth_token;
+  }
+  return token;
+}
+
+export async function validateToken(token) {
+  try {
+    const response = await fetch('https://id.twitch.tv/oauth2/validate', {
+      headers: { 'Authorization': 'OAuth ' + token }
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function checkStreams() {
   console.log('checkStreams started at:', new Date().toISOString());
 
@@ -190,11 +209,16 @@ export async function checkStreams() {
     }
 
     const channels = data.channels || [];
-    const oauth_token = data.oauth_token;
+    let oauth_token = migrateOAuthToken(data.oauth_token);
 
-    if (!oauth_token) {
+    if (!oauth_token || typeof oauth_token !== 'string') {
       console.log('checkStreams: no oauth_token');
       return;
+    }
+
+    // Persist migrated token if format changed
+    if (data.oauth_token !== oauth_token) {
+      await chrome.storage.local.set({ oauth_token });
     }
 
     if (channels.length === 0) {
@@ -538,9 +562,9 @@ export async function checkOfflineWithTab(tabId) {
   const channelName = pathParts[0].split('?')[0];
   console.log('channelName', channelName);
 
-  const accessToken = (await chrome.storage.local.get('oauth_token')).oauth_token.oauth_token;
+  const accessToken = migrateOAuthToken((await chrome.storage.local.get('oauth_token')).oauth_token);
 
-  if (!accessToken) {
+  if (!accessToken || typeof accessToken !== 'string') {
     return;
   }
 
@@ -674,7 +698,7 @@ async function checkStream(channel, oauth_token) {
     headers: {
       'Client-ID': clientId,
       'Accept': 'application/vnd.twitchtv.v5+json',
-      'Authorization': 'Bearer ' + oauth_token.oauth_token,
+      'Authorization': 'Bearer ' + oauth_token,
     },
   };
 
