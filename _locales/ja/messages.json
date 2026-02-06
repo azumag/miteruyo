@@ -156,5 +156,54 @@
 	"githubLink": {
 		"message": "GitHubリポジトリ",
 		"description": "GitHubリンクのテキスト"
+	},
+	"categorySearchDefaultPlaceholder": {
+		"message": "カテゴリを検索...",
+		"description": "カテゴリ検索のデフォルトプレースホルダー"
+	},
+	"brandedContentLabel": {
+		"message": "PR配信",
+		"description": "個別設定のプロモーション配信ラベル"
+	},
+	"brandedOpen": {
+		"message": "開く",
+		"description": "プロモーション配信を開く選択肢"
+	},
+	"brandedBlock": {
+		"message": "開かない",
+		"description": "プロモーション配信を開かない選択肢"
+	},
+	"brandedGlobal": {
+		"message": "全体設定に従う",
+		"description": "プロモーション配信の全体設定に従う選択肢"
+	},
+	"categoryOverlapWarning": {
+		"message": "以下は全体設定で既に指定されています: $categories$",
+		"description": "カテゴリ重複警告メッセージ",
+		"placeholders": {
+			"categories": {
+				"content": "$1"
+			}
+		}
+	},
+	"noResults": {
+		"message": "見つかりません",
+		"description": "カテゴリ検索で結果がない場合のメッセージ"
+	},
+	"volumeLabel": {
+		"message": "音量",
+		"description": "個別チャンネルの音量設定ラベル"
+	},
+	"statusLive": {
+		"message": "LIVE",
+		"description": "チャンネルがライブ中のステータス表示"
+	},
+	"statusOffline": {
+		"message": "OFFLINE",
+		"description": "チャンネルがオフラインのステータス表示"
+	},
+	"statusNotFound": {
+		"message": "NOT FOUND",
+		"description": "チャンネルが見つからないステータス表示"
 	}
 }

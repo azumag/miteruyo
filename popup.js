@@ -67,7 +67,7 @@ async function searchCategories(query) {
 // Create category search input with dropdown
 // existingCategories is an array of {id, name} objects
 function createCategorySearchInput(options) {
-  const { onSelect, placeholder = 'カテゴリを検索...', existingCategories = [] } = options;
+  const { onSelect, placeholder = chrome.i18n.getMessage('categorySearchDefaultPlaceholder'), existingCategories = [] } = options;
 
   const container = document.createElement('div');
   container.className = 'position-relative';
@@ -103,7 +103,7 @@ function createCategorySearchInput(options) {
       if (results.length === 0) {
         const noResult = document.createElement('div');
         noResult.className = 'dropdown-item disabled text-muted';
-        noResult.textContent = '見つかりません';
+        noResult.textContent = chrome.i18n.getMessage('noResults');
         dropdown.appendChild(noResult);
       } else {
         results.forEach(cat => {
@@ -440,7 +440,7 @@ chrome.storage.local.get(
           updateGlobalCategoryUIState();
         }
       },
-      placeholder: 'カテゴリを検索して追加...',
+      placeholder: chrome.i18n.getMessage('categorySearchPlaceholder'),
       existingCategories: [...globalAllowedOnlyCategories],
     });
     allowedOnlyCategoriesSearchContainer.appendChild(globalAllowedOnlyCategorySearch);
@@ -460,7 +460,7 @@ chrome.storage.local.get(
           globalCategorySearch.updateExistingCategories(globalBlockedCategories);
         }
       },
-      placeholder: 'カテゴリを検索して追加...',
+      placeholder: chrome.i18n.getMessage('categorySearchPlaceholder'),
       existingCategories: [...globalBlockedCategories],
     });
     blockedCategoriesSearchContainer.appendChild(globalCategorySearch);
@@ -527,20 +527,20 @@ async function addChannelToList(channel, newAdded = false) {
   statusContainer.appendChild(openButton);
 
   if (channel.onLive) {
-    openButton.textContent = channel.onLiveOpen ? 'LIVE' : 'Pause';
+    openButton.textContent = channel.onLiveOpen ? chrome.i18n.getMessage('statusLive') : pauseMsg;
     openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
     openButton.style.width = '72px';
     openButton.addEventListener('click', () => {
       openInManagedWindow(channel.name);
     });
   } else {
-    openButton.textContent = channel.onLiveOpen ? 'OFFLINE' : pauseMsg;
+    openButton.textContent = channel.onLiveOpen ? chrome.i18n.getMessage('statusOffline') : pauseMsg;
     openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
     openButton.style.width = '72px';
   }
 
   if (channel.status === 'error') {
-    openButton.textContent = 'NOT FOUND';
+    openButton.textContent = chrome.i18n.getMessage('statusNotFound');
     openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
     openButton.style.width = '72px';
   }
@@ -559,14 +559,14 @@ async function addChannelToList(channel, newAdded = false) {
     saveChannelToList(channel);
 
     if (channel.onLive) {
-      openButton.textContent = channel.onLiveOpen ? 'LIVE' : pauseMsg;
+      openButton.textContent = channel.onLiveOpen ? chrome.i18n.getMessage('statusLive') : pauseMsg;
       openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
       openButton.style.width = '72px';
       openButton.addEventListener('click', () => {
         openInManagedWindow(channel.name);
       });
     } else {
-      openButton.textContent = channel.onLiveOpen ? 'OFFLINE' : pauseMsg;
+      openButton.textContent = channel.onLiveOpen ? chrome.i18n.getMessage('statusOffline') : pauseMsg;
       openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
       openButton.style.width = '72px';
     }
@@ -667,7 +667,7 @@ async function addChannelToList(channel, newAdded = false) {
   volLabel.className = 'form-check-label me-3 small flex-shrink-0';
   volLabel.style.whiteSpace = 'nowrap';
   volLabel.htmlFor = `vol-check-${channel.name}`;
-  volLabel.textContent = '音量';
+  volLabel.textContent = chrome.i18n.getMessage('volumeLabel');
 
   const volRange = document.createElement('input');
   volRange.type = 'range';
@@ -720,7 +720,7 @@ async function addChannelToList(channel, newAdded = false) {
 
   const brandedLabel = document.createElement('div');
   brandedLabel.className = 'small mb-1';
-  brandedLabel.textContent = 'PR配信';
+  brandedLabel.textContent = chrome.i18n.getMessage('brandedContentLabel');
   brandedContainer.appendChild(brandedLabel);
 
   const brandedRadioGroup = document.createElement('div');
@@ -744,9 +744,9 @@ async function addChannelToList(channel, newAdded = false) {
     return { wrapper, input };
   };
 
-  const { wrapper: openWrapper, input: radioOpenInput } = createBrandedRadio('open', 'open', '開く');
-  const { wrapper: blockWrapper, input: radioBlockInput } = createBrandedRadio('block', 'block', '開かない');
-  const { wrapper: globalWrapper, input: radioGlobalInput } = createBrandedRadio('global', 'global', '全体設定に従う');
+  const { wrapper: openWrapper, input: radioOpenInput } = createBrandedRadio('open', 'open', chrome.i18n.getMessage('brandedOpen'));
+  const { wrapper: blockWrapper, input: radioBlockInput } = createBrandedRadio('block', 'block', chrome.i18n.getMessage('brandedBlock'));
+  const { wrapper: globalWrapper, input: radioGlobalInput } = createBrandedRadio('global', 'global', chrome.i18n.getMessage('brandedGlobal'));
 
   const brandedSetting = channel.brandedContentSetting || 'global';
   radioGlobalInput.checked = brandedSetting === 'global';
@@ -776,7 +776,7 @@ async function addChannelToList(channel, newAdded = false) {
 
   const notifyLabel = document.createElement('div');
   notifyLabel.className = 'small mb-1';
-  notifyLabel.textContent = chrome.i18n.getMessage('notificationSetting') || '通知';
+  notifyLabel.textContent = chrome.i18n.getMessage('notificationSetting');
   notifyContainer.appendChild(notifyLabel);
 
   const notifyRadioGroup = document.createElement('div');
@@ -800,9 +800,9 @@ async function addChannelToList(channel, newAdded = false) {
     return { wrapper, input };
   };
 
-  const { wrapper: notifyGlobalWrapper, input: notifyGlobalInput } = createNotifyRadio('global', 'global', chrome.i18n.getMessage('notificationGlobal') || '全体設定に従う');
-  const { wrapper: notifyOnWrapper, input: notifyOnInput } = createNotifyRadio('on', 'on', chrome.i18n.getMessage('notificationOn') || '出す');
-  const { wrapper: notifyOffWrapper, input: notifyOffInput } = createNotifyRadio('off', 'off', chrome.i18n.getMessage('notificationOff') || '出さない');
+  const { wrapper: notifyGlobalWrapper, input: notifyGlobalInput } = createNotifyRadio('global', 'global', chrome.i18n.getMessage('notificationGlobal'));
+  const { wrapper: notifyOnWrapper, input: notifyOnInput } = createNotifyRadio('on', 'on', chrome.i18n.getMessage('notificationOn'));
+  const { wrapper: notifyOffWrapper, input: notifyOffInput } = createNotifyRadio('off', 'off', chrome.i18n.getMessage('notificationOff'));
 
   const notifySetting = channel.notificationSetting || 'global';
   notifyGlobalInput.checked = notifySetting === 'global';
@@ -840,13 +840,13 @@ async function addChannelToList(channel, newAdded = false) {
 
   const allowLabel = document.createElement('span');
   allowLabel.className = 'small';
-  allowLabel.textContent = '全体除外の例外';
+  allowLabel.textContent = chrome.i18n.getMessage('allowedCategoriesException');
 
   const allowHelpIcon = document.createElement('i');
   allowHelpIcon.className = 'bi bi-question-circle-fill text-muted';
   allowHelpIcon.style.cursor = 'help';
   allowHelpIcon.setAttribute('data-bs-toggle', 'tooltip');
-  allowHelpIcon.setAttribute('data-bs-title', '全体設定で除外したカテゴリのうち、このチャンネルでのみ開きたいカテゴリ');
+  allowHelpIcon.setAttribute('data-bs-title', chrome.i18n.getMessage('allowedCategoriesExceptionHelp'));
   new bootstrap.Tooltip(allowHelpIcon, { trigger: 'hover click' });
 
   allowLabelDiv.appendChild(allowLabel);
@@ -867,7 +867,7 @@ async function addChannelToList(channel, newAdded = false) {
 
   const defaultOption = document.createElement('option');
   defaultOption.value = '';
-  defaultOption.textContent = '追加...';
+  defaultOption.textContent = chrome.i18n.getMessage('addPlaceholder');
   defaultOption.disabled = true;
   defaultOption.selected = true;
   allowDropdown.appendChild(defaultOption);
@@ -975,13 +975,13 @@ async function addChannelToList(channel, newAdded = false) {
 
   const allowedOnlyLabel = document.createElement('span');
   allowedOnlyLabel.className = 'small';
-  allowedOnlyLabel.textContent = 'このカテゴリだけを開く';
+  allowedOnlyLabel.textContent = chrome.i18n.getMessage('allowedOnlyCategories');
 
   const allowedOnlyHelpIcon = document.createElement('i');
   allowedOnlyHelpIcon.className = 'bi bi-question-circle-fill text-muted';
   allowedOnlyHelpIcon.style.cursor = 'help';
   allowedOnlyHelpIcon.setAttribute('data-bs-toggle', 'tooltip');
-  allowedOnlyHelpIcon.setAttribute('data-bs-title', 'カテゴリ設定を上書きし、指定したカテゴリだけを開く。除外カテゴリはこれが設定されている場合は無効');
+  allowedOnlyHelpIcon.setAttribute('data-bs-title', chrome.i18n.getMessage('allowedOnlyCategoriesHelp'));
   new bootstrap.Tooltip(allowedOnlyHelpIcon, { trigger: 'hover click' });
 
   allowedOnlyLabelDiv.appendChild(allowedOnlyLabel);
@@ -1028,7 +1028,7 @@ async function addChannelToList(channel, newAdded = false) {
         updateChannelCategoryUIState();
       }
     },
-    placeholder: 'カテゴリを検索して追加...',
+    placeholder: chrome.i18n.getMessage('categorySearchPlaceholder'),
     existingCategories: [...currentAllowedOnly],
   });
 
@@ -1045,13 +1045,13 @@ async function addChannelToList(channel, newAdded = false) {
 
   const catLabel = document.createElement('span');
   catLabel.className = 'small';
-  catLabel.textContent = 'このカテゴリを除外';
+  catLabel.textContent = chrome.i18n.getMessage('blockedCategories');
 
   const catHelpIcon = document.createElement('i');
   catHelpIcon.className = 'bi bi-question-circle-fill text-muted';
   catHelpIcon.style.cursor = 'help';
   catHelpIcon.setAttribute('data-bs-toggle', 'tooltip');
-  catHelpIcon.setAttribute('data-bs-title', '全体設定に加えて除外したいカテゴリ');
+  catHelpIcon.setAttribute('data-bs-title', chrome.i18n.getMessage('blockedCategoriesChannelHelp'));
   new bootstrap.Tooltip(catHelpIcon, { trigger: 'hover click' });
 
   catLabelDiv.appendChild(catLabel);
@@ -1104,7 +1104,7 @@ async function addChannelToList(channel, newAdded = false) {
         )
       );
       if (overlap.length > 0) {
-        catAlert.textContent = `以下は全体設定で既に指定されています: ${overlap.map(c => c.name).join(', ')}`;
+        catAlert.textContent = chrome.i18n.getMessage('categoryOverlapWarning', [overlap.map(c => c.name).join(', ')]);
         catAlert.classList.remove('d-none');
       } else {
         catAlert.classList.add('d-none');
@@ -1142,7 +1142,7 @@ async function addChannelToList(channel, newAdded = false) {
         checkCatOverlap();
       }
     },
-    placeholder: 'カテゴリを検索して追加...',
+    placeholder: chrome.i18n.getMessage('categorySearchPlaceholder'),
     existingCategories: [...channelBlockedCategories],
   });
 

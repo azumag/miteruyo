@@ -156,5 +156,54 @@
 	"githubLink": {
 		"message": "GitHub Repository",
 		"description": "GitHub link text"
+	},
+	"categorySearchDefaultPlaceholder": {
+		"message": "Search categories...",
+		"description": "Default placeholder for category search"
+	},
+	"brandedContentLabel": {
+		"message": "Sponsored",
+		"description": "Per-channel branded content label"
+	},
+	"brandedOpen": {
+		"message": "Open",
+		"description": "Open branded content option"
+	},
+	"brandedBlock": {
+		"message": "Block",
+		"description": "Block branded content option"
+	},
+	"brandedGlobal": {
+		"message": "Global",
+		"description": "Follow global setting for branded content option"
+	},
+	"categoryOverlapWarning": {
+		"message": "Already set in global settings: $categories$",
+		"description": "Category overlap warning message",
+		"placeholders": {
+			"categories": {
+				"content": "$1"
+			}
+		}
+	},
+	"noResults": {
+		"message": "No results found",
+		"description": "Message when category search returns no results"
+	},
+	"volumeLabel": {
+		"message": "Volume",
+		"description": "Per-channel volume setting label"
+	},
+	"statusLive": {
+		"message": "LIVE",
+		"description": "Channel is live status display"
+	},
+	"statusOffline": {
+		"message": "OFFLINE",
+		"description": "Channel is offline status display"
+	},
+	"statusNotFound": {
+		"message": "NOT FOUND",
+		"description": "Channel not found status display"
 	}
 }
