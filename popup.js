@@ -483,9 +483,12 @@ async function updateList(dchannels) {
         })
     );
   }
-  Promise.all(checkStreams).then((channels) => {
+  try {
+    const channels = await Promise.all(checkStreams);
     chrome.storage.local.set({ channels });
-  });
+  } catch (error) {
+    console.error('updateList error:', error);
+  }
 }
 
 async function addChannelToList(channel, newAdded = false) {

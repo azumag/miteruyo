@@ -11,34 +11,42 @@ import {
 } from './background-functions.js';
 
 // Service Worker起動時にもアラームを確認（フォールバック）
-ensureAlarmsExist();
+ensureAlarmsExist().catch(e => console.error('ensureAlarmsExist error:', e));
 
 // Chrome起動時にアラームを確認
-chrome.runtime.onStartup.addListener(() => {
-  console.log('onStartup event');
-  ensureAlarmsExist();
+chrome.runtime.onStartup.addListener(async () => {
+  try {
+    console.log('onStartup event');
+    await ensureAlarmsExist();
+  } catch (e) {
+    console.error('onStartup error:', e);
+  }
 });
 
 // 拡張機能のインストール/アップデート時にアラームを確認
-chrome.runtime.onInstalled.addListener((details) => {
-  console.log('onInstalled event:', details.reason);
-  ensureAlarmsExist();
+chrome.runtime.onInstalled.addListener(async (details) => {
+  try {
+    console.log('onInstalled event:', details.reason);
+    await ensureAlarmsExist();
 
-  // コンテキストメニューを作成
-  chrome.contextMenus.create({
-    id: 'openWithMiteruyo',
-    title: chrome.i18n.getMessage('openWithMiteruyo') || 'Miteruyoで開く',
-    contexts: ['link'],
-    targetUrlPatterns: ['*://*.twitch.tv/*']
-  });
+    // コンテキストメニューを作成
+    chrome.contextMenus.create({
+      id: 'openWithMiteruyo',
+      title: chrome.i18n.getMessage('openWithMiteruyo') || 'Miteruyoで開く',
+      contexts: ['link'],
+      targetUrlPatterns: ['*://*.twitch.tv/*']
+    });
 
-  chrome.contextMenus.create({
-    id: 'addToMiteruyo',
-    title: chrome.i18n.getMessage('addToMiteruyo') || 'Miteruyoに追加',
-    contexts: ['link', 'page'],
-    targetUrlPatterns: ['*://*.twitch.tv/*'],
-    documentUrlPatterns: ['*://*.twitch.tv/*']
-  });
+    chrome.contextMenus.create({
+      id: 'addToMiteruyo',
+      title: chrome.i18n.getMessage('addToMiteruyo') || 'Miteruyoに追加',
+      contexts: ['link', 'page'],
+      targetUrlPatterns: ['*://*.twitch.tv/*'],
+      documentUrlPatterns: ['*://*.twitch.tv/*']
+    });
+  } catch (e) {
+    console.error('onInstalled error:', e);
+  }
 });
 
 // コンテキストメニューのクリックハンドラ
@@ -93,7 +101,7 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
         const newChannels = [...filteredChannels, channel];
         await chrome.storage.local.set({ channels: newChannels });
         console.log('Channel added:', channelName);
-        checkStreams();
+        await checkStreams();
       } else {
         console.log('Channel already exists:', channelName);
       }
@@ -103,62 +111,82 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
   }
 });
 
-chrome.alarms.onAlarm.addListener(function (alarm) {
-  console.log('Alarm fired:', alarm.name);
-  if (alarm.name === 'periodicalUpdate') {
-    checkStreams();
-  }
-  if (alarm.name === 'tabRotationAlarm') {
-    checkTabRotate();
+chrome.alarms.onAlarm.addListener(async function (alarm) {
+  try {
+    console.log('Alarm fired:', alarm.name);
+    if (alarm.name === 'periodicalUpdate') {
+      await checkStreams();
+    }
+    if (alarm.name === 'tabRotationAlarm') {
+      await checkTabRotate();
+    }
+  } catch (e) {
+    console.error('onAlarm error:', e);
   }
 });
 
 // tab Rotation の設定が変更されたときにアラームを更新
 chrome.storage.onChanged.addListener(async (changes, area) => {
-  await onStorageChangedForTabRotation(changes, area);
+  try {
+    await onStorageChangedForTabRotation(changes, area);
+  } catch (e) {
+    console.error('onStorageChanged error:', e);
+  }
 });
 
 // ウィンドウが閉じられたときに lastOpenWindowId をクリア
 chrome.windows.onRemoved.addListener(async (windowId) => {
-  await onWindowRemoved(windowId);
+  try {
+    await onWindowRemoved(windowId);
+  } catch (e) {
+    console.error('onWindowRemoved error:', e);
+  }
 });
 
 chrome.tabs.onActivated.addListener(async activeInfo => {
-  const targetWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
-  const enableTabMute = (await chrome.storage.local.get('isEnabledTabMute')).isEnabledTabMute;
-  const enableAutoClose = (await chrome.storage.local.get('isEnabledAutoClose')).isEnabledAutoClose;
+  try {
+    const targetWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
+    const enableTabMute = (await chrome.storage.local.get('isEnabledTabMute')).isEnabledTabMute;
+    const enableAutoClose = (await chrome.storage.local.get('isEnabledAutoClose')).isEnabledAutoClose;
 
-  if (activeInfo.windowId === targetWindowId) {
-    console.log('activated', activeInfo, enableTabMute, enableAutoClose);
-    if (enableTabMute) {
-      chrome.tabs.query({ windowId: targetWindowId }, (tabs) => {
-        tabs.forEach((tab) => {
-          if (tab.id === activeInfo.tabId) {
-            chrome.tabs.update(tab.id, { muted: false });
-          } else {
-            chrome.tabs.update(tab.id, { muted: true });
-          };
+    if (activeInfo.windowId === targetWindowId) {
+      console.log('activated', activeInfo, enableTabMute, enableAutoClose);
+      if (enableTabMute) {
+        chrome.tabs.query({ windowId: targetWindowId }, (tabs) => {
+          tabs.forEach((tab) => {
+            if (tab.id === activeInfo.tabId) {
+              chrome.tabs.update(tab.id, { muted: false });
+            } else {
+              chrome.tabs.update(tab.id, { muted: true });
+            };
+          });
         });
-      });
-    }
-    if (enableAutoClose) {
-      if (await checkOfflineWithTab(activeInfo.tabId)) {
-        console.log('close tab', activeInfo.tabId);
-        chrome.tabs.remove(activeInfo.tabId);
+      }
+      if (enableAutoClose) {
+        if (await checkOfflineWithTab(activeInfo.tabId)) {
+          console.log('close tab', activeInfo.tabId);
+          await chrome.tabs.remove(activeInfo.tabId);
+        }
       }
     }
+  } catch (e) {
+    console.error('onActivated error:', e);
   }
 });
 
 // 通知クリック時のハンドラ
-chrome.notifications.onClicked.addListener((notificationId) => {
-  if (notificationId.startsWith('miteruyo-live-')) {
-    const parts = notificationId.split('-');
-    if (parts.length >= 3) {
-      const channelName = parts[2];
-      openInManagedWindow(channelName);
-      chrome.notifications.clear(notificationId);
+chrome.notifications.onClicked.addListener(async (notificationId) => {
+  try {
+    if (notificationId.startsWith('miteruyo-live-')) {
+      const parts = notificationId.split('-');
+      if (parts.length >= 3) {
+        const channelName = parts[2];
+        await openInManagedWindow(channelName);
+        chrome.notifications.clear(notificationId);
+      }
     }
+  } catch (e) {
+    console.error('notification click error:', e);
   }
 });
 
