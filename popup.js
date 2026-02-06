@@ -143,11 +143,16 @@ function createCategorySearchInput(options) {
   });
 
   // Close dropdown when clicking outside
+  const abortController = new AbortController();
   document.addEventListener('click', (e) => {
     if (!container.contains(e.target)) {
       dropdown.classList.remove('show');
     }
-  });
+  }, { signal: abortController.signal });
+
+  container.cleanup = () => {
+    abortController.abort();
+  };
 
   // Update existing categories reference (array of {id, name})
   container.updateExistingCategories = (categories) => {
@@ -271,6 +276,8 @@ document.addEventListener('DOMContentLoaded', function () {
 let globalBlockedCategories = [];
 // Global state for allowed-only categories (array of {id, name} objects)
 let globalAllowedOnlyCategories = [];
+// Cleanup functions for channel rows (called on refreshList or channel removal)
+const channelCleanups = [];
 
 // Migrate old formats to new {id, name} array format
 async function migrateBlockedCategories() {
@@ -500,6 +507,8 @@ async function updateList(dchannels) {
 async function addChannelToList(channel, newAdded = false) {
   if (!newAdded && channel.status !== 'error' && liveFilterSwitch.checked && !channel.onLive) return;
 
+  let cleanupFn;
+
   const pauseMsg = chrome.i18n.getMessage('pause');
 
   const tr = document.createElement('tr');
@@ -611,6 +620,10 @@ async function addChannelToList(channel, newAdded = false) {
       }
       tr.remove();
       removeChannel(channel);
+      // Cleanup listeners
+      cleanupFn();
+      const idx = channelCleanups.indexOf(cleanupFn);
+      if (idx !== -1) channelCleanups.splice(idx, 1);
     }
   });
   removetd.appendChild(removeButton);
@@ -1213,6 +1226,14 @@ async function addChannelToList(channel, newAdded = false) {
   checkCatOverlap();
   updateChannelCategoryUIState();
 
+  // Register cleanup for this channel row
+  cleanupFn = () => {
+    chrome.storage.onChanged.removeListener(storageChangeListener);
+    channelCatSearch?.cleanup?.();
+    channelAllowedOnlySearch?.cleanup?.();
+  };
+  channelCleanups.push(cleanupFn);
+
   settingsTr.appendChild(settingsTd);
 
   channelTable.appendChild(settingsTr);
@@ -1324,9 +1345,17 @@ if (aboutBtn) {
 }
 
 async function refreshList() {
-  const list = document.getElementsByClassName('channel-tr');
-  while (list.length > 0) {
-    list[0].remove();
+  // Clean up all channel listeners before removing DOM
+  channelCleanups.forEach(fn => fn());
+  channelCleanups.length = 0;
+
+  const channelRows = document.getElementsByClassName('channel-tr');
+  while (channelRows.length > 0) {
+    channelRows[0].remove();
+  }
+  const settingsRows = document.getElementsByClassName('settings-tr');
+  while (settingsRows.length > 0) {
+    settingsRows[0].remove();
   }
 
   const data = await chrome.storage.local.get('channels');

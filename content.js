@@ -79,7 +79,7 @@ chrome.storage.onChanged.addListener((changes) => {
 
 // ページ遷移（SPA）を監視
 let lastUrl = location.href;
-new MutationObserver(() => {
+const urlObserver = new MutationObserver(() => {
   const url = location.href;
   if (url !== lastUrl) {
     lastUrl = url;
@@ -87,7 +87,16 @@ new MutationObserver(() => {
     setTimeout(applyVolumeSettings, 1000);
     setTimeout(applyVolumeSettings, 3000); // 念のため
   }
-}).observe(document, { subtree: true, childList: true });
+});
+urlObserver.observe(document, { subtree: true, childList: true });
+
+// クリーンアップ
+function cleanup() {
+  urlObserver.disconnect();
+  clearInterval(volumeInterval);
+}
+
+window.addEventListener('beforeunload', cleanup);
 
 // 初回実行
 setTimeout(applyVolumeSettings, 1000);
