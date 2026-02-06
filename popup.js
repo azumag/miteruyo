@@ -279,6 +279,25 @@ let globalAllowedOnlyCategories = [];
 // Cleanup functions for channel rows (called on refreshList or channel removal)
 const channelCleanups = [];
 
+// Render category tags (shared implementation for DRY)
+function renderCategoryTags({ container, categories, badgeClass, onDelete }) {
+  container.innerHTML = '';
+  categories.forEach(cat => {
+    const tag = document.createElement('span');
+    tag.className = `badge ${badgeClass} d-flex align-items-center`;
+    tag.textContent = cat.name;
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'btn-close btn-close-white ms-1';
+    deleteBtn.style.fontSize = '0.6em';
+    deleteBtn.addEventListener('click', () => onDelete(cat));
+
+    tag.appendChild(deleteBtn);
+    container.appendChild(tag);
+  });
+}
+
 // Migrate old formats to new {id, name} array format
 async function migrateBlockedCategories() {
   const data = await chrome.storage.local.get(['blockedCategoryNames', 'blockedCategoryList']);
@@ -331,26 +350,17 @@ async function migrateAllowedOnlyCategories() {
 
 // Render global allowed-only categories tag list
 function renderGlobalAllowedOnlyTags() {
-  allowedOnlyCategoriesTagList.innerHTML = '';
-  globalAllowedOnlyCategories.forEach(cat => {
-    const tag = document.createElement('span');
-    tag.className = 'badge bg-success d-flex align-items-center';
-    tag.textContent = cat.name;
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.type = 'button';
-    deleteBtn.className = 'btn-close btn-close-white ms-1';
-    deleteBtn.style.fontSize = '0.6em';
-    deleteBtn.addEventListener('click', () => {
+  renderCategoryTags({
+    container: allowedOnlyCategoriesTagList,
+    categories: globalAllowedOnlyCategories,
+    badgeClass: 'bg-success',
+    onDelete: (cat) => {
       globalAllowedOnlyCategories = globalAllowedOnlyCategories.filter(c => c.id !== cat.id || c.name !== cat.name);
       chrome.storage.local.set({ allowedOnlyCategoryList: globalAllowedOnlyCategories });
       renderGlobalAllowedOnlyTags();
       globalAllowedOnlyCategorySearch?.updateExistingCategories(globalAllowedOnlyCategories);
       updateGlobalCategoryUIState();
-    });
-
-    tag.appendChild(deleteBtn);
-    allowedOnlyCategoriesTagList.appendChild(tag);
+    }
   });
 }
 
@@ -369,25 +379,16 @@ function updateGlobalCategoryUIState() {
 
 // Render global blocked categories tag list
 function renderGlobalBlockedTags() {
-  blockedCategoriesTagList.innerHTML = '';
-  globalBlockedCategories.forEach(cat => {
-    const tag = document.createElement('span');
-    tag.className = 'badge bg-danger d-flex align-items-center';
-    tag.textContent = cat.name;
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.type = 'button';
-    deleteBtn.className = 'btn-close btn-close-white ms-1';
-    deleteBtn.style.fontSize = '0.6em';
-    deleteBtn.addEventListener('click', () => {
+  renderCategoryTags({
+    container: blockedCategoriesTagList,
+    categories: globalBlockedCategories,
+    badgeClass: 'bg-danger',
+    onDelete: (cat) => {
       globalBlockedCategories = globalBlockedCategories.filter(c => c.id !== cat.id || c.name !== cat.name);
       chrome.storage.local.set({ blockedCategoryList: globalBlockedCategories });
       renderGlobalBlockedTags();
       globalCategorySearch?.updateExistingCategories(globalBlockedCategories);
-    });
-
-    tag.appendChild(deleteBtn);
-    blockedCategoriesTagList.appendChild(tag);
+    }
   });
 }
 
@@ -885,26 +886,17 @@ async function addChannelToList(channel, newAdded = false) {
 
   // Function to render the tag list
   const renderAllowTags = () => {
-    allowTagList.innerHTML = '';
-    currentAllowed.forEach(cat => {
-      const tag = document.createElement('span');
-      tag.className = 'badge bg-success d-flex align-items-center';
-      tag.textContent = cat.name;
-
-      const deleteBtn = document.createElement('button');
-      deleteBtn.type = 'button';
-      deleteBtn.className = 'btn-close btn-close-white ms-1';
-      deleteBtn.style.fontSize = '0.6em';
-      deleteBtn.addEventListener('click', () => {
+    renderCategoryTags({
+      container: allowTagList,
+      categories: currentAllowed,
+      badgeClass: 'bg-success',
+      onDelete: (cat) => {
         currentAllowed = currentAllowed.filter(c => c.id !== cat.id || c.name !== cat.name);
         channel.allowedCategoryList = currentAllowed;
         saveChannelToList(channel);
         renderAllowTags();
         updateDropdownOptions();
-      });
-
-      tag.appendChild(deleteBtn);
-      allowTagList.appendChild(tag);
+      }
     });
   };
 
@@ -1008,27 +1000,18 @@ async function addChannelToList(channel, newAdded = false) {
 
   // Function to render the tag list
   const renderAllowedOnlyTags = () => {
-    allowedOnlyTagList.innerHTML = '';
-    currentAllowedOnly.forEach(cat => {
-      const tag = document.createElement('span');
-      tag.className = 'badge bg-primary d-flex align-items-center';
-      tag.textContent = cat.name;
-
-      const deleteBtn = document.createElement('button');
-      deleteBtn.type = 'button';
-      deleteBtn.className = 'btn-close btn-close-white ms-1';
-      deleteBtn.style.fontSize = '0.6em';
-      deleteBtn.addEventListener('click', () => {
+    renderCategoryTags({
+      container: allowedOnlyTagList,
+      categories: currentAllowedOnly,
+      badgeClass: 'bg-primary',
+      onDelete: (cat) => {
         currentAllowedOnly = currentAllowedOnly.filter(c => c.id !== cat.id || c.name !== cat.name);
         channel.allowedOnlyCategoryList = currentAllowedOnly;
         saveChannelToList(channel);
         renderAllowedOnlyTags();
         channelAllowedOnlySearch?.updateExistingCategories(currentAllowedOnly);
         updateChannelCategoryUIState();
-      });
-
-      tag.appendChild(deleteBtn);
-      allowedOnlyTagList.appendChild(tag);
+      }
     });
   };
 
@@ -1131,27 +1114,18 @@ async function addChannelToList(channel, newAdded = false) {
 
   // Function to render the blocked tags
   const renderCatTags = () => {
-    catTagList.innerHTML = '';
-    channelBlockedCategories.forEach(cat => {
-      const tag = document.createElement('span');
-      tag.className = 'badge bg-danger d-flex align-items-center';
-      tag.textContent = cat.name;
-
-      const deleteBtn = document.createElement('button');
-      deleteBtn.type = 'button';
-      deleteBtn.className = 'btn-close btn-close-white ms-1';
-      deleteBtn.style.fontSize = '0.6em';
-      deleteBtn.addEventListener('click', () => {
+    renderCategoryTags({
+      container: catTagList,
+      categories: channelBlockedCategories,
+      badgeClass: 'bg-danger',
+      onDelete: (cat) => {
         channelBlockedCategories = channelBlockedCategories.filter(c => c.id !== cat.id || c.name !== cat.name);
         channel.blockedCategoryList = channelBlockedCategories;
         saveChannelToList(channel);
         renderCatTags();
         channelCatSearch?.updateExistingCategories(channelBlockedCategories);
         checkCatOverlap();
-      });
-
-      tag.appendChild(deleteBtn);
-      catTagList.appendChild(tag);
+      }
     });
   };
 

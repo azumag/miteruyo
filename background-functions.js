@@ -1,3 +1,9 @@
+const FETCH_TIMEOUT_MS = 10000;
+const NOTIFICATION_ID_PREFIX = 'miteruyo-live-';
+const POLLING_INTERVAL_MINUTES = 1;
+const MIN_ROTATION_INTERVAL_MINUTES = 1;
+const DEFAULT_ROTATION_INTERVAL_MINUTES = 5;
+
 const twitchDomain = 'https://www.twitch.tv';
 
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
@@ -43,7 +49,7 @@ export async function ensureAlarmsExist() {
   const existingAlarm = await chrome.alarms.get('periodicalUpdate');
   if (!existingAlarm) {
     console.log('Creating periodicalUpdate alarm');
-    chrome.alarms.create('periodicalUpdate', { periodInMinutes: 1 });
+    chrome.alarms.create('periodicalUpdate', { periodInMinutes: POLLING_INTERVAL_MINUTES });
   } else {
     console.log('periodicalUpdate alarm already exists');
   }
@@ -55,7 +61,7 @@ export async function ensureAlarmsExist() {
     // タブローテーションが有効な場合のみアラームを作成
     if (data.isEnabledTabRotation) {
       // 最小値を1分に制限、デフォルト値は5分
-      const interval = Math.max(1, parseInt(data.tabRotationInterval, 10) || 5);
+      const interval = Math.max(MIN_ROTATION_INTERVAL_MINUTES, parseInt(data.tabRotationInterval, 10) || DEFAULT_ROTATION_INTERVAL_MINUTES);
       console.log('Creating tabRotationAlarm with interval:', interval);
       chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
     }
@@ -121,10 +127,6 @@ export async function checkTabRotate() {
 
     chrome.tabs.update(tabs[currentTabIndex].id, { muted: enableTabMute });
     chrome.tabs.update(tabs[nextTabIndex].id, { active: true, muted: false });
-
-    // suspend previous tab
-    // const suspendedUrl = "chrome-extension://" + chrome.runtime.id + "/suspended.html#" + encodeURIComponent(tabs[currentTabIndex].url);
-    // chrome.tabs.update(tabs[currentTabIndex].id, { url: suspendedUrl });
 
     // Close duplicate tabs
     // Deduplicate tabs based on URL without query parameters
@@ -294,7 +296,7 @@ async function closeOfflineTabs(updatedChannels) {
 
 // デスクトップ通知を表示
 export function showNotification(channel) {
-  const notificationId = `miteruyo-live-${channel.name}-${Date.now()}`;
+  const notificationId = `${NOTIFICATION_ID_PREFIX}${channel.name}-${Date.now()}`;
 
   // Build notification message with title and category
   let message = '';
@@ -581,7 +583,7 @@ export async function onStorageChangedForTabRotation(changes, area) {
     }
     const data = await chrome.storage.local.get(['tabRotationInterval', 'isEnabledTabRotation']);
     if (data.isEnabledTabRotation) {
-      const interval = Math.max(1, parseInt(data.tabRotationInterval, 10) || 5);
+      const interval = Math.max(MIN_ROTATION_INTERVAL_MINUTES, parseInt(data.tabRotationInterval, 10) || DEFAULT_ROTATION_INTERVAL_MINUTES);
       console.log('Tab rotation settings changed, creating alarm with interval:', interval);
       chrome.alarms.create('tabRotationAlarm', { periodInMinutes: interval });
     } else {
@@ -614,8 +616,8 @@ export async function onNotificationClicked(notificationId) {
 // 通知IDからチャンネル名を抽出・バリデーション
 // Format: miteruyo-live-{channelName}-{timestamp}
 function parseNotificationChannelName(notificationId) {
-  if (!notificationId || !notificationId.startsWith('miteruyo-live-')) return null;
-  const withoutPrefix = notificationId.slice('miteruyo-live-'.length);
+  if (!notificationId || !notificationId.startsWith(NOTIFICATION_ID_PREFIX)) return null;
+  const withoutPrefix = notificationId.slice(NOTIFICATION_ID_PREFIX.length);
   const lastDashIndex = withoutPrefix.lastIndexOf('-');
   if (lastDashIndex <= 0) return null;
   const channelName = withoutPrefix.substring(0, lastDashIndex);
@@ -707,7 +709,7 @@ async function fetchWithRetry(url, options, maxRetries = 1) {
         : (attempt + 1) * 2000;
       console.warn(`Rate limited, waiting ${waitMs}ms before retry (attempt ${attempt + 1})`);
       if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, Math.min(waitMs, 10000)));
+        await new Promise(resolve => setTimeout(resolve, Math.min(waitMs, FETCH_TIMEOUT_MS)));
         continue;
       }
     }
@@ -731,7 +733,7 @@ async function checkStream(channel, oauth_token) {
   try {
     // タイムアウト付きfetch（10秒）
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
     const response = await fetchWithRetry(url, {
       ...options,
