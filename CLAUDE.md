@@ -1,12 +1,30 @@
 # CLAUDE.md
 
 # LAW
+research the industry-standard approach to this problem use it to guide yours"
+
 作業を subagent および task agent に適切に移譲し, コンテキストを節約してください
 
 作業内容は厳しくレビューを受けること。
 - 自己レビュー
 - gemini-cli レビュー
 - codex レビュー
+
+コードの重複や簡潔性、無駄なファイルを作っていないかどうか、使いやすさ、
+セキュリティリスク、コストなどのあらゆる点について厳しく指摘するよう指示してください
+
+レビュー修正した後は再度レビューを受け、レビューの指摘が完全にクリアされるまで、修正とレビューを>繰り返せ
+
+- テストに失敗したら、作業に関係なくとも、修正すること
+
+## review aspects
+- Code quality and best practices
+- Potential bugs and edge cases
+- Performance implications
+- Security considerations
+- **コードの簡潔性**: 過度な抽象化や複雑化を避ける
+- 単体テストのカバレッジは十分か？
+- YAGNI の原則に乗っ取り、過剰な実装と設計を避ける
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -74,8 +92,3 @@ Puppeteerを使用してChrome拡張機能のポップアップUIをスクリー
 
 実装おわりにREADMEとテストをアップデートし、テストを実行すること
 
-## Future TODO
-
-See TODO.md for remaining features:
-- チャネルごとの個別設定（音量、プロモーション配信、カテゴリフィルター）
-- 通知を出すだけモード（ブラウザ通知、デスクトップ通知）
