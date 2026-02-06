@@ -696,6 +696,11 @@ async function addChannelToList(channel, newAdded = false) {
   // Event Listeners for Volume
   volCheck.addEventListener('change', () => {
     channel.enableCustomVolume = volCheck.checked;
+    if (!volCheck.checked) {
+      channel.customVolume = 100;
+      volRange.value = 100;
+      volValue.textContent = '100%';
+    }
     toggleState(volCheck.checked, [volRange, volValue]);
     saveChannelToList(channel);
   });
