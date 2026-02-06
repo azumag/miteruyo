@@ -12,6 +12,7 @@ import {
   validateToken,
   migrateOAuthToken,
   channelQueuedStreams,
+  onNotificationClicked,
 } from '../background-functions.js';
 
 describe('Background Script', () => {
@@ -183,6 +184,97 @@ describe('Background Script', () => {
       expect(setCall).toBeDefined();
       // null channel returns null from checkStream
       expect(setCall[0].channels[0]).toBeNull();
+    });
+  });
+
+  describe('API response error handling', () => {
+    it('should handle HTTP error responses gracefully', async () => {
+      // Mock fetch returning a non-ok response
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ error: 'Unauthorized' }),
+        headers: { get: () => null },
+      });
+
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [{ name: 'testchannel', onLiveOpen: false }],
+        oauth_token: 'expired_token',
+        isEnabledAutoClose: false,
+      });
+
+      await checkStreams();
+
+      const setCall = chromeMock.storage.local.set.mock.calls.find(
+        call => call[0].channels
+      );
+      expect(setCall).toBeDefined();
+      expect(setCall[0].channels[0].status).toBe('error');
+      expect(setCall[0].channels[0].lastError).toBe('HTTP 401');
+    });
+
+    it('should handle invalid JSON response gracefully', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.reject(new SyntaxError('Unexpected token')),
+        headers: { get: () => null },
+      });
+
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [{ name: 'testchannel', onLiveOpen: false }],
+        oauth_token: 'test_token',
+        isEnabledAutoClose: false,
+      });
+
+      await checkStreams();
+
+      const setCall = chromeMock.storage.local.set.mock.calls.find(
+        call => call[0].channels
+      );
+      expect(setCall).toBeDefined();
+      expect(setCall[0].channels[0].status).toBe('error');
+      expect(setCall[0].channels[0].lastError).toBe('JSON parse error');
+    });
+
+    it('should handle rate limit (429) response with retry', async () => {
+      // First call returns 429, second call succeeds
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          headers: { get: () => null },
+          json: () => Promise.resolve({}),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [] }),
+          headers: { get: () => null },
+        });
+
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [{ name: 'testchannel', onLiveOpen: false }],
+        oauth_token: 'test_token',
+        isEnabledAutoClose: false,
+      });
+
+      await checkStreams();
+
+      // fetchWithRetry should have retried after 429
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+      const setCall = chromeMock.storage.local.set.mock.calls.find(
+        call => call[0].channels
+      );
+      expect(setCall).toBeDefined();
+      expect(setCall[0].channels[0].status).toBe('offline');
     });
   });
 
@@ -803,6 +895,92 @@ describe('Background Script', () => {
         // Should not call tabs.update if no tabs
         expect(chromeMock.tabs.update).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('Notification click handler', () => {
+    it('should open channel with valid notification ID', async () => {
+      chromeMock.storage.local.get.mockImplementation((key) => {
+        if (key === 'lastOpenWindowId') {
+          return Promise.resolve({ lastOpenWindowId: null });
+        }
+        if (key === 'isOpenNewWindow') {
+          return Promise.resolve({ isOpenNewWindow: false });
+        }
+        return Promise.resolve({});
+      });
+
+      chromeMock.tabs.query.mockResolvedValue([]);
+      chromeMock.tabs.create.mockResolvedValue({ id: 1 });
+
+      await onNotificationClicked('miteruyo-live-valid_channel-1234567890');
+
+      expect(chromeMock.tabs.create).toHaveBeenCalledWith({
+        url: 'https://www.twitch.tv/valid_channel',
+        windowId: undefined
+      });
+      expect(chromeMock.notifications.clear).toHaveBeenCalledWith('miteruyo-live-valid_channel-1234567890');
+    });
+
+    it('should handle channel names with hyphens', async () => {
+      chromeMock.storage.local.get.mockImplementation((key) => {
+        if (key === 'lastOpenWindowId') {
+          return Promise.resolve({ lastOpenWindowId: null });
+        }
+        if (key === 'isOpenNewWindow') {
+          return Promise.resolve({ isOpenNewWindow: false });
+        }
+        return Promise.resolve({});
+      });
+
+      chromeMock.tabs.query.mockResolvedValue([]);
+      chromeMock.tabs.create.mockResolvedValue({ id: 1 });
+
+      // Note: Twitch usernames cannot contain hyphens, but this tests the parsing logic
+      await onNotificationClicked('miteruyo-live-valid_name-1234567890');
+
+      expect(chromeMock.tabs.create).toHaveBeenCalledWith({
+        url: 'https://www.twitch.tv/valid_name',
+        windowId: undefined
+      });
+    });
+
+    it('should reject invalid channel name with special characters', async () => {
+      await onNotificationClicked('miteruyo-live-invalid!@#-1234567890');
+
+      expect(chromeMock.tabs.create).not.toHaveBeenCalled();
+      expect(chromeMock.notifications.clear).not.toHaveBeenCalled();
+    });
+
+    it('should reject channel name exceeding 25 characters', async () => {
+      const longName = 'a'.repeat(26);
+      await onNotificationClicked(`miteruyo-live-${longName}-1234567890`);
+
+      expect(chromeMock.tabs.create).not.toHaveBeenCalled();
+      expect(chromeMock.notifications.clear).not.toHaveBeenCalled();
+    });
+
+    it('should reject malformed notification ID without timestamp', async () => {
+      await onNotificationClicked('miteruyo-live-channel_name');
+
+      expect(chromeMock.tabs.create).not.toHaveBeenCalled();
+      expect(chromeMock.notifications.clear).not.toHaveBeenCalled();
+    });
+
+    it('should reject notification ID without prefix', async () => {
+      await onNotificationClicked('other-notification-12345');
+
+      expect(chromeMock.tabs.create).not.toHaveBeenCalled();
+      expect(chromeMock.notifications.clear).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors gracefully', async () => {
+      chromeMock.storage.local.get.mockRejectedValue(new Error('Storage error'));
+
+      // Should not throw
+      await expect(onNotificationClicked('miteruyo-live-valid_channel-1234567890')).rejects.toThrow('Storage error');
+
+      expect(chromeMock.notifications.clear).not.toHaveBeenCalled();
     });
   });
 });

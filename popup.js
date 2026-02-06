@@ -41,20 +41,26 @@ async function searchCategories(query) {
   if (!token) return [];
 
   const url = `https://api.twitch.tv/helix/search/categories?query=${encodeURIComponent(query)}&first=10`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
   const options = {
     headers: {
       'Client-ID': clientId,
       'Authorization': `Bearer ${token}`,
     },
+    signal: controller.signal,
   };
 
   try {
     const response = await fetch(url, options);
+    if (!response.ok) return [];
     const result = await response.json();
     return result.data || [];
   } catch (error) {
     console.error('Category search error:', error);
     return [];
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -1403,40 +1409,54 @@ async function checkStream(channel) {
   const oauth_token = migrateOAuthToken((await chrome.storage.local.get('oauth_token')).oauth_token);
 
   const url = `https://api.twitch.tv/helix/streams?user_login=${channel.name}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
   const options = {
     headers: {
       'Client-ID': clientId,
       'Accept': 'application/vnd.twitchtv.v5+json',
       'Authorization': 'Bearer ' + oauth_token,
     },
+    signal: controller.signal,
   };
 
-  const response = await fetch(url, options);
-  const data = await response.json();
+  try {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      channel.status = 'error';
+      return channel;
+    }
 
-  if (data.data === undefined) {
-    // removeChannel(channel);
-    // console.log(data);
+    const data = await response.json();
+
+    if (data.data === undefined) {
+      channel.status = 'error';
+      return channel;
+    }
+
+    if (data.data.length > 0) {
+      console.log('online', data.data[0]);
+      const stream = data.data[0];
+      channel.onLive = true;
+      channel.game_name = stream.game_name;
+      channel.tags = stream.tags;
+      channel.title = stream.title;
+      channel.viewer_count = stream.viewer_count;
+      channel.status = 'online';
+    } else {
+      console.log('offline', channel.name);
+      channel.onLive = false;
+      channel.status = 'offline';
+    }
+
+    return channel;
+  } catch (error) {
+    console.error('checkStream error:', error);
     channel.status = 'error';
     return channel;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  if (data.data.length > 0) {
-    console.log('online', data.data[0]);
-    const stream = data.data[0];
-    channel.onLive = true;
-    channel.game_name = stream.game_name;
-    channel.tags = stream.tags;
-    channel.title = stream.title;
-    channel.viewer_count = stream.viewer_count;
-    channel.status = 'online';
-  } else {
-    console.log('offline', channel.name);
-    channel.onLive = false;
-    channel.status = 'offline';
-  }
-
-  return channel;
 }
 
 

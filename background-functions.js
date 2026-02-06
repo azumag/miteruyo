@@ -542,16 +542,27 @@ export async function checkOfflineWithTab(tabId) {
   }
 
   const userId = await getUserId(clientId, accessToken, channelName);
+  if (!userId) return false;
   const requestUrl = `https://api.twitch.tv/helix/streams?user_id=${userId}`;
-  const response = await fetch(requestUrl, {
+  const response = await fetchWithRetry(requestUrl, {
     headers: {
       'Client-ID': clientId,
       'Authorization': `Bearer ${accessToken}`
     }
   });
-  const data = await response.json();
 
-  if (data.data.length > 0) {
+  if (!response.ok) {
+    return false;
+  }
+
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    return false;
+  }
+
+  if (data.data && data.data.length > 0) {
     // online
     return false;
   } else {
@@ -588,7 +599,29 @@ export async function onWindowRemoved(windowId) {
   }
 }
 
+export async function onNotificationClicked(notificationId) {
+  const channelName = parseNotificationChannelName(notificationId);
+  if (!channelName) {
+    return;
+  }
+
+  await openInManagedWindow(channelName);
+  chrome.notifications.clear(notificationId);
+}
+
 // --- Internal (non-exported) helper functions ---
+
+// 通知IDからチャンネル名を抽出・バリデーション
+// Format: miteruyo-live-{channelName}-{timestamp}
+function parseNotificationChannelName(notificationId) {
+  if (!notificationId || !notificationId.startsWith('miteruyo-live-')) return null;
+  const withoutPrefix = notificationId.slice('miteruyo-live-'.length);
+  const lastDashIndex = withoutPrefix.lastIndexOf('-');
+  if (lastDashIndex <= 0) return null;
+  const channelName = withoutPrefix.substring(0, lastDashIndex);
+  if (!/^[a-zA-Z0-9_]{1,25}$/.test(channelName)) return null;
+  return channelName;
+}
 
 function channelURL(channel) {
   return twitchDomain + '/' + channel.name;
@@ -631,13 +664,18 @@ async function openTabIfNotExists(channel, windowId = null) {
 function getUserId(clientId, accessToken, username) {
   const requestUrl = `https://api.twitch.tv/helix/users?login=${username}`;
 
-  return fetch(requestUrl, {
+  return fetchWithRetry(requestUrl, {
     headers: {
       'Client-ID': clientId,
       'Authorization': `Bearer ${accessToken}`
     }
   })
-    .then((response) => response.json())
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return response.json();
+    })
     .then((data) => {
       // console.log(data);
       if (data.data.length > 0) {
@@ -649,12 +687,33 @@ function getUserId(clientId, accessToken, username) {
     .catch((error) => {
       console.error('Error fetching user ID:', error);
       console.error('username', username);
+      return null;
     });
 }
 
 async function getTabUrl(tabId) {
   const tab = await chrome.tabs.get(tabId);
   return tab.url;
+}
+
+async function fetchWithRetry(url, options, maxRetries = 1) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const response = await fetch(url, options);
+
+    if (response.status === 429) {
+      const retryAfter = response.headers.get('Ratelimit-Reset');
+      const waitMs = retryAfter
+        ? Math.max(0, (parseInt(retryAfter, 10) * 1000) - Date.now())
+        : (attempt + 1) * 2000;
+      console.warn(`Rate limited, waiting ${waitMs}ms before retry (attempt ${attempt + 1})`);
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, Math.min(waitMs, 10000)));
+        continue;
+      }
+    }
+
+    return response;
+  }
 }
 
 async function checkStream(channel, oauth_token) {
@@ -674,7 +733,7 @@ async function checkStream(channel, oauth_token) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
       ...options,
       signal: controller.signal
     });
@@ -685,7 +744,13 @@ async function checkStream(channel, oauth_token) {
       return { ...channel, status: 'error', lastError: `HTTP ${response.status}` };
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      console.error(`checkStream: JSON parse error for ${channel.name}`);
+      return { ...channel, status: 'error', lastError: 'JSON parse error' };
+    }
 
     if (data.data === undefined) {
       console.error(`checkStream: Invalid response for ${channel.name}`, data);
@@ -700,10 +765,15 @@ async function checkStream(channel, oauth_token) {
       let is_branded_content = false;
       try {
         const channelInfoUrl = `https://api.twitch.tv/helix/channels?broadcaster_id=${stream.user_id}`;
-        const channelResponse = await fetch(channelInfoUrl, options);
+        const channelResponse = await fetchWithRetry(channelInfoUrl, options);
         if (channelResponse.ok) {
-          const channelData = await channelResponse.json();
-          if (channelData.data && channelData.data.length > 0) {
+          let channelData;
+          try {
+            channelData = await channelResponse.json();
+          } catch {
+            console.error(`checkStream: JSON parse error for channel info ${channel.name}`);
+          }
+          if (channelData && channelData.data && channelData.data.length > 0) {
             is_branded_content = channelData.data[0].is_branded_content === true;
           }
         }

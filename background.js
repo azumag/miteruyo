@@ -8,6 +8,7 @@ import {
   checkOfflineWithTab,
   onWindowRemoved,
   onStorageChangedForTabRotation,
+  onNotificationClicked,
 } from './background-functions.js';
 
 // Service Worker起動時にもアラームを確認（フォールバック）
@@ -177,14 +178,7 @@ chrome.tabs.onActivated.addListener(async activeInfo => {
 // 通知クリック時のハンドラ
 chrome.notifications.onClicked.addListener(async (notificationId) => {
   try {
-    if (notificationId.startsWith('miteruyo-live-')) {
-      const parts = notificationId.split('-');
-      if (parts.length >= 3) {
-        const channelName = parts[2];
-        await openInManagedWindow(channelName);
-        chrome.notifications.clear(notificationId);
-      }
-    }
+    await onNotificationClicked(notificationId);
   } catch (e) {
     console.error('notification click error:', e);
   }
