@@ -53,7 +53,7 @@ export function createChromeMock() {
     },
     windows: {
       create: vi.fn().mockResolvedValue({ id: 1 }),
-      get: vi.fn((id, opts, cb) => cb && cb({ id })),
+      get: vi.fn().mockResolvedValue({ id: 1 }),
       onRemoved: { addListener: vi.fn() },
     },
     notifications: {

@@ -11,6 +11,7 @@ import {
   checkStreams,
   validateToken,
   migrateOAuthToken,
+  channelQueuedStreams,
 } from '../background-functions.js';
 
 describe('Background Script', () => {
@@ -666,6 +667,142 @@ describe('Background Script', () => {
       );
       expect(tokenSetCall).toBeDefined();
       expect(tokenSetCall[0].oauth_token).toBe('old_format_token');
+    });
+  });
+
+  describe('Race condition fixes', () => {
+    describe('openTabIfNotExists async/await', () => {
+      it('should prevent duplicate tabs when opening multiple channels sequentially', async () => {
+        const channels = [
+          { name: 'channel1', onLive: true, onLiveOpen: true },
+          { name: 'channel2', onLive: true, onLiveOpen: true },
+          { name: 'channel3', onLive: true, onLiveOpen: true },
+        ];
+
+        // Mock: no existing tabs initially
+        let existingTabs = [];
+        chromeMock.tabs.query.mockImplementation(() => {
+          return Promise.resolve([...existingTabs]);
+        });
+
+        // Mock tabs.create to add the created tab to the list
+        chromeMock.tabs.create.mockImplementation(({ url, windowId }) => {
+          const newTab = { url, windowId, id: existingTabs.length + 1 };
+          existingTabs.push(newTab);
+          return Promise.resolve(newTab);
+        });
+
+        chromeMock.storage.local.get.mockImplementation((keys) => {
+          if (Array.isArray(keys) && keys.includes('allowedOnlyCategoryList')) {
+            return Promise.resolve({
+              allowedOnlyCategoryList: [],
+              blockedCategoryList: [],
+              blockedCategoryNames: '',
+            });
+          }
+          return Promise.resolve({ isOpenNewWindow: false });
+        });
+
+        await channelQueuedStreams(channels);
+
+        // With proper await, tabs.create should be called exactly 3 times
+        // (once per channel, no duplicates)
+        expect(chromeMock.tabs.create).toHaveBeenCalledTimes(3);
+        expect(chromeMock.tabs.create).toHaveBeenCalledWith({
+          url: 'https://www.twitch.tv/channel1',
+          windowId: null,
+        });
+        expect(chromeMock.tabs.create).toHaveBeenCalledWith({
+          url: 'https://www.twitch.tv/channel2',
+          windowId: null,
+        });
+        expect(chromeMock.tabs.create).toHaveBeenCalledWith({
+          url: 'https://www.twitch.tv/channel3',
+          windowId: null,
+        });
+      });
+    });
+
+    describe('checkTabRotate async/await', () => {
+      it('should rotate tabs correctly when window exists', async () => {
+        const windowId = 123;
+        const tabs = [
+          { id: 1, url: 'https://www.twitch.tv/channel1', active: true },
+          { id: 2, url: 'https://www.twitch.tv/channel2', active: false },
+          { id: 3, url: 'https://www.twitch.tv/channel3', active: false },
+        ];
+
+        chromeMock.storage.local.get.mockImplementation((key) => {
+          if (key === 'isEnabledTabRotation') {
+            return Promise.resolve({ isEnabledTabRotation: true });
+          }
+          if (key === 'lastOpenWindowId') {
+            return Promise.resolve({ lastOpenWindowId: windowId });
+          }
+          if (key === 'isEnabledTabMute') {
+            return Promise.resolve({ isEnabledTabMute: false });
+          }
+          return Promise.resolve({});
+        });
+
+        chromeMock.windows.get.mockResolvedValue({ id: windowId });
+        chromeMock.tabs.query.mockResolvedValue(tabs);
+
+        await checkTabRotate();
+
+        // Should rotate from tab 1 to tab 2
+        expect(chromeMock.tabs.update).toHaveBeenCalledWith(1, { muted: false });
+        expect(chromeMock.tabs.update).toHaveBeenCalledWith(2, { active: true, muted: false });
+      });
+
+      it('should clear lastOpenWindowId when window does not exist', async () => {
+        const windowId = 123;
+
+        chromeMock.storage.local.get.mockImplementation((key) => {
+          if (key === 'isEnabledTabRotation') {
+            return Promise.resolve({ isEnabledTabRotation: true });
+          }
+          if (key === 'lastOpenWindowId') {
+            return Promise.resolve({ lastOpenWindowId: windowId });
+          }
+          return Promise.resolve({});
+        });
+
+        // Mock window.get to throw error (window not found)
+        chromeMock.windows.get.mockRejectedValue(new Error('Window not found'));
+
+        await checkTabRotate();
+
+        // Should clear lastOpenWindowId
+        expect(chromeMock.storage.local.set).toHaveBeenCalledWith({ lastOpenWindowId: null });
+        // Should not try to query tabs
+        expect(chromeMock.tabs.query).not.toHaveBeenCalled();
+      });
+
+      it('should not rotate if no tabs exist', async () => {
+        const windowId = 123;
+
+        chromeMock.storage.local.get.mockImplementation((key) => {
+          if (key === 'isEnabledTabRotation') {
+            return Promise.resolve({ isEnabledTabRotation: true });
+          }
+          if (key === 'lastOpenWindowId') {
+            return Promise.resolve({ lastOpenWindowId: windowId });
+          }
+          if (key === 'isEnabledTabMute') {
+            return Promise.resolve({ isEnabledTabMute: false });
+          }
+          return Promise.resolve({});
+        });
+
+        chromeMock.windows.get.mockResolvedValue({ id: windowId });
+        chromeMock.tabs.query.mockResolvedValue([]);
+
+        await checkTabRotate();
+
+        // Should not call tabs.update if no tabs
+        expect(chromeMock.tabs.update).not.toHaveBeenCalled();
+      });
     });
   });
 });
