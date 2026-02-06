@@ -621,9 +621,11 @@ async function addChannelToList(channel, newAdded = false) {
       tr.remove();
       removeChannel(channel);
       // Cleanup listeners
-      cleanupFn();
-      const idx = channelCleanups.indexOf(cleanupFn);
-      if (idx !== -1) channelCleanups.splice(idx, 1);
+      if (cleanupFn) {
+        cleanupFn();
+        const idx = channelCleanups.indexOf(cleanupFn);
+        if (idx !== -1) channelCleanups.splice(idx, 1);
+      }
     }
   });
   removetd.appendChild(removeButton);
