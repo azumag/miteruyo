@@ -476,14 +476,24 @@ export async function shouldOpenChannel(channel) {
   return true;
 }
 
+// 現在開いている Twitch チャンネルタブ数をカウント
+export async function countTwitchChannelTabs() {
+  const tabs = await chrome.tabs.query({});
+  return tabs.filter(tab => tab.url && isTwitchChannelPage(tab.url)).length;
+}
+
 export async function channelQueuedStreams(channelQueue) {
-  const isOpenNewWindow = (await chrome.storage.local.get('isOpenNewWindow')).isOpenNewWindow;
-  console.log('channelQueueStreams', { isOpenNewWindow });
+  const { isOpenNewWindow, isEnabledMaxTabs, maxTabCount } = await chrome.storage.local.get(['isOpenNewWindow', 'isEnabledMaxTabs', 'maxTabCount']);
+  console.log('channelQueueStreams', { isOpenNewWindow, isEnabledMaxTabs, maxTabCount });
   if (isOpenNewWindow) {
     // ループ内で更新するためにletで宣言
     let currentWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
 
     for (const channel of channelQueue) {
+      if (isEnabledMaxTabs) {
+        const currentCount = await countTwitchChannelTabs();
+        if (currentCount >= (maxTabCount || 5)) break;
+      }
       if (await shouldOpenChannel(channel)) {
         console.log('channelQueueStreams', { currentWindowId });
 
@@ -512,6 +522,10 @@ export async function channelQueuedStreams(channelQueue) {
     }
   } else {
     for (const channel of channelQueue) {
+      if (isEnabledMaxTabs) {
+        const currentCount = await countTwitchChannelTabs();
+        if (currentCount >= (maxTabCount || 5)) break;
+      }
       if (await shouldOpenChannel(channel)) {
         await openTabIfNotExists(channel);
       }

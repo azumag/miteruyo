@@ -89,6 +89,18 @@
                   <tr>
                     <td colspan="2">
                       <div class="d-flex align-items-center mb-1">
+                        <input type="checkbox" id="enableMaxTabs" class="form-check-input me-2" />
+                        <label for="enableMaxTabs" class="form-check-label small mb-0">開くタブ数を制限</label>
+                      </div>
+                      <div class="d-flex align-items-center ps-4">
+                        <input type="number" id="maxTabCount" class="form-control form-control-sm text-end me-1 flex-grow-1" min="1" max="20" />
+                        <span id="maxTabUnit" class="small">タブ</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colspan="2">
+                      <div class="d-flex align-items-center mb-1">
                         <input type="checkbox" id="enableTabRotation" class="form-check-input me-2" />
                         <label for="enableTabRotation" class="form-check-label small mb-0">複数タブ自動切り替え</label>
                       </div>

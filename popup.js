@@ -8,6 +8,8 @@ const enableTabRotation = document.getElementById('enableTabRotation');
 const enableTabMute = document.getElementById('enableTabMute');
 const enableAutoClose = document.getElementById('enableAutoClose');
 const tabRotationInterval = document.getElementById('tabRotationInterval');
+const enableMaxTabs = document.getElementById('enableMaxTabs');
+const maxTabCount = document.getElementById('maxTabCount');
 const skipBrandedContent = document.getElementById('skipBrandedContent');
 const allowedOnlyCategoriesTagList = document.getElementById('allowedOnlyCategoriesTagList');
 const allowedOnlyCategoriesSearchContainer = document.getElementById('allowedOnlyCategoriesSearch');
@@ -193,6 +195,11 @@ document.addEventListener('DOMContentLoaded', function () {
   // 新しいウィンドウで開く
   const openNewWindowMessage = chrome.i18n.getMessage('openNewWindow');
   document.querySelector('label[for="openNewWindow"]').textContent = openNewWindowMessage;
+  // 開くタブ数を制限
+  const enableMaxTabsMessage = chrome.i18n.getMessage('enableMaxTabs');
+  document.querySelector('label[for="enableMaxTabs"]').textContent = enableMaxTabsMessage;
+  const maxTabUnitMessage = chrome.i18n.getMessage('maxTabUnit');
+  document.getElementById('maxTabUnit').textContent = maxTabUnitMessage;
   // 複数タブ自動切り替え
   const enableTabRotationMessage = chrome.i18n.getMessage('enableTabRotation');
   document.querySelector('label[for="enableTabRotation"]').textContent = enableTabRotationMessage;
@@ -422,6 +429,8 @@ chrome.storage.local.get(
     oauth_token: null,
     tabRotationInterval: 5,
     isEnabledTabRotation: false,
+    isEnabledMaxTabs: false,
+    maxTabCount: 5,
     isEnabledTabMute: false,
     isEnabledAutoClose: false,
     isSkipBrandedContent: false,
@@ -436,6 +445,8 @@ chrome.storage.local.get(
     tabRotationInterval.value = data.tabRotationInterval;
     enableTabMute.checked = data.isEnabledTabMute;
     enableTabRotation.checked = data.isEnabledTabRotation;
+    enableMaxTabs.checked = data.isEnabledMaxTabs;
+    maxTabCount.value = data.maxTabCount;
     enableAutoClose.checked = data.isEnabledAutoClose;
     skipBrandedContent.checked = data.isSkipBrandedContent;
     enableNotifications.checked = data.isEnabledNotifications; // Added this line
@@ -1308,6 +1319,16 @@ enableSwitch.addEventListener('change', () => {
 
 enableTabRotation.addEventListener('change', () => {
   chrome.storage.local.set({ isEnabledTabRotation: enableTabRotation.checked });
+});
+
+enableMaxTabs.addEventListener('change', () => {
+  chrome.storage.local.set({ isEnabledMaxTabs: enableMaxTabs.checked });
+});
+
+maxTabCount.addEventListener('change', () => {
+  const value = Math.max(1, Math.min(20, parseInt(maxTabCount.value, 10) || 5));
+  maxTabCount.value = value;
+  chrome.storage.local.set({ maxTabCount: value });
 });
 
 enableTabMute.addEventListener('change', () => {

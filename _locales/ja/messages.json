@@ -213,5 +213,13 @@
 	"invalidChannelName": {
 		"message": "チャンネル名は3〜25文字の英数字とアンダースコアのみ使用できます",
 		"description": "チャンネル名バリデーションエラーメッセージ"
+	},
+	"enableMaxTabs": {
+		"message": "開くタブ数を制限",
+		"description": "タブ数上限設定のチェックボックスラベル"
+	},
+	"maxTabUnit": {
+		"message": "タブ",
+		"description": "タブ数上限の単位ラベル"
 	}
 }
