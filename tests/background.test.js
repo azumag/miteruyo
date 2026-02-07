@@ -13,6 +13,8 @@ import {
   migrateOAuthToken,
   channelQueuedStreams,
   onNotificationClicked,
+  openInManagedWindow,
+  checkOfflineWithTab,
 } from '../background-functions.js';
 
 describe('Background Script', () => {
@@ -981,6 +983,147 @@ describe('Background Script', () => {
       await expect(onNotificationClicked('miteruyo-live-valid_channel-1234567890')).rejects.toThrow('Storage error');
 
       expect(chromeMock.notifications.clear).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('openInManagedWindow', () => {
+    it('should open tab in current window when isOpenNewWindow is false', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({
+        isOpenNewWindow: false,
+        lastOpenWindowId: null,
+      });
+      chromeMock.tabs.create.mockResolvedValue({ id: 1, windowId: 789 });
+
+      await openInManagedWindow('testchannel');
+
+      expect(chromeMock.tabs.create).toHaveBeenCalledWith({
+        url: 'https://www.twitch.tv/testchannel',
+      });
+      expect(chromeMock.storage.local.set).toHaveBeenCalledWith({
+        lastOpenWindowId: 789,
+      });
+      expect(chromeMock.windows.create).not.toHaveBeenCalled();
+    });
+
+    it('should create new window when isOpenNewWindow is true and no existing window', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({
+        isOpenNewWindow: true,
+        lastOpenWindowId: null,
+      });
+      chromeMock.windows.create.mockResolvedValue({ id: 42 });
+
+      await openInManagedWindow('testchannel');
+
+      expect(chromeMock.windows.create).toHaveBeenCalledWith({
+        url: 'https://www.twitch.tv/testchannel',
+      });
+      expect(chromeMock.storage.local.set).toHaveBeenCalledWith({
+        lastOpenWindowId: 42,
+      });
+      expect(chromeMock.tabs.create).not.toHaveBeenCalled();
+    });
+
+    it('should add tab to existing managed window when window exists', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({
+        isOpenNewWindow: true,
+        lastOpenWindowId: 123,
+      });
+      // checkWindowExists calls windows.get with { populate: false }
+      chromeMock.windows.get.mockResolvedValue({ id: 123 });
+
+      await openInManagedWindow('testchannel');
+
+      expect(chromeMock.tabs.create).toHaveBeenCalledWith({
+        url: 'https://www.twitch.tv/testchannel',
+        windowId: 123,
+      });
+      expect(chromeMock.windows.create).not.toHaveBeenCalled();
+    });
+
+    it('should create new window when existing managed window is gone', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({
+        isOpenNewWindow: true,
+        lastOpenWindowId: 999,
+      });
+      // checkWindowExists: window no longer exists
+      chromeMock.windows.get.mockRejectedValue(new Error('Window not found'));
+      chromeMock.windows.create.mockResolvedValue({ id: 50 });
+
+      await openInManagedWindow('testchannel');
+
+      expect(chromeMock.windows.create).toHaveBeenCalledWith({
+        url: 'https://www.twitch.tv/testchannel',
+      });
+      expect(chromeMock.storage.local.set).toHaveBeenCalledWith({
+        lastOpenWindowId: 50,
+      });
+    });
+  });
+
+  describe('checkOfflineWithTab', () => {
+    it('should return true when channel is offline', async () => {
+      chromeMock.tabs.get.mockResolvedValue({
+        url: 'https://www.twitch.tv/testuser',
+      });
+      chromeMock.storage.local.get.mockImplementation((key) => {
+        if (key === 'oauth_token') {
+          return Promise.resolve({ oauth_token: 'valid_token' });
+        }
+        return Promise.resolve({});
+      });
+
+      // 1st fetch: getUserId, 2nd fetch: streams (offline)
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: '12345' }] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [] }),
+        });
+
+      const result = await checkOfflineWithTab(1);
+      expect(result).toBe(true);
+    });
+
+    it('should return false when channel is online', async () => {
+      chromeMock.tabs.get.mockResolvedValue({
+        url: 'https://www.twitch.tv/testuser',
+      });
+      chromeMock.storage.local.get.mockImplementation((key) => {
+        if (key === 'oauth_token') {
+          return Promise.resolve({ oauth_token: 'valid_token' });
+        }
+        return Promise.resolve({});
+      });
+
+      // 1st fetch: getUserId, 2nd fetch: streams (online)
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: '12345' }] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ type: 'live' }] }),
+        });
+
+      const result = await checkOfflineWithTab(1);
+      expect(result).toBe(false);
+    });
+
+    it('should return false for non-channel pages', async () => {
+      chromeMock.tabs.get.mockResolvedValue({
+        url: 'https://www.twitch.tv/directory',
+      });
+      globalThis.fetch = vi.fn();
+
+      const result = await checkOfflineWithTab(1);
+
+      expect(result).toBe(false);
+      // Should not attempt any API calls
+      expect(globalThis.fetch).not.toHaveBeenCalled();
     });
   });
 });

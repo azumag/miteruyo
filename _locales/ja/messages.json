@@ -205,5 +205,13 @@
 	"statusNotFound": {
 		"message": "NOT FOUND",
 		"description": "チャンネルが見つからないステータス表示"
+	},
+	"channelInputLabel": {
+		"message": "チャンネル名",
+		"description": "チャンネル名入力のアクセシビリティラベル"
+	},
+	"invalidChannelName": {
+		"message": "チャンネル名は3〜25文字の英数字とアンダースコアのみ使用できます",
+		"description": "チャンネル名バリデーションエラーメッセージ"
 	}
 }

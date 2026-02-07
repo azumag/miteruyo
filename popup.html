@@ -25,10 +25,12 @@
 <body>
   <div id="main" class="container">
     <div class="mb-3 mt-3">
-      <div class="input-group">
-        <input type="text" class="form-control" id="channelInput" aria-describedby="basic-addon3 basic-addon4"
+      <div class="input-group has-validation">
+        <label for="channelInput" class="visually-hidden">Channel name</label>
+        <input type="text" class="form-control" id="channelInput"
           placeholder="Channel name">
         <button id="addChannelBtn" class="btn btn-primary">Add</button>
+        <div class="invalid-feedback" data-i18n="invalidChannelName">Channel name must be 3-25 characters (letters, numbers, underscore)</div>
       </div>
       <div>
         <div class="container mt-3">
@@ -56,9 +58,9 @@
           </colgroup>
           <thead>
             <tr>
-              <th scope="col"></th>
-              <th scope="col"></th>
-              <th scope="col"></th>
+              <th scope="col"><span class="visually-hidden">Channel</span></th>
+              <th scope="col"><span class="visually-hidden">Status</span></th>
+              <th scope="col"><span class="visually-hidden">Actions</span></th>
             </tr>
           </thead>
           <tbody id="channelTableBody"></tbody>

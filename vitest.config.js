@@ -8,7 +8,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      include: ['background.js', 'popup.js'],
+      include: ['background-functions.js', 'popup.js'],
     },
   },
 });

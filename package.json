@@ -12,6 +12,7 @@
     "screenshot": "node scripts/screenshot.cjs"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^9.17.0",
     "globals": "^15.14.0",
     "puppeteer": "^24.34.0",

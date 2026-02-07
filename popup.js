@@ -20,7 +20,6 @@ const aboutBtn = document.getElementById('aboutBtn');
 
 const liveFilterSwitch = document.getElementById('liveFilterSwitch');
 
-const twitchDomain = 'https://www.twitch.tv';
 // const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx'; // for prod
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
 
@@ -185,6 +184,12 @@ document.addEventListener('DOMContentLoaded', function () {
   document.querySelector('label[for="liveFilterSwitch"]').textContent = showOnlyLiveMessage;
   document.querySelector('button[aria-controls="collapseConfig"]').textContent = settingsMessage;
 
+  const channelInputLabel = document.querySelector('label[for="channelInput"]');
+  if (channelInputLabel) channelInputLabel.textContent = chrome.i18n.getMessage('channelInputLabel') || 'Channel name';
+
+  const invalidChannelFeedback = document.querySelector('.invalid-feedback[data-i18n="invalidChannelName"]');
+  if (invalidChannelFeedback) invalidChannelFeedback.textContent = chrome.i18n.getMessage('invalidChannelName');
+
   // 新しいウィンドウで開く
   const openNewWindowMessage = chrome.i18n.getMessage('openNewWindow');
   document.querySelector('label[for="openNewWindow"]').textContent = openNewWindowMessage;
@@ -225,7 +230,13 @@ document.addEventListener('DOMContentLoaded', function () {
   if (aboutModalLabel) aboutModalLabel.textContent = chrome.i18n.getMessage('about');
 
   const githubLinkLabel = document.getElementById('githubLinkLabel');
-  if (githubLinkLabel) githubLinkLabel.innerHTML = `<i class="bi bi-github"></i> ${chrome.i18n.getMessage('githubLink')}`;
+  if (githubLinkLabel) {
+    const icon = document.createElement('i');
+    icon.className = 'bi bi-github';
+    githubLinkLabel.textContent = '';
+    githubLinkLabel.appendChild(icon);
+    githubLinkLabel.appendChild(document.createTextNode(' ' + chrome.i18n.getMessage('githubLink')));
+  }
 
   const supportMessageLabel = document.getElementById('supportMessageLabel');
   if (supportMessageLabel) supportMessageLabel.textContent = chrome.i18n.getMessage('supportMessage');
@@ -242,17 +253,22 @@ document.addEventListener('DOMContentLoaded', function () {
   if (notificationHelpIcon) {
     const notificationHelpMessage = chrome.i18n.getMessage('notificationHelp');
     notificationHelpIcon.setAttribute('title', notificationHelpMessage);
+    notificationHelpIcon.setAttribute('aria-label', notificationHelpMessage);
   }
 
   // カテゴリ設定のヘルプアイコン
   const allowedOnlyCategoriesHelpIcon = document.getElementById('allowedOnlyCategoriesHelpIcon');
   if (allowedOnlyCategoriesHelpIcon) {
-    allowedOnlyCategoriesHelpIcon.setAttribute('data-bs-title', chrome.i18n.getMessage('allowedOnlyCategoriesHelp'));
+    const msg = chrome.i18n.getMessage('allowedOnlyCategoriesHelp');
+    allowedOnlyCategoriesHelpIcon.setAttribute('data-bs-title', msg);
+    allowedOnlyCategoriesHelpIcon.setAttribute('aria-label', msg);
   }
 
   const blockedCategoriesHelpIcon = document.getElementById('blockedCategoriesHelpIcon');
   if (blockedCategoriesHelpIcon) {
-    blockedCategoriesHelpIcon.setAttribute('data-bs-title', chrome.i18n.getMessage('blockedCategoriesHelp'));
+    const msg = chrome.i18n.getMessage('blockedCategoriesHelp');
+    blockedCategoriesHelpIcon.setAttribute('data-bs-title', msg);
+    blockedCategoriesHelpIcon.setAttribute('aria-label', msg);
   }
 
   // ウィンドウ高さが600px未満なら設定アコーディオンを開く
@@ -1227,6 +1243,12 @@ function removeChannel(channel) {
   });
 }
 
+const CHANNEL_NAME_REGEX = /^[a-z0-9_]{3,25}$/i;
+
+channelInput.addEventListener('input', () => {
+  channelInput.classList.remove('is-invalid');
+});
+
 addChannelBtn.addEventListener('click', async () => {
   const channel = {
     name: channelInput.value.trim(),
@@ -1236,6 +1258,11 @@ addChannelBtn.addEventListener('click', async () => {
   };
 
   if (!channel.name) return;
+  if (!CHANNEL_NAME_REGEX.test(channel.name)) {
+    channelInput.classList.add('is-invalid');
+    return;
+  }
+  channelInput.classList.remove('is-invalid');
   if (await duplicatedChannel(channel)) return;
 
   await checkStream(channel);
@@ -1370,18 +1397,13 @@ loginTwitch.addEventListener('click', () => {
       checkTwitchConnection(oauth_token);
     } else {
       console.error('Invalid response URL:', responseUrl);
-      loginTwitch.text = 'login fail: please login twitch';
-      loginTwitch.enable = true;
+      rewriteNeedsLoginButton(false);
     }
   });
 });
 
 function parseHashToObj(hash) {
-  return hash.replace('#', '').split('&').reduce((res, item) => {
-    const parts = item.split('=');
-    res[parts[0]] = parts[1];
-    return res;
-  }, {});
+  return Object.fromEntries(new URLSearchParams(hash.replace('#', '')));
 }
 
 function checkTwitchConnection(oauthToken) {
@@ -1424,7 +1446,6 @@ async function checkStream(channel) {
   const options = {
     headers: {
       'Client-ID': clientId,
-      'Accept': 'application/vnd.twitchtv.v5+json',
       'Authorization': 'Bearer ' + oauth_token,
     },
     signal: controller.signal,
@@ -1471,39 +1492,7 @@ async function checkStream(channel) {
 
 
 
-// Miteruyoの管理対象ウィンドウでタブを開く
+// Miteruyoの管理対象ウィンドウでタブを開く（background.jsへ委譲）
 async function openInManagedWindow(channelName) {
-  const url = twitchDomain + '/' + channelName;
-  const data = await chrome.storage.local.get(['isOpenNewWindow', 'lastOpenWindowId']);
-
-  if (data.isOpenNewWindow) {
-    // 新しいウィンドウで開く設定の場合
-    let windowId = data.lastOpenWindowId;
-
-    // 既存のウィンドウが有効かチェック
-    if (windowId) {
-      try {
-        await chrome.windows.get(windowId);
-      } catch {
-        windowId = null;
-      }
-    }
-
-    if (windowId) {
-      // 既存の管理対象ウィンドウにタブを追加
-      const tab = await chrome.tabs.create({ url, windowId });
-      return tab;
-    } else {
-      // 新しいウィンドウを作成して管理対象に登録
-      const newWindow = await chrome.windows.create({ url });
-      await chrome.storage.local.set({ lastOpenWindowId: newWindow.id });
-      return newWindow.tabs[0];
-    }
-  } else {
-    // 現在のウィンドウで開く
-    const tab = await chrome.tabs.create({ url });
-    // 開いたタブのウィンドウを管理対象に登録
-    await chrome.storage.local.set({ lastOpenWindowId: tab.windowId });
-    return tab;
-  }
+  return chrome.runtime.sendMessage({ action: 'openInManagedWindow', channelName });
 }

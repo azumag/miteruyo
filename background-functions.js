@@ -725,7 +725,6 @@ async function checkStream(channel, oauth_token) {
   const options = {
     headers: {
       'Client-ID': clientId,
-      'Accept': 'application/vnd.twitchtv.v5+json',
       'Authorization': 'Bearer ' + oauth_token,
     },
   };

@@ -146,22 +146,15 @@ chrome.windows.onRemoved.addListener(async (windowId) => {
 
 chrome.tabs.onActivated.addListener(async activeInfo => {
   try {
-    const targetWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
-    const enableTabMute = (await chrome.storage.local.get('isEnabledTabMute')).isEnabledTabMute;
-    const enableAutoClose = (await chrome.storage.local.get('isEnabledAutoClose')).isEnabledAutoClose;
+    const { lastOpenWindowId: targetWindowId, isEnabledTabMute: enableTabMute, isEnabledAutoClose: enableAutoClose } = await chrome.storage.local.get(['lastOpenWindowId', 'isEnabledTabMute', 'isEnabledAutoClose']);
 
     if (activeInfo.windowId === targetWindowId) {
       console.log('activated', activeInfo, enableTabMute, enableAutoClose);
       if (enableTabMute) {
-        chrome.tabs.query({ windowId: targetWindowId }, (tabs) => {
-          tabs.forEach((tab) => {
-            if (tab.id === activeInfo.tabId) {
-              chrome.tabs.update(tab.id, { muted: false });
-            } else {
-              chrome.tabs.update(tab.id, { muted: true });
-            };
-          });
-        });
+        const tabs = await chrome.tabs.query({ windowId: targetWindowId });
+        await Promise.all(tabs.map(tab =>
+          chrome.tabs.update(tab.id, { muted: tab.id !== activeInfo.tabId })
+        ));
       }
       if (enableAutoClose) {
         if (await checkOfflineWithTab(activeInfo.tabId)) {
@@ -193,6 +186,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       game_name: 'Just Chatting'
     });
     sendResponse({ status: 'ok' });
+  } else if (message.action === 'openInManagedWindow') {
+    openInManagedWindow(message.channelName).then(() => sendResponse({ status: 'ok' }));
+    return true;
   } else if (message.type === 'clearNotifications') {
     chrome.notifications.getAll((notifications) => {
       for (const id in notifications) {

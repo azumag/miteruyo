@@ -205,5 +205,13 @@
 	"statusNotFound": {
 		"message": "NOT FOUND",
 		"description": "Channel not found status display"
+	},
+	"channelInputLabel": {
+		"message": "Channel name",
+		"description": "Accessibility label for channel name input"
+	},
+	"invalidChannelName": {
+		"message": "Channel name must be 3-25 characters (letters, numbers, underscore)",
+		"description": "Channel name validation error message"
 	}
 }
