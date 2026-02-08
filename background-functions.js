@@ -1,6 +1,7 @@
 const FETCH_TIMEOUT_MS = 10000;
 const NOTIFICATION_ID_PREFIX = 'miteruyo-live-';
-const POLLING_INTERVAL_MINUTES = 1;
+const MIN_CHECK_INTERVAL_MINUTES = 1;
+const DEFAULT_CHECK_INTERVAL_MINUTES = 1;
 const MIN_ROTATION_INTERVAL_MINUTES = 1;
 const DEFAULT_ROTATION_INTERVAL_MINUTES = 5;
 
@@ -48,8 +49,10 @@ export async function ensureAlarmsExist() {
   // periodicalUpdate アラームの確認
   const existingAlarm = await chrome.alarms.get('periodicalUpdate');
   if (!existingAlarm) {
-    console.log('Creating periodicalUpdate alarm');
-    chrome.alarms.create('periodicalUpdate', { periodInMinutes: POLLING_INTERVAL_MINUTES });
+    const data = await chrome.storage.local.get(['checkInterval']);
+    const interval = Math.max(MIN_CHECK_INTERVAL_MINUTES, parseInt(data.checkInterval, 10) || DEFAULT_CHECK_INTERVAL_MINUTES);
+    console.log('Creating periodicalUpdate alarm with interval:', interval);
+    chrome.alarms.create('periodicalUpdate', { periodInMinutes: interval });
   } else {
     console.log('periodicalUpdate alarm already exists');
   }
@@ -603,6 +606,19 @@ export async function onStorageChangedForTabRotation(changes, area) {
     } else {
       console.log('Tab rotation disabled, alarm cleared');
     }
+  }
+}
+
+// Check interval の設定が変更されたときにアラームを更新
+export async function onStorageChangedForCheckInterval(changes, area) {
+  if (area === 'local' && changes.checkInterval) {
+    const periodicalUpdate = await chrome.alarms.get('periodicalUpdate');
+    if (periodicalUpdate) {
+      await chrome.alarms.clear('periodicalUpdate');
+    }
+    const interval = Math.max(MIN_CHECK_INTERVAL_MINUTES, parseInt(changes.checkInterval.newValue, 10) || DEFAULT_CHECK_INTERVAL_MINUTES);
+    console.log('Check interval settings changed, creating alarm with interval:', interval);
+    chrome.alarms.create('periodicalUpdate', { periodInMinutes: interval });
   }
 }
 

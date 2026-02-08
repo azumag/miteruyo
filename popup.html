@@ -113,6 +113,18 @@
                   </tr>
                   <tr>
                     <td colspan="2">
+                      <div class="d-flex align-items-center mb-1">
+                        <label for="checkInterval" class="form-check-label small mb-0 me-2">チェック間隔</label>
+                      </div>
+                      <div class="d-flex align-items-center ps-4">
+                        <input type="number" id="checkInterval"
+                          class="form-control form-control-sm text-end me-1 flex-grow-1" min="1" max="60" />
+                        <span id="checkIntervalUnit" class="small">分</span>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colspan="2">
                       <div class="d-flex align-items-center">
                         <input type="checkbox" id="enableTabMute" class="form-check-input me-2" />
                         <label for="enableTabMute" class="form-check-label small mb-0">非アクティブタブ自動ミュート</label>

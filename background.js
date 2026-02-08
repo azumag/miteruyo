@@ -8,6 +8,7 @@ import {
   checkOfflineWithTab,
   onWindowRemoved,
   onStorageChangedForTabRotation,
+  onStorageChangedForCheckInterval,
   onNotificationClicked,
 } from './background-functions.js';
 
@@ -126,10 +127,11 @@ chrome.alarms.onAlarm.addListener(async function (alarm) {
   }
 });
 
-// tab Rotation の設定が変更されたときにアラームを更新
+// tab Rotation / check interval の設定が変更されたときにアラームを更新
 chrome.storage.onChanged.addListener(async (changes, area) => {
   try {
     await onStorageChangedForTabRotation(changes, area);
+    await onStorageChangedForCheckInterval(changes, area);
   } catch (e) {
     console.error('onStorageChanged error:', e);
   }

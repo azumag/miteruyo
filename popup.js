@@ -8,6 +8,7 @@ const enableTabRotation = document.getElementById('enableTabRotation');
 const enableTabMute = document.getElementById('enableTabMute');
 const enableAutoClose = document.getElementById('enableAutoClose');
 const tabRotationInterval = document.getElementById('tabRotationInterval');
+const checkInterval = document.getElementById('checkInterval');
 const enableMaxTabs = document.getElementById('enableMaxTabs');
 const maxTabCount = document.getElementById('maxTabCount');
 const skipBrandedContent = document.getElementById('skipBrandedContent');
@@ -428,6 +429,7 @@ chrome.storage.local.get(
     isLiveFilter: false,
     oauth_token: null,
     tabRotationInterval: 5,
+    checkInterval: 1,
     isEnabledTabRotation: false,
     isEnabledMaxTabs: false,
     maxTabCount: 5,
@@ -443,6 +445,7 @@ chrome.storage.local.get(
     openNewWindow.checked = data.isOpenNewWindow;
     liveFilterSwitch.checked = data.isLiveFilter;
     tabRotationInterval.value = data.tabRotationInterval;
+    checkInterval.value = data.checkInterval;
     enableTabMute.checked = data.isEnabledTabMute;
     enableTabRotation.checked = data.isEnabledTabRotation;
     enableMaxTabs.checked = data.isEnabledMaxTabs;
@@ -1340,6 +1343,13 @@ tabRotationInterval.addEventListener('change', () => {
   const value = Math.max(1, parseInt(tabRotationInterval.value, 10) || 1);
   tabRotationInterval.value = value;
   chrome.storage.local.set({ tabRotationInterval: value });
+});
+
+checkInterval.addEventListener('change', () => {
+  // 最小値を1分、最大値を60分に制限
+  const value = Math.max(1, Math.min(60, parseInt(checkInterval.value, 10) || 1));
+  checkInterval.value = value;
+  chrome.storage.local.set({ checkInterval: value });
 });
 
 enableAutoClose.addEventListener('change', () => {

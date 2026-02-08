@@ -5,6 +5,7 @@ import {
   shouldOpenChannel,
   onWindowRemoved,
   onStorageChangedForTabRotation,
+  onStorageChangedForCheckInterval,
   isTwitchChannelPage,
   showNotification,
   checkTabRotate,
@@ -613,6 +614,84 @@ describe('Background Script', () => {
     it('should ignore changes from non-local storage area', async () => {
       await onStorageChangedForTabRotation(
         { isEnabledTabRotation: { newValue: true } },
+        'sync'
+      );
+
+      expect(chromeMock.alarms.get).not.toHaveBeenCalled();
+      expect(chromeMock.alarms.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('checkInterval feature', () => {
+    it('should create periodicalUpdate alarm with default interval of 1 minute', async () => {
+      chromeMock.alarms.get.mockResolvedValue(null);
+      chromeMock.storage.local.get.mockResolvedValue({});
+
+      await ensureAlarmsExist();
+
+      expect(chromeMock.alarms.create).toHaveBeenCalledWith('periodicalUpdate', {
+        periodInMinutes: 1,
+      });
+    });
+
+    it('should create periodicalUpdate alarm with custom interval from storage', async () => {
+      chromeMock.alarms.get.mockResolvedValue(null);
+      chromeMock.storage.local.get.mockResolvedValue({
+        checkInterval: 5,
+      });
+
+      await ensureAlarmsExist();
+
+      expect(chromeMock.alarms.create).toHaveBeenCalledWith('periodicalUpdate', {
+        periodInMinutes: 5,
+      });
+    });
+
+    it('should enforce minimum interval of 1 minute', async () => {
+      chromeMock.alarms.get.mockResolvedValue(null);
+      chromeMock.storage.local.get.mockResolvedValue({
+        checkInterval: 0,
+      });
+
+      await ensureAlarmsExist();
+
+      expect(chromeMock.alarms.create).toHaveBeenCalledWith('periodicalUpdate', {
+        periodInMinutes: 1,
+      });
+    });
+
+    it('should recreate alarm when checkInterval changes', async () => {
+      chromeMock.alarms.get.mockResolvedValue({ name: 'periodicalUpdate' });
+      chromeMock.alarms.clear.mockResolvedValue(true);
+
+      await onStorageChangedForCheckInterval(
+        { checkInterval: { newValue: 10 } },
+        'local'
+      );
+
+      expect(chromeMock.alarms.clear).toHaveBeenCalledWith('periodicalUpdate');
+      expect(chromeMock.alarms.create).toHaveBeenCalledWith('periodicalUpdate', {
+        periodInMinutes: 10,
+      });
+    });
+
+    it('should enforce minimum interval of 1 minute when interval changes', async () => {
+      chromeMock.alarms.get.mockResolvedValue({ name: 'periodicalUpdate' });
+      chromeMock.alarms.clear.mockResolvedValue(true);
+
+      await onStorageChangedForCheckInterval(
+        { checkInterval: { newValue: 0 } },
+        'local'
+      );
+
+      expect(chromeMock.alarms.create).toHaveBeenCalledWith('periodicalUpdate', {
+        periodInMinutes: 1,
+      });
+    });
+
+    it('should ignore changes from non-local storage area', async () => {
+      await onStorageChangedForCheckInterval(
+        { checkInterval: { newValue: 5 } },
         'sync'
       );
 

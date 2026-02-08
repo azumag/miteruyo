@@ -221,5 +221,9 @@
 	"maxTabUnit": {
 		"message": "tabs",
 		"description": "Unit label for max tab count"
+	},
+	"checkInterval": {
+		"message": "Check interval",
+		"description": "Label for stream check interval setting"
 	}
 }

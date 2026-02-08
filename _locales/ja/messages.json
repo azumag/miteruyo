@@ -221,5 +221,9 @@
 	"maxTabUnit": {
 		"message": "タブ",
 		"description": "タブ数上限の単位ラベル"
+	},
+	"checkInterval": {
+		"message": "チェック間隔",
+		"description": "配信チェック間隔のラベル"
 	}
 }
