@@ -269,10 +269,10 @@ export async function checkStreams() {
       console.log('checkStreams: Auto-open skipped as isEnabled is false');
     }
 
-    // オフラインになったチャンネルのタブを自動で閉じる
+    // オフラインまたはフィルター条件外のチャンネルのタブを自動で閉じる
     const enableAutoClose = (await chrome.storage.local.get('isEnabledAutoClose')).isEnabledAutoClose;
     if (enableAutoClose) {
-      await closeOfflineTabs(updatedChannels);
+      await closeUnwantedTabs(updatedChannels);
     }
 
     console.log('checkStreams completed at:', new Date().toISOString());
@@ -281,19 +281,45 @@ export async function checkStreams() {
   }
 }
 
-// オフラインになったチャンネルのタブを閉じる
-async function closeOfflineTabs(updatedChannels) {
-  const tabs = await chrome.tabs.query({});
+// オフラインまたはフィルター条件を満たさなくなったチャンネルのタブを閉じる
+async function closeUnwantedTabs(updatedChannels) {
+  const { lastOpenWindowId } = await chrome.storage.local.get('lastOpenWindowId');
+
+  // 管理対象ウィンドウが設定されている場合はそのウィンドウ内のタブのみ対象
+  // ウィンドウIDがない場合は全タブを対象
+  const queryOptions = lastOpenWindowId ? { windowId: lastOpenWindowId } : {};
+  let tabs;
+  try {
+    tabs = await chrome.tabs.query(queryOptions);
+  } catch {
+    // 管理対象ウィンドウが存在しない場合はスキップ
+    return;
+  }
+
   for (const tab of tabs) {
     if (!tab.url) continue;
     const match = tab.url.match(/https?:\/\/(?:www\.)?twitch\.tv\/([^/?]+)/);
-    if (match) {
-      const channelName = match[1].toLowerCase();
-      // チャンネルリストに含まれており、かつ現在オフラインのものを探す
-      const channel = updatedChannels.find(c => c.name.toLowerCase() === channelName);
-      if (channel && !channel.onLive) {
+    if (!match) continue;
+
+    const channelName = match[1].toLowerCase();
+    const channel = updatedChannels.find(c => c.name?.toLowerCase() === channelName);
+    if (!channel) continue;
+
+    // オフラインのチャンネルは閉じる
+    if (!channel.onLive) {
+      chrome.tabs.remove(tab.id).catch(() => { });
+      continue;
+    }
+
+    // オンラインだがフィルター条件を満たさないチャンネルも閉じる
+    // （カテゴリがブロックリストに追加された、ブランドコンテンツに変更された等）
+    try {
+      if (!(await shouldOpenChannel(channel))) {
+        console.log('Closing tab - channel no longer meets filter criteria:', channel.name, channel.game_name);
         chrome.tabs.remove(tab.id).catch(() => { });
       }
+    } catch (error) {
+      console.error('Error checking shouldOpenChannel for', channel.name, error);
     }
   }
 }

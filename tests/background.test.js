@@ -1305,6 +1305,248 @@ describe('Background Script', () => {
     });
   });
 
+  describe('closeUnwantedTabs (via checkStreams)', () => {
+    it('should close tabs when stream category changes to blocked category', async () => {
+      // Channel is online but playing a blocked category
+      const mockStreamData = {
+        data: [{
+          game_name: 'Just Chatting',
+          game_id: '509658',
+          title: 'Stream Title',
+          viewer_count: 100,
+          tags: [],
+          user_id: '12345',
+        }],
+      };
+      const mockChannelData = {
+        data: [{ is_branded_content: false }],
+      };
+
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockStreamData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockChannelData),
+        });
+
+      // Setup: channel is online, auto-close enabled, "Just Chatting" is blocked
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string') {
+          if (keys === 'isEnabledAutoClose') return Promise.resolve({ isEnabledAutoClose: true });
+          if (keys === 'isSkipBrandedContent') return Promise.resolve({ isSkipBrandedContent: false });
+          if (keys === 'lastOpenWindowId') return Promise.resolve({ lastOpenWindowId: 100 });
+          return Promise.resolve({});
+        }
+        if (Array.isArray(keys)) {
+          if (keys.includes('isEnabled')) {
+            return Promise.resolve({
+              isEnabled: true,
+              isEnabledNotifications: false,
+              isOpenMultiTwitch: false,
+              channels: [{ name: 'testchannel', onLive: true, onLiveOpen: true }],
+              oauth_token: 'test_token',
+            });
+          }
+          if (keys.includes('allowedOnlyCategoryList')) {
+            return Promise.resolve({
+              allowedOnlyCategoryList: [],
+              blockedCategoryList: [{ id: '509658', name: 'Just Chatting' }],
+              blockedCategoryNames: '',
+            });
+          }
+          if (keys.includes('isOpenNewWindow')) {
+            return Promise.resolve({ isOpenNewWindow: false, isEnabledMaxTabs: false });
+          }
+        }
+        return Promise.resolve({});
+      });
+
+      // Tab exists in managed window for this channel
+      chromeMock.tabs.query.mockResolvedValue([
+        { id: 1, url: 'https://www.twitch.tv/testchannel', windowId: 100 },
+      ]);
+
+      await checkStreams();
+
+      // Tab should be closed because category is blocked
+      expect(chromeMock.tabs.remove).toHaveBeenCalledWith(1);
+    });
+
+    it('should NOT close tabs when stream category is not blocked', async () => {
+      const mockStreamData = {
+        data: [{
+          game_name: 'Valorant',
+          game_id: '516575',
+          title: 'Stream Title',
+          viewer_count: 100,
+          tags: [],
+          user_id: '12345',
+        }],
+      };
+      const mockChannelData = {
+        data: [{ is_branded_content: false }],
+      };
+
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockStreamData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockChannelData),
+        });
+
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string') {
+          if (keys === 'isEnabledAutoClose') return Promise.resolve({ isEnabledAutoClose: true });
+          if (keys === 'isSkipBrandedContent') return Promise.resolve({ isSkipBrandedContent: false });
+          if (keys === 'lastOpenWindowId') return Promise.resolve({ lastOpenWindowId: 100 });
+          return Promise.resolve({});
+        }
+        if (Array.isArray(keys)) {
+          if (keys.includes('isEnabled')) {
+            return Promise.resolve({
+              isEnabled: true,
+              isEnabledNotifications: false,
+              isOpenMultiTwitch: false,
+              channels: [{ name: 'testchannel', onLive: true, onLiveOpen: true }],
+              oauth_token: 'test_token',
+            });
+          }
+          if (keys.includes('allowedOnlyCategoryList')) {
+            return Promise.resolve({
+              allowedOnlyCategoryList: [],
+              blockedCategoryList: [{ id: '509658', name: 'Just Chatting' }],
+              blockedCategoryNames: '',
+            });
+          }
+          if (keys.includes('isOpenNewWindow')) {
+            return Promise.resolve({ isOpenNewWindow: false, isEnabledMaxTabs: false });
+          }
+        }
+        return Promise.resolve({});
+      });
+
+      chromeMock.tabs.query.mockResolvedValue([
+        { id: 1, url: 'https://www.twitch.tv/testchannel', windowId: 100 },
+      ]);
+
+      await checkStreams();
+
+      // Tab should NOT be closed - Valorant is not in blocked list
+      expect(chromeMock.tabs.remove).not.toHaveBeenCalled();
+    });
+
+    it('should close tabs when stream becomes branded content and skip is enabled', async () => {
+      const mockStreamData = {
+        data: [{
+          game_name: 'Valorant',
+          game_id: '516575',
+          title: 'Sponsored Stream',
+          viewer_count: 100,
+          tags: [],
+          user_id: '12345',
+        }],
+      };
+      const mockChannelData = {
+        data: [{ is_branded_content: true }],
+      };
+
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockStreamData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockChannelData),
+        });
+
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string') {
+          if (keys === 'isEnabledAutoClose') return Promise.resolve({ isEnabledAutoClose: true });
+          if (keys === 'isSkipBrandedContent') return Promise.resolve({ isSkipBrandedContent: true });
+          if (keys === 'lastOpenWindowId') return Promise.resolve({ lastOpenWindowId: 100 });
+          return Promise.resolve({});
+        }
+        if (Array.isArray(keys)) {
+          if (keys.includes('isEnabled')) {
+            return Promise.resolve({
+              isEnabled: true,
+              isEnabledNotifications: false,
+              isOpenMultiTwitch: false,
+              channels: [{ name: 'testchannel', onLive: true, onLiveOpen: true }],
+              oauth_token: 'test_token',
+            });
+          }
+          if (keys.includes('allowedOnlyCategoryList')) {
+            return Promise.resolve({
+              allowedOnlyCategoryList: [],
+              blockedCategoryList: [],
+              blockedCategoryNames: '',
+            });
+          }
+          if (keys.includes('isOpenNewWindow')) {
+            return Promise.resolve({ isOpenNewWindow: false, isEnabledMaxTabs: false });
+          }
+        }
+        return Promise.resolve({});
+      });
+
+      chromeMock.tabs.query.mockResolvedValue([
+        { id: 1, url: 'https://www.twitch.tv/testchannel', windowId: 100 },
+      ]);
+
+      await checkStreams();
+
+      // Tab should be closed - branded content with skip enabled
+      expect(chromeMock.tabs.remove).toHaveBeenCalledWith(1);
+    });
+
+    it('should still close offline channel tabs', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+      });
+
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string') {
+          if (keys === 'isEnabledAutoClose') return Promise.resolve({ isEnabledAutoClose: true });
+          if (keys === 'lastOpenWindowId') return Promise.resolve({ lastOpenWindowId: 100 });
+          return Promise.resolve({});
+        }
+        if (Array.isArray(keys)) {
+          if (keys.includes('isEnabled')) {
+            return Promise.resolve({
+              isEnabled: true,
+              isEnabledNotifications: false,
+              isOpenMultiTwitch: false,
+              channels: [{ name: 'testchannel', onLive: true, onLiveOpen: true }],
+              oauth_token: 'test_token',
+            });
+          }
+          if (keys.includes('isOpenNewWindow')) {
+            return Promise.resolve({ isOpenNewWindow: false, isEnabledMaxTabs: false });
+          }
+        }
+        return Promise.resolve({});
+      });
+
+      chromeMock.tabs.query.mockResolvedValue([
+        { id: 1, url: 'https://www.twitch.tv/testchannel', windowId: 100 },
+      ]);
+
+      await checkStreams();
+
+      // Tab should be closed - channel went offline
+      expect(chromeMock.tabs.remove).toHaveBeenCalledWith(1);
+    });
+  });
+
   describe('checkOfflineWithTab', () => {
     it('should return true when channel is offline', async () => {
       chromeMock.tabs.get.mockResolvedValue({
