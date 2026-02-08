@@ -218,6 +218,15 @@ export async function checkStreams() {
       )
     );
 
+    // オフライン→オンライン遷移時に hasBeenOpened をリセット
+    for (let i = 0; i < updatedChannels.length; i++) {
+      const newStatus = updatedChannels[i];
+      const oldStatus = channels[i];
+      if (newStatus && newStatus.onLive && (!oldStatus || !oldStatus.onLive)) {
+        newStatus.hasBeenOpened = false;
+      }
+    }
+
     // 一括でストレージに保存（個別保存より効率的）
     await chrome.storage.local.set({ channels: updatedChannels });
     console.log('checkStreams: channels saved');
@@ -379,6 +388,13 @@ export async function channelQueuedStreamsInMultiTwitch() {
 export async function shouldOpenChannel(channel) {
   if (!channel.onLive || !channel.onLiveOpen) return false;
 
+  // 一度開いたら再度開かないモード
+  const { isAutoOpenOnce } = await chrome.storage.local.get('isAutoOpenOnce');
+  if (isAutoOpenOnce && channel.hasBeenOpened) {
+    console.log('Skipping already opened channel (auto-open-once mode):', channel.name);
+    return false;
+  }
+
   // プロモーション配信フィルター
   // New: Use per-channel brandedContentSetting ('open', 'block', 'global')
   const brandedSetting = channel.brandedContentSetting || 'global';
@@ -515,6 +531,8 @@ export async function countTwitchChannelTabs() {
 export async function channelQueuedStreams(channelQueue) {
   const { isOpenNewWindow, isEnabledMaxTabs, maxTabCount } = await chrome.storage.local.get(['isOpenNewWindow', 'isEnabledMaxTabs', 'maxTabCount']);
   console.log('channelQueueStreams', { isOpenNewWindow, isEnabledMaxTabs, maxTabCount });
+  let channelOpened = false;
+
   if (isOpenNewWindow) {
     // ループ内で更新するためにletで宣言
     let currentWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
@@ -532,7 +550,11 @@ export async function channelQueuedStreams(channelQueue) {
 
         if (windowExists) {
           // 既存のウィンドウにタブを追加
-          await openTabIfNotExists(channel, currentWindowId);
+          const wasOpened = await openTabIfNotExists(channel, currentWindowId);
+          if (wasOpened) {
+            channel.hasBeenOpened = true;
+            channelOpened = true;
+          }
         } else {
           // 新しいウィンドウを作成する必要がある
           const tabs = await chrome.tabs.query({});
@@ -546,6 +568,8 @@ export async function channelQueuedStreams(channelQueue) {
             currentWindowId = newWindow.id;
             await chrome.storage.local.set({ lastOpenWindowId: currentWindowId });
             console.log('New window created, ID:', currentWindowId);
+            channel.hasBeenOpened = true;
+            channelOpened = true;
           }
         }
       }
@@ -557,9 +581,18 @@ export async function channelQueuedStreams(channelQueue) {
         if (currentCount >= (maxTabCount || 5)) break;
       }
       if (await shouldOpenChannel(channel)) {
-        await openTabIfNotExists(channel);
+        const wasOpened = await openTabIfNotExists(channel);
+        if (wasOpened) {
+          channel.hasBeenOpened = true;
+          channelOpened = true;
+        }
       }
     }
+  }
+
+  // hasBeenOpened フラグが更新された場合のみ保存
+  if (channelOpened) {
+    await chrome.storage.local.set({ channels: channelQueue });
   }
 }
 
@@ -717,7 +750,9 @@ async function openTabIfNotExists(channel, windowId = null) {
 
   if (matchingTabs.length === 0) {
     await chrome.tabs.create({ url: targetURL, windowId });
+    return true;
   }
+  return false;
 }
 
 function getUserId(clientId, accessToken, username) {

@@ -136,6 +136,8 @@ describe('Background Script', () => {
       expect(updatedChannels[0].viewer_count).toBe(100);
       expect(updatedChannels[0].is_branded_content).toBe(false);
       expect(updatedChannels[0].lastChecked).toBeDefined();
+      // hasBeenOpened should be reset when channel goes online
+      expect(updatedChannels[0].hasBeenOpened).toBe(false);
     });
 
     it('should return offline status when stream is not live', async () => {
@@ -490,6 +492,78 @@ describe('Background Script', () => {
         game_name: 'Test Game',
       });
       expect(result).toBe(false);
+    });
+
+    it('should return false when isAutoOpenOnce is true and hasBeenOpened is true', async () => {
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string' && keys === 'isAutoOpenOnce') {
+          return Promise.resolve({ isAutoOpenOnce: true });
+        }
+        return Promise.resolve({
+          allowedOnlyCategoryList: [],
+          blockedCategoryList: [],
+          blockedCategoryNames: '',
+        });
+      });
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        hasBeenOpened: true,
+        game_name: 'Test Game',
+      });
+      expect(result).toBe(false);
+    });
+
+    it('should return true when isAutoOpenOnce is true but hasBeenOpened is false', async () => {
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string' && keys === 'isAutoOpenOnce') {
+          return Promise.resolve({ isAutoOpenOnce: true });
+        }
+        if (typeof keys === 'string' && keys === 'isSkipBrandedContent') {
+          return Promise.resolve({ isSkipBrandedContent: false });
+        }
+        return Promise.resolve({
+          allowedOnlyCategoryList: [],
+          blockedCategoryList: [],
+          blockedCategoryNames: '',
+        });
+      });
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        hasBeenOpened: false,
+        game_name: 'Test Game',
+      });
+      expect(result).toBe(true);
+    });
+
+    it('should return true when isAutoOpenOnce is false even if hasBeenOpened is true', async () => {
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string' && keys === 'isAutoOpenOnce') {
+          return Promise.resolve({ isAutoOpenOnce: false });
+        }
+        if (typeof keys === 'string' && keys === 'isSkipBrandedContent') {
+          return Promise.resolve({ isSkipBrandedContent: false });
+        }
+        return Promise.resolve({
+          allowedOnlyCategoryList: [],
+          blockedCategoryList: [],
+          blockedCategoryNames: '',
+        });
+      });
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        hasBeenOpened: true,
+        game_name: 'Test Game',
+      });
+      expect(result).toBe(true);
     });
 
     it('should allow branded content when channel brandedContentSetting is open', async () => {

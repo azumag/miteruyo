@@ -225,5 +225,9 @@
 	"checkInterval": {
 		"message": "チェック間隔",
 		"description": "配信チェック間隔のラベル"
+	},
+	"autoOpenOnce": {
+		"message": "一度開いたら再度開かない",
+		"description": "ライブ配信セッション中に一度タブを開いたら、再度自動で開かないオプション"
 	}
 }

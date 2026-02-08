@@ -7,6 +7,7 @@ const openNewWindow = document.getElementById('openNewWindow');
 const enableTabRotation = document.getElementById('enableTabRotation');
 const enableTabMute = document.getElementById('enableTabMute');
 const enableAutoClose = document.getElementById('enableAutoClose');
+const autoOpenOnce = document.getElementById('autoOpenOnce');
 const tabRotationInterval = document.getElementById('tabRotationInterval');
 const checkInterval = document.getElementById('checkInterval');
 const enableMaxTabs = document.getElementById('enableMaxTabs');
@@ -217,6 +218,11 @@ document.addEventListener('DOMContentLoaded', function () {
   // オフラインチャネル自動閉じ
   const enableAutoCloseMessage = chrome.i18n.getMessage('enableAutoClose');
   document.querySelector('label[for="enableAutoClose"]').textContent = enableAutoCloseMessage;
+  // 一度開いたら再度開かない
+  const autoOpenOnceLabel = document.getElementById('autoOpenOnceLabel');
+  if (autoOpenOnceLabel) {
+    autoOpenOnceLabel.textContent = chrome.i18n.getMessage('autoOpenOnce');
+  }
   // プロモーション配信を開かない
   const skipBrandedContentMessage = chrome.i18n.getMessage('skipBrandedContent');
   document.querySelector('label[for="skipBrandedContent"]').textContent = skipBrandedContentMessage;
@@ -439,6 +445,7 @@ chrome.storage.local.get(
     maxTabCount: 5,
     isEnabledTabMute: false,
     isEnabledAutoClose: false,
+    isAutoOpenOnce: false,
     isSkipBrandedContent: false,
     isEnabledNotifications: false, // Added this line
   },
@@ -455,6 +462,7 @@ chrome.storage.local.get(
     enableMaxTabs.checked = data.isEnabledMaxTabs;
     maxTabCount.value = data.maxTabCount;
     enableAutoClose.checked = data.isEnabledAutoClose;
+    autoOpenOnce.checked = data.isAutoOpenOnce;
     skipBrandedContent.checked = data.isSkipBrandedContent;
     enableNotifications.checked = data.isEnabledNotifications; // Added this line
 
@@ -1358,6 +1366,10 @@ checkInterval.addEventListener('change', () => {
 
 enableAutoClose.addEventListener('change', () => {
   chrome.storage.local.set({ isEnabledAutoClose: enableAutoClose.checked });
+});
+
+autoOpenOnce.addEventListener('change', () => {
+  chrome.storage.local.set({ isAutoOpenOnce: autoOpenOnce.checked });
 });
 
 skipBrandedContent.addEventListener('change', () => {
