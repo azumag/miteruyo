@@ -207,6 +207,10 @@ document.addEventListener('DOMContentLoaded', function () {
   // 分
   const minutesMessage = chrome.i18n.getMessage('minutes');
   document.getElementById('rotationUnit').textContent = minutesMessage;
+  // チェック間隔
+  const checkIntervalMessage = chrome.i18n.getMessage('checkInterval');
+  document.querySelector('label[for="checkInterval"]').textContent = checkIntervalMessage;
+  document.getElementById('checkIntervalUnit').textContent = minutesMessage;
   // 非アクティブタブ自動ミュート
   const enableTabMuteMessage = chrome.i18n.getMessage('enableTabMute');
   document.querySelector('label[for="enableTabMute"]').textContent = enableTabMuteMessage;

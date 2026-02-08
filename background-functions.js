@@ -1,6 +1,7 @@
 const FETCH_TIMEOUT_MS = 10000;
 const NOTIFICATION_ID_PREFIX = 'miteruyo-live-';
 const MIN_CHECK_INTERVAL_MINUTES = 1;
+const MAX_CHECK_INTERVAL_MINUTES = 60;
 const DEFAULT_CHECK_INTERVAL_MINUTES = 1;
 const MIN_ROTATION_INTERVAL_MINUTES = 1;
 const DEFAULT_ROTATION_INTERVAL_MINUTES = 5;
@@ -50,7 +51,7 @@ export async function ensureAlarmsExist() {
   const existingAlarm = await chrome.alarms.get('periodicalUpdate');
   if (!existingAlarm) {
     const data = await chrome.storage.local.get(['checkInterval']);
-    const interval = Math.max(MIN_CHECK_INTERVAL_MINUTES, parseInt(data.checkInterval, 10) || DEFAULT_CHECK_INTERVAL_MINUTES);
+    const interval = Math.min(MAX_CHECK_INTERVAL_MINUTES, Math.max(MIN_CHECK_INTERVAL_MINUTES, parseInt(data.checkInterval, 10) || DEFAULT_CHECK_INTERVAL_MINUTES));
     console.log('Creating periodicalUpdate alarm with interval:', interval);
     chrome.alarms.create('periodicalUpdate', { periodInMinutes: interval });
   } else {
@@ -616,7 +617,7 @@ export async function onStorageChangedForCheckInterval(changes, area) {
     if (periodicalUpdate) {
       await chrome.alarms.clear('periodicalUpdate');
     }
-    const interval = Math.max(MIN_CHECK_INTERVAL_MINUTES, parseInt(changes.checkInterval.newValue, 10) || DEFAULT_CHECK_INTERVAL_MINUTES);
+    const interval = Math.min(MAX_CHECK_INTERVAL_MINUTES, Math.max(MIN_CHECK_INTERVAL_MINUTES, parseInt(changes.checkInterval.newValue, 10) || DEFAULT_CHECK_INTERVAL_MINUTES));
     console.log('Check interval settings changed, creating alarm with interval:', interval);
     chrome.alarms.create('periodicalUpdate', { periodInMinutes: interval });
   }

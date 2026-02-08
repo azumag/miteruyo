@@ -660,6 +660,19 @@ describe('Background Script', () => {
       });
     });
 
+    it('should enforce maximum interval of 60 minutes', async () => {
+      chromeMock.alarms.get.mockResolvedValue(null);
+      chromeMock.storage.local.get.mockResolvedValue({
+        checkInterval: 120,
+      });
+
+      await ensureAlarmsExist();
+
+      expect(chromeMock.alarms.create).toHaveBeenCalledWith('periodicalUpdate', {
+        periodInMinutes: 60,
+      });
+    });
+
     it('should recreate alarm when checkInterval changes', async () => {
       chromeMock.alarms.get.mockResolvedValue({ name: 'periodicalUpdate' });
       chromeMock.alarms.clear.mockResolvedValue(true);
@@ -686,6 +699,20 @@ describe('Background Script', () => {
 
       expect(chromeMock.alarms.create).toHaveBeenCalledWith('periodicalUpdate', {
         periodInMinutes: 1,
+      });
+    });
+
+    it('should enforce maximum interval of 60 minutes when interval changes', async () => {
+      chromeMock.alarms.get.mockResolvedValue({ name: 'periodicalUpdate' });
+      chromeMock.alarms.clear.mockResolvedValue(true);
+
+      await onStorageChangedForCheckInterval(
+        { checkInterval: { newValue: 120 } },
+        'local'
+      );
+
+      expect(chromeMock.alarms.create).toHaveBeenCalledWith('periodicalUpdate', {
+        periodInMinutes: 60,
       });
     });
 
