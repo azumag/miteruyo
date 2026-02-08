@@ -219,10 +219,8 @@ document.addEventListener('DOMContentLoaded', function () {
   const enableAutoCloseMessage = chrome.i18n.getMessage('enableAutoClose');
   document.querySelector('label[for="enableAutoClose"]').textContent = enableAutoCloseMessage;
   // 一度開いたら再度開かない
-  const autoOpenOnceLabel = document.getElementById('autoOpenOnceLabel');
-  if (autoOpenOnceLabel) {
-    autoOpenOnceLabel.textContent = chrome.i18n.getMessage('autoOpenOnce');
-  }
+  const autoOpenOnceMessage = chrome.i18n.getMessage('autoOpenOnce');
+  document.querySelector('label[for="autoOpenOnce"]').textContent = autoOpenOnceMessage;
   // プロモーション配信を開かない
   const skipBrandedContentMessage = chrome.i18n.getMessage('skipBrandedContent');
   document.querySelector('label[for="skipBrandedContent"]').textContent = skipBrandedContentMessage;

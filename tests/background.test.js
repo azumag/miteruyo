@@ -566,6 +566,28 @@ describe('Background Script', () => {
       expect(result).toBe(true);
     });
 
+    it('should return true when forAutoClose is true even if isAutoOpenOnce and hasBeenOpened are true', async () => {
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string' && keys === 'isSkipBrandedContent') {
+          return Promise.resolve({ isSkipBrandedContent: false });
+        }
+        return Promise.resolve({
+          allowedOnlyCategoryList: [],
+          blockedCategoryList: [],
+          blockedCategoryNames: '',
+        });
+      });
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        hasBeenOpened: true,
+        game_name: 'Test Game',
+      }, { forAutoClose: true });
+      expect(result).toBe(true);
+    });
+
     it('should allow branded content when channel brandedContentSetting is open', async () => {
       chromeMock.storage.local.get.mockResolvedValue({
         allowedOnlyCategoryList: [],
@@ -1579,6 +1601,75 @@ describe('Background Script', () => {
 
       // Tab should be closed - branded content with skip enabled
       expect(chromeMock.tabs.remove).toHaveBeenCalledWith(1);
+    });
+
+    it('should NOT close tabs when isAutoOpenOnce is enabled and hasBeenOpened is true', async () => {
+      // This is the CRITICAL bug scenario: closeUnwantedTabs must NOT close tabs
+      // just because hasBeenOpened is true (auto-open-once prevents RE-OPENING, not KEEPING)
+      const mockStreamData = {
+        data: [{
+          game_name: 'Valorant',
+          game_id: '516575',
+          title: 'Stream Title',
+          viewer_count: 100,
+          tags: [],
+          user_id: '12345',
+        }],
+      };
+      const mockChannelData = {
+        data: [{ is_branded_content: false }],
+      };
+
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockStreamData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockChannelData),
+        });
+
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string') {
+          if (keys === 'isEnabledAutoClose') return Promise.resolve({ isEnabledAutoClose: true });
+          if (keys === 'isSkipBrandedContent') return Promise.resolve({ isSkipBrandedContent: false });
+          if (keys === 'isAutoOpenOnce') return Promise.resolve({ isAutoOpenOnce: true });
+          if (keys === 'lastOpenWindowId') return Promise.resolve({ lastOpenWindowId: 100 });
+          return Promise.resolve({});
+        }
+        if (Array.isArray(keys)) {
+          if (keys.includes('isEnabled')) {
+            return Promise.resolve({
+              isEnabled: true,
+              isEnabledNotifications: false,
+              isOpenMultiTwitch: false,
+              channels: [{ name: 'testchannel', onLive: true, onLiveOpen: true, hasBeenOpened: true }],
+              oauth_token: 'test_token',
+            });
+          }
+          if (keys.includes('allowedOnlyCategoryList')) {
+            return Promise.resolve({
+              allowedOnlyCategoryList: [],
+              blockedCategoryList: [],
+              blockedCategoryNames: '',
+            });
+          }
+          if (keys.includes('isOpenNewWindow')) {
+            return Promise.resolve({ isOpenNewWindow: false, isEnabledMaxTabs: false });
+          }
+        }
+        return Promise.resolve({});
+      });
+
+      chromeMock.tabs.query.mockResolvedValue([
+        { id: 1, url: 'https://www.twitch.tv/testchannel', windowId: 100 },
+      ]);
+
+      await checkStreams();
+
+      // Tab should NOT be closed - hasBeenOpened only prevents re-opening, not keeping
+      expect(chromeMock.tabs.remove).not.toHaveBeenCalled();
     });
 
     it('should still close offline channel tabs', async () => {

@@ -323,7 +323,7 @@ async function closeUnwantedTabs(updatedChannels) {
     // オンラインだがフィルター条件を満たさないチャンネルも閉じる
     // （カテゴリがブロックリストに追加された、ブランドコンテンツに変更された等）
     try {
-      if (!(await shouldOpenChannel(channel))) {
+      if (!(await shouldOpenChannel(channel, { forAutoClose: true }))) {
         console.log('Closing tab - channel no longer meets filter criteria:', channel.name, channel.game_name);
         chrome.tabs.remove(tab.id).catch(() => { });
       }
@@ -385,14 +385,17 @@ export async function channelQueuedStreamsInMultiTwitch() {
 }
 
 // チャンネルを開くべきかどうかをチェック
-export async function shouldOpenChannel(channel) {
+// forAutoClose: trueの場合、isAutoOpenOnceチェックをスキップ（タブを閉じる判定では不要）
+export async function shouldOpenChannel(channel, { forAutoClose = false } = {}) {
   if (!channel.onLive || !channel.onLiveOpen) return false;
 
-  // 一度開いたら再度開かないモード
-  const { isAutoOpenOnce } = await chrome.storage.local.get('isAutoOpenOnce');
-  if (isAutoOpenOnce && channel.hasBeenOpened) {
-    console.log('Skipping already opened channel (auto-open-once mode):', channel.name);
-    return false;
+  // 一度開いたら再度開かないモード（タブを閉じる判定では適用しない）
+  if (!forAutoClose) {
+    const { isAutoOpenOnce } = await chrome.storage.local.get('isAutoOpenOnce');
+    if (isAutoOpenOnce && channel.hasBeenOpened) {
+      console.log('Skipping already opened channel (auto-open-once mode):', channel.name);
+      return false;
+    }
   }
 
   // プロモーション配信フィルター

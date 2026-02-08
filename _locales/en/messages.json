@@ -227,7 +227,7 @@
 		"description": "Label for stream check interval setting"
 	},
 	"autoOpenOnce": {
-		"message": "Don't reopen after first open",
+		"message": "Open each stream only once",
 		"description": "Option to prevent auto-reopening a stream tab after it has been opened once during a live session"
 	}
 }
