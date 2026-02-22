@@ -17,6 +17,7 @@ import {
   openInManagedWindow,
   checkOfflineWithTab,
   countTwitchChannelTabs,
+  displaceNonPriorityTabs,
 } from '../background-functions.js';
 
 describe('Background Script', () => {
@@ -1848,6 +1849,236 @@ describe('Background Script', () => {
 
       // Tab should be closed - channel went offline
       expect(chromeMock.tabs.remove).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe('Priority channels', () => {
+    describe('channelQueuedStreams priority ordering', () => {
+      it('should open priority channels before non-priority channels', async () => {
+        const channels = [
+          { name: 'nonpriority1', onLive: true, onLiveOpen: true, isPriority: false },
+          { name: 'priority1', onLive: true, onLiveOpen: true, isPriority: true },
+          { name: 'nonpriority2', onLive: true, onLiveOpen: true, isPriority: false },
+        ];
+
+        const openedOrder = [];
+        let existingTabs = [];
+        chromeMock.tabs.query.mockImplementation(() => Promise.resolve([...existingTabs]));
+        chromeMock.tabs.create.mockImplementation(({ url }) => {
+          openedOrder.push(url);
+          const newTab = { url, id: existingTabs.length + 1 };
+          existingTabs.push(newTab);
+          return Promise.resolve(newTab);
+        });
+
+        chromeMock.storage.local.get.mockImplementation((keys) => {
+          if (Array.isArray(keys) && keys.includes('isOpenNewWindow')) {
+            return Promise.resolve({ isOpenNewWindow: false, isEnabledMaxTabs: false });
+          }
+          if (Array.isArray(keys) && keys.includes('allowedOnlyCategoryList')) {
+            return Promise.resolve({
+              allowedOnlyCategoryList: [],
+              blockedCategoryList: [],
+              blockedCategoryNames: '',
+            });
+          }
+          return Promise.resolve({});
+        });
+
+        await channelQueuedStreams(channels);
+
+        // Priority channel should be opened first
+        expect(openedOrder[0]).toBe('https://www.twitch.tv/priority1');
+        expect(openedOrder).toHaveLength(3);
+      });
+
+      it('should give priority channels tab slots first under maxTabs', async () => {
+        const channels = [
+          { name: 'nonpriority1', onLive: true, onLiveOpen: true, isPriority: false },
+          { name: 'priority1', onLive: true, onLiveOpen: true, isPriority: true },
+          { name: 'priority2', onLive: true, onLiveOpen: true, isPriority: true },
+          { name: 'nonpriority2', onLive: true, onLiveOpen: true, isPriority: false },
+        ];
+
+        const openedOrder = [];
+        let existingTabs = [];
+        chromeMock.tabs.query.mockImplementation(() => Promise.resolve([...existingTabs]));
+        chromeMock.tabs.create.mockImplementation(({ url }) => {
+          openedOrder.push(url);
+          const newTab = { url, id: existingTabs.length + 1 };
+          existingTabs.push(newTab);
+          return Promise.resolve(newTab);
+        });
+
+        chromeMock.storage.local.get.mockImplementation((keys) => {
+          if (Array.isArray(keys) && keys.includes('isOpenNewWindow')) {
+            return Promise.resolve({ isOpenNewWindow: false, isEnabledMaxTabs: true, maxTabCount: 3 });
+          }
+          if (Array.isArray(keys) && keys.includes('allowedOnlyCategoryList')) {
+            return Promise.resolve({
+              allowedOnlyCategoryList: [],
+              blockedCategoryList: [],
+              blockedCategoryNames: '',
+            });
+          }
+          return Promise.resolve({});
+        });
+
+        await channelQueuedStreams(channels);
+
+        // Only 3 tabs should open (maxTabCount=3)
+        expect(openedOrder).toHaveLength(3);
+        // Priority channels should be first two
+        expect(openedOrder[0]).toBe('https://www.twitch.tv/priority1');
+        expect(openedOrder[1]).toBe('https://www.twitch.tv/priority2');
+      });
+    });
+
+    describe('displaceNonPriorityTabs', () => {
+      it('should close non-priority tabs to make room for priority channels', async () => {
+        const channels = [
+          { name: 'priority1', onLive: true, onLiveOpen: true, isPriority: true },
+          { name: 'nonpriority1', onLive: true, onLiveOpen: true, isPriority: false },
+          { name: 'nonpriority2', onLive: true, onLiveOpen: true, isPriority: false },
+        ];
+
+        chromeMock.storage.local.get.mockImplementation((keys) => {
+          if (Array.isArray(keys) && keys.includes('isEnabledMaxTabs')) {
+            return Promise.resolve({ isEnabledMaxTabs: true, maxTabCount: 2, lastOpenWindowId: null });
+          }
+          if (Array.isArray(keys) && keys.includes('allowedOnlyCategoryList')) {
+            return Promise.resolve({
+              allowedOnlyCategoryList: [],
+              blockedCategoryList: [],
+              blockedCategoryNames: '',
+            });
+          }
+          return Promise.resolve({});
+        });
+
+        // 2 non-priority tabs already open (at max)
+        chromeMock.tabs.query.mockResolvedValue([
+          { id: 1, url: 'https://www.twitch.tv/nonpriority1' },
+          { id: 2, url: 'https://www.twitch.tv/nonpriority2' },
+        ]);
+        chromeMock.tabs.remove.mockResolvedValue();
+
+        await displaceNonPriorityTabs(channels);
+
+        // Should close 1 non-priority tab to make room for priority1
+        expect(chromeMock.tabs.remove).toHaveBeenCalledTimes(1);
+        expect(chromeMock.tabs.remove).toHaveBeenCalledWith(1);
+      });
+
+      it('should do nothing when maxTabs is disabled', async () => {
+        const channels = [
+          { name: 'priority1', onLive: true, onLiveOpen: true, isPriority: true },
+        ];
+
+        chromeMock.storage.local.get.mockResolvedValue({
+          isEnabledMaxTabs: false, maxTabCount: 2, lastOpenWindowId: null,
+        });
+
+        await displaceNonPriorityTabs(channels);
+
+        expect(chromeMock.tabs.query).not.toHaveBeenCalled();
+        expect(chromeMock.tabs.remove).not.toHaveBeenCalled();
+      });
+
+      it('should do nothing when there are free slots', async () => {
+        const channels = [
+          { name: 'priority1', onLive: true, onLiveOpen: true, isPriority: true },
+          { name: 'nonpriority1', onLive: true, onLiveOpen: true, isPriority: false },
+        ];
+
+        chromeMock.storage.local.get.mockResolvedValue({
+          isEnabledMaxTabs: true, maxTabCount: 3, lastOpenWindowId: null,
+        });
+
+        // Only 1 tab open, max is 3 -> free slots available
+        chromeMock.tabs.query.mockResolvedValue([
+          { id: 1, url: 'https://www.twitch.tv/nonpriority1' },
+        ]);
+
+        await displaceNonPriorityTabs(channels);
+
+        // Should not close any tabs
+        expect(chromeMock.tabs.remove).not.toHaveBeenCalled();
+      });
+
+      it('should not close priority tabs', async () => {
+        const channels = [
+          { name: 'priority1', onLive: true, onLiveOpen: true, isPriority: true },
+          { name: 'priority2', onLive: true, onLiveOpen: true, isPriority: true },
+        ];
+
+        chromeMock.storage.local.get.mockImplementation((keys) => {
+          if (Array.isArray(keys) && keys.includes('isEnabledMaxTabs')) {
+            return Promise.resolve({ isEnabledMaxTabs: true, maxTabCount: 2, lastOpenWindowId: null });
+          }
+          if (Array.isArray(keys) && keys.includes('allowedOnlyCategoryList')) {
+            return Promise.resolve({
+              allowedOnlyCategoryList: [],
+              blockedCategoryList: [],
+              blockedCategoryNames: '',
+            });
+          }
+          return Promise.resolve({});
+        });
+
+        // Both tabs are priority - none should be closed
+        chromeMock.tabs.query.mockResolvedValue([
+          { id: 1, url: 'https://www.twitch.tv/priority1' },
+          { id: 2, url: 'https://www.twitch.tv/priority2' },
+        ]);
+
+        await displaceNonPriorityTabs(channels);
+
+        expect(chromeMock.tabs.remove).not.toHaveBeenCalled();
+      });
+
+      it('should handle gracefully when managed window is gone', async () => {
+        const channels = [
+          { name: 'priority1', onLive: true, onLiveOpen: true, isPriority: true },
+        ];
+
+        chromeMock.storage.local.get.mockResolvedValue({
+          isEnabledMaxTabs: true, maxTabCount: 2, lastOpenWindowId: 999,
+        });
+
+        // Window query throws because window no longer exists
+        chromeMock.tabs.query.mockRejectedValue(new Error('Window not found'));
+
+        await displaceNonPriorityTabs(channels);
+
+        // Should not crash, should not try to remove tabs
+        expect(chromeMock.tabs.remove).not.toHaveBeenCalled();
+      });
+
+      it('should not close tabs when priority channel already has a tab', async () => {
+        const channels = [
+          { name: 'priority1', onLive: true, onLiveOpen: true, isPriority: true },
+          { name: 'nonpriority1', onLive: true, onLiveOpen: true, isPriority: false },
+        ];
+
+        chromeMock.storage.local.get.mockImplementation((keys) => {
+          if (Array.isArray(keys) && keys.includes('isEnabledMaxTabs')) {
+            return Promise.resolve({ isEnabledMaxTabs: true, maxTabCount: 2, lastOpenWindowId: null });
+          }
+          return Promise.resolve({});
+        });
+
+        // Priority channel already has a tab open
+        chromeMock.tabs.query.mockResolvedValue([
+          { id: 1, url: 'https://www.twitch.tv/priority1' },
+          { id: 2, url: 'https://www.twitch.tv/nonpriority1' },
+        ]);
+
+        await displaceNonPriorityTabs(channels);
+
+        // No displacement needed - priority channel already open
+        expect(chromeMock.tabs.remove).not.toHaveBeenCalled();
+      });
     });
   });
 

@@ -273,7 +273,9 @@ export async function checkStreams() {
       if (isOpenMultiTwitch) {
         channelQueuedStreamsInMultiTwitch();
       } else {
-        channelQueuedStreams(updatedChannels);
+        // 優先チャンネルのためにスロットを確保
+        await displaceNonPriorityTabs(updatedChannels);
+        await channelQueuedStreams(updatedChannels);
       }
     } else {
       console.log('checkStreams: Auto-open skipped as isEnabled is false');
@@ -331,6 +333,51 @@ async function closeUnwantedTabs(updatedChannels) {
     } catch (error) {
       console.error('Error checking shouldOpenChannel for', channel.name, error);
     }
+  }
+}
+
+// 優先チャンネルのために非優先タブを閉じる
+export async function displaceNonPriorityTabs(channels) {
+  const { isEnabledMaxTabs, maxTabCount, lastOpenWindowId } = await chrome.storage.local.get(['isEnabledMaxTabs', 'maxTabCount', 'lastOpenWindowId']);
+  if (!isEnabledMaxTabs) return;
+
+  const max = maxTabCount || 5;
+  const queryOptions = lastOpenWindowId ? { windowId: lastOpenWindowId } : {};
+  let tabs;
+  try {
+    tabs = await chrome.tabs.query(queryOptions);
+  } catch {
+    return;
+  }
+  const twitchTabs = tabs.filter(t => t.url && isTwitchChannelPage(t.url));
+
+  if (twitchTabs.length < max) return; // まだ空きあり
+
+  // 開く必要がある優先チャンネル数を算出
+  let priorityNeedSlots = 0;
+  for (const ch of channels) {
+    if (!ch.isPriority) continue;
+    if (!(await shouldOpenChannel(ch))) continue;
+    const hasTab = twitchTabs.some(t => {
+      const m = t.url.match(/twitch\.tv\/([^/?]+)/);
+      return m && m[1].toLowerCase() === ch.name?.toLowerCase();
+    });
+    if (!hasTab) priorityNeedSlots++;
+  }
+  if (priorityNeedSlots === 0) return;
+
+  // 非優先タブを特定して必要数だけ閉じる
+  const nonPriorityTabs = twitchTabs.filter(t => {
+    const m = t.url.match(/twitch\.tv\/([^/?]+)/);
+    if (!m) return false;
+    const name = m[1].toLowerCase();
+    const ch = channels.find(c => c.name?.toLowerCase() === name);
+    return ch && !ch.isPriority;
+  });
+
+  const toClose = nonPriorityTabs.slice(0, priorityNeedSlots);
+  for (const tab of toClose) {
+    await chrome.tabs.remove(tab.id).catch(() => {});
   }
 }
 
@@ -543,11 +590,18 @@ export async function channelQueuedStreams(channelQueue) {
   console.log('channelQueueStreams', { isOpenNewWindow, isEnabledMaxTabs, maxTabCount });
   let channelOpened = false;
 
+  // 優先チャンネルを先に、非優先をシャッフルして後に処理
+  // シャッフルにより非優先チャンネル間でタブスロットを公平に分配
+  const priorityChannels = channelQueue.filter(c => c.isPriority);
+  const nonPriorityChannels = channelQueue.filter(c => !c.isPriority);
+  shuffleArray(nonPriorityChannels);
+  const orderedChannels = [...priorityChannels, ...nonPriorityChannels];
+
   if (isOpenNewWindow) {
     // ループ内で更新するためにletで宣言
     let currentWindowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
 
-    for (const channel of channelQueue) {
+    for (const channel of orderedChannels) {
       if (isEnabledMaxTabs) {
         const currentCount = await countTwitchChannelTabs();
         if (currentCount >= (maxTabCount || 5)) break;
@@ -585,7 +639,7 @@ export async function channelQueuedStreams(channelQueue) {
       }
     }
   } else {
-    for (const channel of channelQueue) {
+    for (const channel of orderedChannels) {
       if (isEnabledMaxTabs) {
         const currentCount = await countTwitchChannelTabs();
         if (currentCount >= (maxTabCount || 5)) break;
@@ -600,7 +654,7 @@ export async function channelQueuedStreams(channelQueue) {
     }
   }
 
-  // hasBeenOpened フラグが更新された場合のみ保存
+  // hasBeenOpened フラグが更新された場合のみ保存（元の順序で保存）
   if (channelOpened) {
     await chrome.storage.local.set({ channels: channelQueue });
   }
@@ -723,6 +777,14 @@ function parseNotificationChannelName(notificationId) {
   const channelName = withoutPrefix.substring(0, lastDashIndex);
   if (!/^[a-zA-Z0-9_]{1,25}$/.test(channelName)) return null;
   return channelName;
+}
+
+// Fisher-Yates シャッフル
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
 }
 
 function channelURL(channel) {

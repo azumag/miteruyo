@@ -237,5 +237,13 @@
 	"snoozed": {
 		"message": "Snoozed",
 		"description": "Status display when channel is snoozed"
+	},
+	"priorityOn": {
+		"message": "Priority channel",
+		"description": "Tooltip when priority is ON"
+	},
+	"priorityOff": {
+		"message": "Set as priority channel",
+		"description": "Tooltip when priority is OFF"
 	}
 }

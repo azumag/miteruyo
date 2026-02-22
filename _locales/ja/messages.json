@@ -237,5 +237,13 @@
 	"snoozed": {
 		"message": "スヌーズ中",
 		"description": "スヌーズ中のステータス表示"
+	},
+	"priorityOn": {
+		"message": "優先チャンネル",
+		"description": "優先設定ON時のツールチップ"
+	},
+	"priorityOff": {
+		"message": "優先チャンネルに設定",
+		"description": "優先設定OFF時のツールチップ"
 	}
 }

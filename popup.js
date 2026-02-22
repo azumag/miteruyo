@@ -649,6 +649,29 @@ async function addChannelToList(channel, newAdded = false) {
     statusContainer.appendChild(snoozeBtn);
   }
 
+  // Priority Toggle Button (エラーでない場合のみ表示)
+  if (channel.status !== 'error') {
+    const priorityBtn = document.createElement('button');
+    const priorityIcon = document.createElement('i');
+    const updatePriorityUI = () => {
+      priorityBtn.setAttribute('class', channel.isPriority ? 'btn btn-warning btn-sm' : 'btn btn-outline-secondary btn-sm');
+      priorityIcon.setAttribute('class', channel.isPriority ? 'bi bi-star-fill' : 'bi bi-star');
+      const priorityTooltip = channel.isPriority ? chrome.i18n.getMessage('priorityOn') : chrome.i18n.getMessage('priorityOff');
+      priorityBtn.title = priorityTooltip;
+      priorityBtn.setAttribute('aria-label', priorityTooltip);
+    };
+    priorityBtn.appendChild(priorityIcon);
+    updatePriorityUI();
+
+    priorityBtn.addEventListener('click', () => {
+      channel.isPriority = !channel.isPriority;
+      updatePriorityUI();
+      saveChannelToList(channel);
+    });
+
+    statusContainer.appendChild(priorityBtn);
+  }
+
   // 3. Channel Name
   const cntd = document.createElement('td');
   // Essential for text-overflow in table cells
