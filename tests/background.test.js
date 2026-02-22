@@ -138,6 +138,54 @@ describe('Background Script', () => {
       expect(updatedChannels[0].lastChecked).toBeDefined();
       // hasBeenOpened should be reset when channel goes online
       expect(updatedChannels[0].hasBeenOpened).toBe(false);
+      // snoozed should also be reset when channel goes online
+      expect(updatedChannels[0].snoozed).toBe(false);
+    });
+
+    it('should reset snoozed flag when channel goes from offline to online', async () => {
+      const mockStreamData = {
+        data: [{
+          game_name: 'Test Game',
+          game_id: '123',
+          title: 'Test Stream',
+          viewer_count: 100,
+          tags: ['tag1'],
+          user_id: '12345',
+        }],
+      };
+
+      const mockChannelData = {
+        data: [{ is_branded_content: false }],
+      };
+
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockStreamData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockChannelData),
+        });
+
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [{ name: 'testchannel', onLiveOpen: false, onLive: false, snoozed: true }],
+        oauth_token: 'test_token',
+        isEnabledAutoClose: false,
+      });
+
+      await checkStreams();
+
+      const setCall = chromeMock.storage.local.set.mock.calls.find(
+        call => call[0].channels
+      );
+      expect(setCall).toBeDefined();
+      const updatedChannels = setCall[0].channels;
+      expect(updatedChannels[0].onLive).toBe(true);
+      expect(updatedChannels[0].snoozed).toBe(false);
     });
 
     it('should return offline status when stream is not live', async () => {
@@ -583,6 +631,97 @@ describe('Background Script', () => {
         onLive: true,
         onLiveOpen: true,
         hasBeenOpened: true,
+        game_name: 'Test Game',
+      }, { forAutoClose: true });
+      expect(result).toBe(true);
+    });
+
+    it('should return false when channel is snoozed', async () => {
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string' && keys === 'isSkipBrandedContent') {
+          return Promise.resolve({ isSkipBrandedContent: false });
+        }
+        return Promise.resolve({
+          allowedOnlyCategoryList: [],
+          blockedCategoryList: [],
+          blockedCategoryNames: '',
+        });
+      });
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        snoozed: true,
+        game_name: 'Test Game',
+      });
+      expect(result).toBe(false);
+    });
+
+    it('should return false when channel is snoozed even if not snoozed previously (no reset while online)', async () => {
+      // Verify snooze is NOT reset when channel stays continuously online
+      const mockStreamData = {
+        data: [{
+          game_name: 'Test Game',
+          game_id: '123',
+          title: 'Test Stream',
+          viewer_count: 100,
+          tags: ['tag1'],
+          user_id: '12345',
+        }],
+      };
+      const mockChannelData = {
+        data: [{ is_branded_content: false }],
+      };
+
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockStreamData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockChannelData),
+        });
+
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [{ name: 'testchannel', onLiveOpen: true, onLive: true, snoozed: true }],
+        oauth_token: 'test_token',
+        isEnabledAutoClose: false,
+      });
+
+      await checkStreams();
+
+      const setCall = chromeMock.storage.local.set.mock.calls.find(
+        call => call[0].channels
+      );
+      expect(setCall).toBeDefined();
+      const updatedChannels = setCall[0].channels;
+      expect(updatedChannels[0].onLive).toBe(true);
+      // snoozed should remain true when channel stays online
+      expect(updatedChannels[0].snoozed).toBe(true);
+    });
+
+    it('should return true when forAutoClose is true even if channel is snoozed', async () => {
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string' && keys === 'isSkipBrandedContent') {
+          return Promise.resolve({ isSkipBrandedContent: false });
+        }
+        return Promise.resolve({
+          allowedOnlyCategoryList: [],
+          blockedCategoryList: [],
+          blockedCategoryNames: '',
+        });
+      });
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        snoozed: true,
         game_name: 'Test Game',
       }, { forAutoClose: true });
       expect(result).toBe(true);

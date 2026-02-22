@@ -218,12 +218,13 @@ export async function checkStreams() {
       )
     );
 
-    // オフライン→オンライン遷移時に hasBeenOpened をリセット
+    // オフライン→オンライン遷移時に hasBeenOpened / snoozed をリセット
     for (let i = 0; i < updatedChannels.length; i++) {
       const newStatus = updatedChannels[i];
       const oldStatus = channels[i];
       if (newStatus && newStatus.onLive && (!oldStatus || !oldStatus.onLive)) {
         newStatus.hasBeenOpened = false;
+        newStatus.snoozed = false;
       }
     }
 
@@ -388,6 +389,12 @@ export async function channelQueuedStreamsInMultiTwitch() {
 // forAutoClose: trueの場合、isAutoOpenOnceチェックをスキップ（タブを閉じる判定では不要）
 export async function shouldOpenChannel(channel, { forAutoClose = false } = {}) {
   if (!channel.onLive || !channel.onLiveOpen) return false;
+
+  // スヌーズ中のチャンネルをスキップ（タブを閉じる判定では適用しない）
+  if (!forAutoClose && channel.snoozed) {
+    console.log('Skipping snoozed channel:', channel.name);
+    return false;
+  }
 
   // 一度開いたら再度開かないモード（タブを閉じる判定では適用しない）
   if (!forAutoClose) {

@@ -229,5 +229,13 @@
 	"autoOpenOnce": {
 		"message": "一度開いたら再度開かない",
 		"description": "ライブ配信セッション中に一度タブを開いたら、再度自動で開かないオプション"
+	},
+	"snooze": {
+		"message": "スヌーズ",
+		"description": "次の配信まで自動オープンを抑制するボタンのラベル"
+	},
+	"snoozed": {
+		"message": "スヌーズ中",
+		"description": "スヌーズ中のステータス表示"
 	}
 }

@@ -598,6 +598,8 @@ async function addChannelToList(channel, newAdded = false) {
     onLiveOpenSwitch.setAttribute('class', channel.onLiveOpen ? 'btn btn-outline-primary btn-sm' : 'btn btn-outline-danger btn-sm');
     saveChannelToList(channel);
 
+    if (channel.snoozed) return; // スヌーズ中はopenButtonを変更しない
+
     if (channel.onLive) {
       openButton.textContent = channel.onLiveOpen ? chrome.i18n.getMessage('statusLive') : pauseMsg;
       openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
@@ -614,6 +616,37 @@ async function addChannelToList(channel, newAdded = false) {
 
   if (channel.status !== 'error') {
     statusContainer.appendChild(onLiveOpenSwitch);
+  }
+
+  // Snooze Button (ライブ中かつエラーでない場合のみ表示)
+  if (channel.onLive && channel.status !== 'error') {
+    const snoozeBtn = document.createElement('button');
+    const snoozeIcon = document.createElement('i');
+    const updateSnoozeUI = () => {
+      snoozeBtn.setAttribute('class', channel.snoozed ? 'btn btn-warning btn-sm' : 'btn btn-outline-secondary btn-sm');
+      snoozeIcon.setAttribute('class', channel.snoozed ? 'bi bi-moon-fill' : 'bi bi-moon');
+      snoozeBtn.title = channel.snoozed ? chrome.i18n.getMessage('snoozed') : chrome.i18n.getMessage('snooze');
+      if (channel.snoozed) {
+        openButton.textContent = chrome.i18n.getMessage('snoozed');
+        openButton.setAttribute('class', 'btn btn-outline-warning btn-sm');
+        openButton.style.width = '72px';
+      }
+    };
+    snoozeBtn.appendChild(snoozeIcon);
+    updateSnoozeUI();
+
+    snoozeBtn.addEventListener('click', () => {
+      channel.snoozed = !channel.snoozed;
+      updateSnoozeUI();
+      if (!channel.snoozed && channel.onLive) {
+        openButton.textContent = channel.onLiveOpen ? chrome.i18n.getMessage('statusLive') : pauseMsg;
+        openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
+        openButton.style.width = '72px';
+      }
+      saveChannelToList(channel);
+    });
+
+    statusContainer.appendChild(snoozeBtn);
   }
 
   // 3. Channel Name
