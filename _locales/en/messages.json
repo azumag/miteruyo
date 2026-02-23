@@ -245,5 +245,9 @@
 	"priorityOff": {
 		"message": "Set as priority channel",
 		"description": "Tooltip when priority is OFF"
+	},
+	"dynamicRotation": {
+		"message": "Divide by tab count",
+		"description": "Dynamically adjust rotation interval based on number of open tabs"
 	}
 }

@@ -245,5 +245,9 @@
 	"priorityOff": {
 		"message": "優先チャンネルに設定",
 		"description": "優先設定OFF時のツールチップ"
+	},
+	"dynamicRotation": {
+		"message": "タブ数で分割",
+		"description": "タブ数に応じてローテーション間隔を動的に変化させるオプション"
 	}
 }

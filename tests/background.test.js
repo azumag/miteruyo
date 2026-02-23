@@ -856,6 +856,25 @@ describe('Background Script', () => {
       expect(chromeMock.alarms.get).not.toHaveBeenCalled();
       expect(chromeMock.alarms.create).not.toHaveBeenCalled();
     });
+
+    it('should recreate alarm when isDynamicRotation changes', async () => {
+      chromeMock.alarms.get.mockResolvedValue({ name: 'tabRotationAlarm' });
+      chromeMock.alarms.clear.mockResolvedValue(true);
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabledTabRotation: true,
+        tabRotationInterval: 10,
+      });
+
+      await onStorageChangedForTabRotation(
+        { isDynamicRotation: { newValue: true } },
+        'local'
+      );
+
+      expect(chromeMock.alarms.clear).toHaveBeenCalledWith('tabRotationAlarm');
+      expect(chromeMock.alarms.create).toHaveBeenCalledWith('tabRotationAlarm', {
+        periodInMinutes: 10,
+      });
+    });
   });
 
   describe('checkInterval feature', () => {
@@ -1214,6 +1233,175 @@ describe('Background Script', () => {
         expect(chromeMock.storage.local.set).toHaveBeenCalledWith({ lastOpenWindowId: null });
         // Should not try to query tabs
         expect(chromeMock.tabs.query).not.toHaveBeenCalled();
+      });
+
+      it('should recalculate alarm interval when dynamic rotation is enabled', async () => {
+        const windowId = 123;
+        const tabs = [
+          { id: 1, url: 'https://www.twitch.tv/channel1', active: true },
+          { id: 2, url: 'https://www.twitch.tv/channel2', active: false },
+          { id: 3, url: 'https://www.twitch.tv/channel3', active: false },
+          { id: 4, url: 'https://www.twitch.tv/channel4', active: false },
+          { id: 5, url: 'https://www.twitch.tv/channel5', active: false },
+        ];
+
+        chromeMock.storage.local.get.mockImplementation((key) => {
+          if (key === 'isEnabledTabRotation') {
+            return Promise.resolve({ isEnabledTabRotation: true });
+          }
+          if (key === 'lastOpenWindowId') {
+            return Promise.resolve({ lastOpenWindowId: windowId });
+          }
+          if (key === 'isEnabledTabMute') {
+            return Promise.resolve({ isEnabledTabMute: false });
+          }
+          if (Array.isArray(key) && key.includes('isDynamicRotation')) {
+            return Promise.resolve({ isDynamicRotation: true, tabRotationInterval: 10 });
+          }
+          return Promise.resolve({});
+        });
+
+        chromeMock.windows.get.mockResolvedValue({ id: windowId });
+        chromeMock.tabs.query.mockResolvedValue(tabs);
+        chromeMock.alarms.get.mockResolvedValue({ name: 'tabRotationAlarm', periodInMinutes: 10 });
+        chromeMock.alarms.clear.mockResolvedValue(true);
+
+        await checkTabRotate();
+
+        // 10 min / 5 tabs = 2 min per tab
+        expect(chromeMock.alarms.clear).toHaveBeenCalledWith('tabRotationAlarm');
+        expect(chromeMock.alarms.create).toHaveBeenCalledWith('tabRotationAlarm', { periodInMinutes: 2 });
+      });
+
+      it('should not recalculate alarm when dynamic rotation is disabled', async () => {
+        const windowId = 123;
+        const tabs = [
+          { id: 1, url: 'https://www.twitch.tv/channel1', active: true },
+          { id: 2, url: 'https://www.twitch.tv/channel2', active: false },
+        ];
+
+        chromeMock.storage.local.get.mockImplementation((key) => {
+          if (key === 'isEnabledTabRotation') {
+            return Promise.resolve({ isEnabledTabRotation: true });
+          }
+          if (key === 'lastOpenWindowId') {
+            return Promise.resolve({ lastOpenWindowId: windowId });
+          }
+          if (key === 'isEnabledTabMute') {
+            return Promise.resolve({ isEnabledTabMute: false });
+          }
+          if (Array.isArray(key) && key.includes('isDynamicRotation')) {
+            return Promise.resolve({ isDynamicRotation: false, tabRotationInterval: 10 });
+          }
+          return Promise.resolve({});
+        });
+
+        chromeMock.windows.get.mockResolvedValue({ id: windowId });
+        chromeMock.tabs.query.mockResolvedValue(tabs);
+
+        await checkTabRotate();
+
+        // Should not recalculate alarm
+        expect(chromeMock.alarms.create).not.toHaveBeenCalled();
+      });
+
+      it('should clamp dynamic rotation interval to minimum 1 minute', async () => {
+        const windowId = 123;
+        // 3 min / 10 tabs = 0.3 → clamped to 1 min
+        const tabs = Array.from({ length: 10 }, (_, i) => ({
+          id: i + 1,
+          url: `https://www.twitch.tv/channel${i + 1}`,
+          active: i === 0,
+        }));
+
+        chromeMock.storage.local.get.mockImplementation((key) => {
+          if (key === 'isEnabledTabRotation') {
+            return Promise.resolve({ isEnabledTabRotation: true });
+          }
+          if (key === 'lastOpenWindowId') {
+            return Promise.resolve({ lastOpenWindowId: windowId });
+          }
+          if (key === 'isEnabledTabMute') {
+            return Promise.resolve({ isEnabledTabMute: false });
+          }
+          if (Array.isArray(key) && key.includes('isDynamicRotation')) {
+            return Promise.resolve({ isDynamicRotation: true, tabRotationInterval: 3 });
+          }
+          return Promise.resolve({});
+        });
+
+        chromeMock.windows.get.mockResolvedValue({ id: windowId });
+        chromeMock.tabs.query.mockResolvedValue(tabs);
+        chromeMock.alarms.get.mockResolvedValue({ name: 'tabRotationAlarm', periodInMinutes: 3 });
+        chromeMock.alarms.clear.mockResolvedValue(true);
+
+        await checkTabRotate();
+
+        // Should clamp to 1 minute minimum
+        expect(chromeMock.alarms.create).toHaveBeenCalledWith('tabRotationAlarm', { periodInMinutes: 1 });
+      });
+
+      it('should not recalculate when only 1 tab exists even if dynamic rotation is enabled', async () => {
+        const windowId = 123;
+        const tabs = [
+          { id: 1, url: 'https://www.twitch.tv/channel1', active: true },
+        ];
+
+        chromeMock.storage.local.get.mockImplementation((key) => {
+          if (key === 'isEnabledTabRotation') {
+            return Promise.resolve({ isEnabledTabRotation: true });
+          }
+          if (key === 'lastOpenWindowId') {
+            return Promise.resolve({ lastOpenWindowId: windowId });
+          }
+          if (key === 'isEnabledTabMute') {
+            return Promise.resolve({ isEnabledTabMute: false });
+          }
+          return Promise.resolve({});
+        });
+
+        chromeMock.windows.get.mockResolvedValue({ id: windowId });
+        chromeMock.tabs.query.mockResolvedValue(tabs);
+
+        await checkTabRotate();
+
+        // With only 1 tab, dynamic rotation block is skipped (tabs.length > 1 guard)
+        expect(chromeMock.alarms.create).not.toHaveBeenCalled();
+      });
+
+      it('should not recreate alarm when interval is already correct', async () => {
+        const windowId = 123;
+        const tabs = [
+          { id: 1, url: 'https://www.twitch.tv/channel1', active: true },
+          { id: 2, url: 'https://www.twitch.tv/channel2', active: false },
+        ];
+
+        chromeMock.storage.local.get.mockImplementation((key) => {
+          if (key === 'isEnabledTabRotation') {
+            return Promise.resolve({ isEnabledTabRotation: true });
+          }
+          if (key === 'lastOpenWindowId') {
+            return Promise.resolve({ lastOpenWindowId: windowId });
+          }
+          if (key === 'isEnabledTabMute') {
+            return Promise.resolve({ isEnabledTabMute: false });
+          }
+          if (Array.isArray(key) && key.includes('isDynamicRotation')) {
+            return Promise.resolve({ isDynamicRotation: true, tabRotationInterval: 10 });
+          }
+          return Promise.resolve({});
+        });
+
+        chromeMock.windows.get.mockResolvedValue({ id: windowId });
+        chromeMock.tabs.query.mockResolvedValue(tabs);
+        // 10 / 2 = 5, alarm is already 5 → no change needed
+        chromeMock.alarms.get.mockResolvedValue({ name: 'tabRotationAlarm', periodInMinutes: 5 });
+
+        await checkTabRotate();
+
+        // Should not clear or recreate alarm
+        expect(chromeMock.alarms.clear).not.toHaveBeenCalled();
+        expect(chromeMock.alarms.create).not.toHaveBeenCalled();
       });
 
       it('should not rotate if no tabs exist', async () => {

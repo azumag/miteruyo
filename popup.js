@@ -13,6 +13,7 @@ const checkInterval = document.getElementById('checkInterval');
 const enableMaxTabs = document.getElementById('enableMaxTabs');
 const maxTabCount = document.getElementById('maxTabCount');
 const skipBrandedContent = document.getElementById('skipBrandedContent');
+const dynamicRotation = document.getElementById('dynamicRotation');
 const allowedOnlyCategoriesTagList = document.getElementById('allowedOnlyCategoriesTagList');
 const allowedOnlyCategoriesSearchContainer = document.getElementById('allowedOnlyCategoriesSearch');
 const blockedCategoriesTagList = document.getElementById('blockedCategoriesTagList');
@@ -24,7 +25,6 @@ const aboutBtn = document.getElementById('aboutBtn');
 
 const liveFilterSwitch = document.getElementById('liveFilterSwitch');
 
-// const clientId = 'vzlsgu6bdv9tbad1uroc9v8tz813cx'; // for prod
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
 
 // Migrate old nested token format { oauth_token: "token" } (object) to flat string "token"
@@ -208,6 +208,11 @@ document.addEventListener('DOMContentLoaded', function () {
   // 分
   const minutesMessage = chrome.i18n.getMessage('minutes');
   document.getElementById('rotationUnit').textContent = minutesMessage;
+  // タブ数で分割
+  const dynamicRotationMessage = chrome.i18n.getMessage('dynamicRotation');
+  if (dynamicRotationMessage) {
+    document.querySelector('label[for="dynamicRotation"]').textContent = dynamicRotationMessage;
+  }
   // チェック間隔
   const checkIntervalMessage = chrome.i18n.getMessage('checkInterval');
   document.querySelector('label[for="checkInterval"]').textContent = checkIntervalMessage;
@@ -445,6 +450,7 @@ chrome.storage.local.get(
     isEnabledAutoClose: false,
     isAutoOpenOnce: false,
     isSkipBrandedContent: false,
+    isDynamicRotation: false,
     isEnabledNotifications: false, // Added this line
   },
   async (data) => {
@@ -462,6 +468,7 @@ chrome.storage.local.get(
     enableAutoClose.checked = data.isEnabledAutoClose;
     autoOpenOnce.checked = data.isAutoOpenOnce;
     skipBrandedContent.checked = data.isSkipBrandedContent;
+    dynamicRotation.checked = data.isDynamicRotation;
     enableNotifications.checked = data.isEnabledNotifications; // Added this line
 
     // Initialize global allowed-only categories
@@ -1428,6 +1435,10 @@ autoOpenOnce.addEventListener('change', () => {
 
 skipBrandedContent.addEventListener('change', () => {
   chrome.storage.local.set({ isSkipBrandedContent: skipBrandedContent.checked });
+});
+
+dynamicRotation.addEventListener('change', () => {
+  chrome.storage.local.set({ isDynamicRotation: dynamicRotation.checked });
 });
 
 
