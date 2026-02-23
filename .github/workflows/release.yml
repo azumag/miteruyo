@@ -53,12 +53,21 @@ jobs:
           # Verify replacement
           grep "const clientId" popup.js
 
-      - name: Replace clientId in background.js
+      - name: Replace clientId in background-functions.js
         run: |
           # Replace development clientId with production clientId
-          sed -i "s/const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';/const clientId = '${{ secrets.TWITCH_CLIENT_ID_PROD }}';/" background.js
+          sed -i "s/const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';/const clientId = '${{ secrets.TWITCH_CLIENT_ID_PROD }}';/" background-functions.js
           # Verify replacement
-          grep "const clientId" background.js
+          grep "const clientId" background-functions.js
+
+      - name: Verify no dev clientId remains
+        run: |
+          # Fail if dev clientId is still present in any source file
+          if grep -r "lt060jwpltwp3weqdk53dx450aj99p" --include="*.js" .; then
+            echo "ERROR: Dev clientId still found in source files!"
+            exit 1
+          fi
+          echo "OK: No dev clientId found in source files."
 
       - name: Create release ZIP
         run: |
@@ -78,6 +87,8 @@ jobs:
             -x "eslint.config.js" \
             -x ".gitignore" \
             -x ".DS_Store" \
+            -x "._*" \
+            -x "coverage/*" \
             -x "*.zip"
 
           # List ZIP contents for verification
