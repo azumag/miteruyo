@@ -217,6 +217,8 @@ describe('Background Script', () => {
     });
 
     it('should handle null channel gracefully in checkStreams', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ data: [] }),
@@ -239,6 +241,37 @@ describe('Background Script', () => {
       expect(setCall).toBeDefined();
       // null channel returns null from checkStream
       expect(setCall[0].channels[0]).toBeNull();
+      expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+        'checkStreams error:',
+        expect.anything()
+      );
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('should handle null channel gracefully when MultiTwitch is enabled', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+      });
+
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: true,
+        channels: [null],
+        oauth_token: 'test_token',
+        isEnabledAutoClose: false,
+      });
+
+      await checkStreams();
+
+      expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+        'checkStreams error:',
+        expect.anything()
+      );
+      consoleErrorSpy.mockRestore();
     });
   });
 
