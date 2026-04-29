@@ -1,5 +1,12 @@
 
+let volumeInterval = null;
 
+function stopVolumeInterval() {
+  if (volumeInterval !== null) {
+    clearInterval(volumeInterval);
+    volumeInterval = null;
+  }
+}
 
 // URLからチャンネル名を取得
 function getChannelNameFromUrl() {
@@ -24,7 +31,7 @@ async function applyVolumeSettings() {
 
   // 拡張機能のコンテキストが無効になっている場合は停止
   if (!chrome.runtime?.id) {
-    if (typeof volumeInterval !== 'undefined') clearInterval(volumeInterval);
+    stopVolumeInterval();
     return;
   }
 
@@ -44,7 +51,7 @@ async function applyVolumeSettings() {
   } catch (error) {
     if (error.message.includes('Extension context invalidated')) {
       console.log('[Miteruyo] Extension context invalidated. Stopping script.');
-      if (volumeInterval) clearInterval(volumeInterval);
+      stopVolumeInterval();
       return;
     }
     console.error('[Miteruyo] Error:', error);
@@ -93,7 +100,7 @@ urlObserver.observe(document, { subtree: true, childList: true });
 // クリーンアップ
 function cleanup() {
   urlObserver.disconnect();
-  clearInterval(volumeInterval);
+  stopVolumeInterval();
 }
 
 window.addEventListener('beforeunload', cleanup);
@@ -103,4 +110,4 @@ setTimeout(applyVolumeSettings, 1000);
 setTimeout(applyVolumeSettings, 3000);
 
 // 定期的にチェック（プレイヤーが起動時にミュートされる場合などの対策）
-const volumeInterval = setInterval(applyVolumeSettings, 5000);
+volumeInterval = setInterval(applyVolumeSettings, 5000);
