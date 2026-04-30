@@ -226,7 +226,8 @@ export async function checkStreams() {
       channels.map(channel =>
         checkStream(channel, oauth_token)
           .catch(error => {
-            console.error(`Error checking channel ${channel.name}:`, error);
+            const channelName = channel?.name || '(unknown channel)';
+            console.error(`Error checking channel ${channelName}:`, error);
             // エラー時は既存のチャンネル情報を返す（statusをerrorに設定）
             return { ...channel, status: 'error' };
           })
@@ -252,6 +253,10 @@ export async function checkStreams() {
     for (let i = 0; i < updatedChannels.length; i++) {
       const newStatus = updatedChannels[i];
       const oldStatus = channels[i]; // channels は更新前のリスト
+
+      if (!newStatus) {
+        continue;
+      }
 
       console.log(`Notification check for ${newStatus.name}:`, {
         newLive: newStatus.onLive,
@@ -283,14 +288,17 @@ export async function checkStreams() {
       }
     }
 
+    // null/undefined チャンネルは後続のタブ操作対象から除外
+    const activeChannels = updatedChannels.filter(channel => channel);
+
     const isOpenMultiTwitch = data.isOpenMultiTwitch;
     if (data.isEnabled) {
       if (isOpenMultiTwitch) {
         channelQueuedStreamsInMultiTwitch();
       } else {
         // 優先チャンネルのためにスロットを確保
-        await displaceNonPriorityTabs(updatedChannels);
-        await channelQueuedStreams(updatedChannels);
+        await displaceNonPriorityTabs(activeChannels);
+        await channelQueuedStreams(activeChannels);
       }
     } else {
       console.log('checkStreams: Auto-open skipped as isEnabled is false');
@@ -299,7 +307,7 @@ export async function checkStreams() {
     // オフラインまたはフィルター条件外のチャンネルのタブを自動で閉じる
     const enableAutoClose = (await chrome.storage.local.get('isEnabledAutoClose')).isEnabledAutoClose;
     if (enableAutoClose) {
-      await closeUnwantedTabs(updatedChannels);
+      await closeUnwantedTabs(activeChannels);
     }
 
     console.log('checkStreams completed at:', new Date().toISOString());
@@ -371,6 +379,7 @@ export async function displaceNonPriorityTabs(channels) {
   // 開く必要がある優先チャンネル数を算出
   let priorityNeedSlots = 0;
   for (const ch of channels) {
+    if (!ch) continue;
     if (!ch.isPriority) continue;
     if (!(await shouldOpenChannel(ch))) continue;
     const hasTab = twitchTabs.some(t => {
@@ -435,7 +444,7 @@ export async function channelQueuedStreamsInMultiTwitch() {
   const data = await chrome.storage.local.get(['channels', 'isEnabled']);
   if (!data.isEnabled) return;
   const channels = data.channels || [];
-  const liveChannels = channels.filter(c => c.onLive && c.onLiveOpen);
+  const liveChannels = channels.filter(c => c && c.onLive && c.onLiveOpen);
   if (liveChannels.length === 0) return;
 
   // MultiTwitch URLの作成
@@ -607,8 +616,9 @@ export async function channelQueuedStreams(channelQueue) {
 
   // 優先チャンネルを先に、非優先をシャッフルして後に処理
   // シャッフルにより非優先チャンネル間でタブスロットを公平に分配
-  const priorityChannels = channelQueue.filter(c => c.isPriority);
-  const nonPriorityChannels = channelQueue.filter(c => !c.isPriority);
+  const safeChannelQueue = channelQueue.filter(c => c);
+  const priorityChannels = safeChannelQueue.filter(c => c.isPriority);
+  const nonPriorityChannels = safeChannelQueue.filter(c => !c.isPriority);
   shuffleArray(nonPriorityChannels);
   const orderedChannels = [...priorityChannels, ...nonPriorityChannels];
 
