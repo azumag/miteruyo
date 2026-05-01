@@ -35,6 +35,19 @@ function migrateOAuthToken(token) {
   return token;
 }
 
+function parseCategoryOptionValue(value) {
+  try {
+    const category = JSON.parse(value);
+    if (!category || typeof category !== 'object' || typeof category.name !== 'string') {
+      return null;
+    }
+    return category;
+  } catch (error) {
+    console.error('Failed to parse category:', error);
+    return null;
+  }
+}
+
 // Category search using Twitch API
 async function searchCategories(query) {
   if (!query || query.length < 1) return [];
@@ -1038,7 +1051,9 @@ async function addChannelToList(channel, newAdded = false) {
   allowDropdown.addEventListener('change', () => {
     const selectedValue = allowDropdown.value;
     if (selectedValue) {
-      const selected = JSON.parse(selectedValue);
+      const selected = parseCategoryOptionValue(selectedValue);
+      if (!selected) return;
+
       const isAlreadyAllowed = currentAllowed.some(c =>
         (selected.id && c.id === selected.id) || c.name === selected.name
       );
