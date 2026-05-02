@@ -621,6 +621,8 @@ export async function channelQueuedStreams(channelQueue) {
   const nonPriorityChannels = safeChannelQueue.filter(c => !c.isPriority);
   shuffleArray(nonPriorityChannels);
   const orderedChannels = [...priorityChannels, ...nonPriorityChannels];
+  const max = maxTabCount || 5;
+  let currentTabCount = isEnabledMaxTabs ? await countTwitchChannelTabs() : 0;
 
   if (isOpenNewWindow) {
     // ループ内で更新するためにletで宣言
@@ -628,8 +630,7 @@ export async function channelQueuedStreams(channelQueue) {
 
     for (const channel of orderedChannels) {
       if (isEnabledMaxTabs) {
-        const currentCount = await countTwitchChannelTabs();
-        if (currentCount >= (maxTabCount || 5)) break;
+        if (currentTabCount >= max) break;
       }
       if (await shouldOpenChannel(channel)) {
         console.log('channelQueueStreams', { currentWindowId });
@@ -643,6 +644,7 @@ export async function channelQueuedStreams(channelQueue) {
           if (wasOpened) {
             channel.hasBeenOpened = true;
             channelOpened = true;
+            currentTabCount++;
           }
         } else {
           // 新しいウィンドウを作成する必要がある
@@ -659,6 +661,7 @@ export async function channelQueuedStreams(channelQueue) {
             console.log('New window created, ID:', currentWindowId);
             channel.hasBeenOpened = true;
             channelOpened = true;
+            currentTabCount++;
           }
         }
       }
@@ -666,14 +669,14 @@ export async function channelQueuedStreams(channelQueue) {
   } else {
     for (const channel of orderedChannels) {
       if (isEnabledMaxTabs) {
-        const currentCount = await countTwitchChannelTabs();
-        if (currentCount >= (maxTabCount || 5)) break;
+        if (currentTabCount >= max) break;
       }
       if (await shouldOpenChannel(channel)) {
         const wasOpened = await openTabIfNotExists(channel);
         if (wasOpened) {
           channel.hasBeenOpened = true;
           channelOpened = true;
+          currentTabCount++;
         }
       }
     }
