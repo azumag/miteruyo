@@ -3,7 +3,12 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 
 describe('Content Script', () => {
-  async function runContentScript({ chromeOverrides = {}, path = '/testchannel' } = {}) {
+  async function runContentScript({
+    chromeOverrides = {},
+    path = '/testchannel',
+    channels = [],
+    videos = [],
+  } = {}) {
     const source = await readFile(new URL('../content.js', import.meta.url), 'utf8');
     const asyncErrors = [];
     const sandbox = {
@@ -17,13 +22,13 @@ describe('Content Script', () => {
       },
       location: { href: `https://www.twitch.tv${path}` },
       document: {
-        querySelectorAll: vi.fn(() => []),
+        querySelectorAll: vi.fn(() => videos),
       },
       chrome: {
         runtime: { id: 'extension-id' },
         storage: {
           local: {
-            get: vi.fn(() => Promise.resolve({ channels: [] })),
+            get: vi.fn(() => Promise.resolve({ channels })),
           },
           onChanged: {
             addListener: vi.fn(),
@@ -92,5 +97,24 @@ describe('Content Script', () => {
     expect(asyncErrors).toEqual([]);
     expect(sandbox.clearInterval).not.toHaveBeenCalled();
     expect(sandbox.setInterval).toHaveBeenCalledWith(expect.any(Function), 5000);
+  });
+
+  it('skips malformed channel entries when applying custom volume', async () => {
+    const video = { volume: 1 };
+    const { sandbox, asyncErrors } = await runContentScript({
+      path: '/TestChannel',
+      videos: [video],
+      channels: [
+        null,
+        {},
+        { name: null },
+        { name: 42 },
+        { name: 'testchannel', enableCustomVolume: true, customVolume: '42' },
+      ],
+    });
+
+    expect(asyncErrors).toEqual([]);
+    expect(sandbox.console.error).not.toHaveBeenCalled();
+    expect(video.volume).toBe(0.42);
   });
 });

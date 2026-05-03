@@ -40,7 +40,9 @@ async function applyVolumeSettings() {
     const channels = data.channels || [];
 
     // 現在のチャンネル情報を探す
-    const channelInfo = channels.find(c => c.name.toLowerCase() === channelName.toLowerCase());
+    const channelInfo = channels.find(c =>
+      c && typeof c.name === 'string' && c.name.toLowerCase() === channelName.toLowerCase()
+    );
 
     console.log(`[Miteruyo] Checking volume for: ${channelName}`, { channelInfo });
 
