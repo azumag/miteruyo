@@ -37,7 +37,7 @@ async function applyVolumeSettings() {
 
   try {
     const data = await chrome.storage.local.get(['channels']);
-    const channels = data.channels || [];
+    const channels = Array.isArray(data.channels) ? data.channels : [];
 
     // 現在のチャンネル情報を探す
     const channelInfo = channels.find(c =>
