@@ -117,4 +117,16 @@ describe('Content Script', () => {
     expect(sandbox.console.error).not.toHaveBeenCalled();
     expect(video.volume).toBe(0.42);
   });
+
+  it('ignores non-array channel storage data when applying volume settings', async () => {
+    const video = { volume: 1 };
+    const { sandbox, asyncErrors } = await runContentScript({
+      videos: [video],
+      channels: { name: 'testchannel', enableCustomVolume: true, customVolume: '42' },
+    });
+
+    expect(asyncErrors).toEqual([]);
+    expect(sandbox.console.error).not.toHaveBeenCalled();
+    expect(video.volume).toBe(1);
+  });
 });
