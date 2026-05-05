@@ -13,6 +13,7 @@ import {
   validateToken,
   migrateOAuthToken,
   channelQueuedStreams,
+  channelQueuedStreamsInMultiTwitch,
   onNotificationClicked,
   openInManagedWindow,
   checkOfflineWithTab,
@@ -272,6 +273,72 @@ describe('Background Script', () => {
         expect.anything()
       );
       consoleErrorSpy.mockRestore();
+    });
+
+    it('should treat non-array stored channels as empty in checkStreams', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      globalThis.fetch = vi.fn();
+
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: { testchannel: { name: 'testchannel' } },
+        oauth_token: 'test_token',
+      });
+
+      await checkStreams();
+
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+      expect(chromeMock.storage.local.set).not.toHaveBeenCalledWith(
+        expect.objectContaining({ channels: expect.anything() })
+      );
+      expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+        'checkStreams error:',
+        expect.anything()
+      );
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
+  describe('channelQueuedStreamsInMultiTwitch', () => {
+    it('should treat non-array stored channels as empty', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        channels: 'broken-channel-data',
+      });
+
+      await channelQueuedStreamsInMultiTwitch();
+
+      expect(chromeMock.tabs.query).not.toHaveBeenCalled();
+      expect(chromeMock.tabs.create).not.toHaveBeenCalled();
+    });
+
+    it('should preserve MultiTwitch URL creation for valid channel arrays', async () => {
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (Array.isArray(keys) && keys.includes('channels')) {
+          return Promise.resolve({
+            isEnabled: true,
+            channels: [
+              { name: 'first', onLive: true, onLiveOpen: true },
+              { name: 'offline', onLive: false, onLiveOpen: true },
+              { name: 'second', onLive: true, onLiveOpen: true },
+            ],
+          });
+        }
+        if (keys === 'lastOpenWindowId') {
+          return Promise.resolve({ lastOpenWindowId: 10 });
+        }
+        return Promise.resolve({});
+      });
+      chromeMock.tabs.query.mockResolvedValue([]);
+
+      await channelQueuedStreamsInMultiTwitch();
+
+      expect(chromeMock.tabs.create).toHaveBeenCalledWith({
+        url: 'https://multitwitch.tv/first/second',
+        windowId: 10,
+      });
     });
   });
 

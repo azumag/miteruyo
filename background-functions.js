@@ -174,6 +174,10 @@ export function migrateOAuthToken(token) {
   return token;
 }
 
+function normalizeStoredChannels(channels) {
+  return Array.isArray(channels) ? channels : [];
+}
+
 export async function validateToken(token) {
   try {
     const response = await fetch('https://id.twitch.tv/oauth2/validate', {
@@ -193,7 +197,7 @@ export async function checkStreams() {
     console.log('checkStreams data:', {
       isEnabled: data.isEnabled,
       isEnabledNotifications: data.isEnabledNotifications,
-      channelsCount: data.channels?.length,
+      channelsCount: Array.isArray(data.channels) ? data.channels.length : 0,
       hasToken: !!data.oauth_token
     });
 
@@ -202,7 +206,7 @@ export async function checkStreams() {
       return;
     }
 
-    const channels = data.channels || [];
+    const channels = normalizeStoredChannels(data.channels);
     let oauth_token = migrateOAuthToken(data.oauth_token);
 
     if (!oauth_token || typeof oauth_token !== 'string') {
@@ -443,7 +447,7 @@ export function showNotification(channel) {
 export async function channelQueuedStreamsInMultiTwitch() {
   const data = await chrome.storage.local.get(['channels', 'isEnabled']);
   if (!data.isEnabled) return;
-  const channels = data.channels || [];
+  const channels = normalizeStoredChannels(data.channels);
   const liveChannels = channels.filter(c => c && c.onLive && c.onLiveOpen);
   if (liveChannels.length === 0) return;
 
@@ -816,6 +820,7 @@ function shuffleArray(arr) {
 }
 
 function channelURL(channel) {
+  if (channel.url) return channel.url;
   return twitchDomain + '/' + channel.name;
 }
 
