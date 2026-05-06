@@ -35,6 +35,10 @@ function migrateOAuthToken(token) {
   return token;
 }
 
+function normalizeStoredChannels(channels) {
+  return Array.isArray(channels) ? channels : [];
+}
+
 function parseCategoryOptionValue(value) {
   try {
     const category = JSON.parse(value);
@@ -535,7 +539,7 @@ chrome.storage.local.get(
     }
     if (migratedToken) {
       const connected = await checkTwitchConnection(migratedToken);
-      if (connected) updateList(data.channels);
+      if (connected) updateList(normalizeStoredChannels(data.channels));
     } else {
       rewriteNeedsLoginButton(false);
     }
@@ -546,7 +550,7 @@ chrome.storage.local.get(
 
 async function updateList(dchannels) {
   const checkStreams = [];
-  for (const _channel of dchannels) {
+  for (const _channel of normalizeStoredChannels(dchannels)) {
     checkStreams.push(
       checkStream(_channel)
         .then((channel) => {
@@ -1340,7 +1344,7 @@ async function addChannelToList(channel, newAdded = false) {
 
 function removeChannel(channel) {
   chrome.storage.local.get('channels', (data) => {
-    const newChannels = data.channels.filter((c) => c.name !== channel.name);
+    const newChannels = normalizeStoredChannels(data.channels).filter((c) => c?.name !== channel.name);
     chrome.storage.local.set({ channels: newChannels });
   });
 }
@@ -1381,23 +1385,24 @@ addChannelBtn.addEventListener('click', async () => {
 
 async function duplicatedChannel(channel) {
   const data = await chrome.storage.local.get('channels');
-  return (data.channels.findIndex((c) => c?.name === channel.name) !== -1);
+  return (normalizeStoredChannels(data.channels).findIndex((c) => c?.name === channel.name) !== -1);
 }
 
 function saveChannelToList(channel) {
   chrome.storage.local.get('channels', (data) => {
-    if (Object.keys(data).length === 0) {
+    const storedChannels = normalizeStoredChannels(data.channels);
+    if (storedChannels.length === 0) {
       const newChannels = [channel];
       chrome.storage.local.set({ channels: newChannels });
     } else {
-      const index = data.channels.findIndex((c) => c?.name === channel.name);
+      const index = storedChannels.findIndex((c) => c?.name === channel.name);
 
       if (index !== -1) {
-        data.channels.splice(index, 1);
+        storedChannels.splice(index, 1);
       }
 
       // nullを削除
-      const filteredChannels = data.channels.filter(c => c !== null);
+      const filteredChannels = storedChannels.filter(c => c !== null);
       const newChannels = [...filteredChannels, channel];
       chrome.storage.local.set({ channels: newChannels });
     }
@@ -1494,7 +1499,7 @@ async function refreshList() {
   }
 
   const data = await chrome.storage.local.get('channels');
-  updateList(data.channels);
+  updateList(normalizeStoredChannels(data.channels));
 }
 
 
