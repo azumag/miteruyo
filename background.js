@@ -95,7 +95,7 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
       };
 
       const data = await chrome.storage.local.get('channels');
-      const channels = data.channels || [];
+      const channels = Array.isArray(data.channels) ? data.channels : [];
       const index = channels.findIndex((c) => c?.name === channel.name);
 
       if (index === -1) {
