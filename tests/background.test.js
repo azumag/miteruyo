@@ -845,6 +845,54 @@ describe('Background Script', () => {
       });
       expect(result).toBe(true);
     });
+
+    it('should ignore non-array category filters without throwing', async () => {
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string' && keys === 'isSkipBrandedContent') {
+          return Promise.resolve({ isSkipBrandedContent: false });
+        }
+        return Promise.resolve({
+          allowedOnlyCategoryList: { id: '123', name: 'Broken Allowed Only' },
+          blockedCategoryList: 'Broken Blocked',
+          blockedCategoryNames: '',
+        });
+      });
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        game_id: '456',
+        game_name: 'Test Game',
+        allowedOnlyCategoryList: 'Broken Channel Allowed Only',
+        blockedCategoryList: { id: '456', name: 'Broken Channel Blocked' },
+        allowedCategoryList: { id: '456', name: 'Broken Channel Allowed' },
+      });
+
+      expect(result).toBe(true);
+    });
+
+    it('should preserve string category filter entries', async () => {
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string' && keys === 'isSkipBrandedContent') {
+          return Promise.resolve({ isSkipBrandedContent: false });
+        }
+        return Promise.resolve({
+          allowedOnlyCategoryList: [],
+          blockedCategoryList: ['Blocked Game'],
+          blockedCategoryNames: '',
+        });
+      });
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        game_name: 'Blocked Game',
+      });
+
+      expect(result).toBe(false);
+    });
   });
 
   describe('tabRotationAlarm', () => {

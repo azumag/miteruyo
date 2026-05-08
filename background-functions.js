@@ -178,6 +178,14 @@ function normalizeStoredChannels(channels) {
   return Array.isArray(channels) ? channels : [];
 }
 
+function normalizeCategoryList(categories) {
+  if (!Array.isArray(categories)) return [];
+
+  return categories.map(item =>
+    typeof item === 'string' ? { id: null, name: item } : (item || { id: null, name: '' })
+  ).filter(item => item.name);
+}
+
 export async function validateToken(token) {
   try {
     const response = await fetch('https://id.twitch.tv/oauth2/validate', {
@@ -512,14 +520,10 @@ export async function shouldOpenChannel(channel, { forAutoClose = false } = {}) 
   // Priority: allowedOnlyCategoryList > blocked/allowed lists
 
   // Check for allowed-only categories (individual then global)
-  const channelAllowedOnlyList = (channel.allowedOnlyCategoryList || []).map(item =>
-    typeof item === 'string' ? { id: null, name: item } : (item || { id: null, name: '' })
-  ).filter(item => item.name);
+  const channelAllowedOnlyList = normalizeCategoryList(channel.allowedOnlyCategoryList);
 
   const storageData = await chrome.storage.local.get(['allowedOnlyCategoryList', 'blockedCategoryList', 'blockedCategoryNames']);
-  const globalAllowedOnlyList = (storageData.allowedOnlyCategoryList || []).map(item =>
-    typeof item === 'string' ? { id: null, name: item } : (item || { id: null, name: '' })
-  ).filter(item => item.name);
+  const globalAllowedOnlyList = normalizeCategoryList(storageData.allowedOnlyCategoryList);
 
   // If allowed-only list is set (individual or global), ONLY open if category matches
   if (channelAllowedOnlyList.length > 0 || globalAllowedOnlyList.length > 0) {
@@ -549,7 +553,7 @@ export async function shouldOpenChannel(channel, { forAutoClose = false } = {}) 
   }
 
   // Original blocked/allowed logic (when no allowed-only list is set)
-  let globalBlockedList = storageData.blockedCategoryList || [];
+  let globalBlockedList = normalizeCategoryList(storageData.blockedCategoryList);
 
   // Migrate from old comma-separated format if needed
   if (globalBlockedList.length === 0 && storageData.blockedCategoryNames) {
@@ -561,18 +565,9 @@ export async function shouldOpenChannel(channel, { forAutoClose = false } = {}) 
       .map(name => ({ id: null, name }));
   }
 
-  // Normalize to {id, name} format if old string array
-  globalBlockedList = globalBlockedList.map(item =>
-    typeof item === 'string' ? { id: null, name: item } : (item || { id: null, name: '' })
-  ).filter(item => item.name);
+  const channelBlockedList = normalizeCategoryList(channel.blockedCategoryList);
 
-  const channelBlockedList = (channel.blockedCategoryList || []).map(item =>
-    typeof item === 'string' ? { id: null, name: item } : (item || { id: null, name: '' })
-  ).filter(item => item.name);
-
-  const allowedCategoryList = (channel.allowedCategoryList || channel.allowedCategories || []).map(item =>
-    typeof item === 'string' ? { id: null, name: item } : (item || { id: null, name: '' })
-  ).filter(item => item.name);
+  const allowedCategoryList = normalizeCategoryList(channel.allowedCategoryList || channel.allowedCategories);
 
   // Combine both global and channel-specific blocked categories
   const combinedBlockedList = [...globalBlockedList, ...channelBlockedList];
