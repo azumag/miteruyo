@@ -9,6 +9,10 @@ describe('Popup Script', () => {
       source.indexOf('function normalizeStoredChannels'),
       source.indexOf('// Category search using Twitch API')
     );
+    const migrationSource = source.slice(
+      source.indexOf('async function migrateBlockedCategories'),
+      source.indexOf('// Migrate allowed-only categories')
+    );
     const sandbox = {
       console: {
         error: vi.fn(),
@@ -17,7 +21,7 @@ describe('Popup Script', () => {
 
     vm.createContext(sandbox);
     vm.runInContext(
-      `${helperSource}\nglobalThis.__testExports = { normalizeStoredChannels, parseCategoryOptionValue };`,
+      `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, migrateBlockedCategories, parseCategoryOptionValue };`,
       sandbox,
       { filename: 'popup.js' }
     );
@@ -54,5 +58,25 @@ describe('Popup Script', () => {
     expect(__testExports.normalizeStoredChannels(null)).toEqual([]);
     expect(__testExports.normalizeStoredChannels('broken')).toEqual([]);
     expect(__testExports.normalizeStoredChannels({ 0: { name: 'broken' } })).toEqual([]);
+  });
+
+  it('keeps migrated blocked category objects with null ids', async () => {
+    const sandbox = await loadPopupTestExports();
+    const { __testExports } = sandbox;
+    const blockedCategoryList = [{ id: null, name: 'Just Chatting' }];
+    const set = vi.fn();
+
+    const chrome = {
+      storage: {
+        local: {
+          get: vi.fn().mockResolvedValue({ blockedCategoryList }),
+          set,
+        },
+      },
+    };
+    sandbox.chrome = chrome;
+
+    await expect(__testExports.migrateBlockedCategories()).resolves.toBe(blockedCategoryList);
+    expect(set).not.toHaveBeenCalled();
   });
 });
