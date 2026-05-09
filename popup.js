@@ -359,7 +359,7 @@ async function migrateBlockedCategories() {
   // Check if already in new format (array of objects with id)
   if (data.blockedCategoryList && Array.isArray(data.blockedCategoryList)) {
     // Check if it's already in {id, name} format
-    if (data.blockedCategoryList.length === 0 || (data.blockedCategoryList[0] && typeof data.blockedCategoryList[0] === 'object' && data.blockedCategoryList[0].id)) {
+    if (data.blockedCategoryList.length === 0 || (data.blockedCategoryList[0] && typeof data.blockedCategoryList[0] === 'object' && 'id' in data.blockedCategoryList[0] && 'name' in data.blockedCategoryList[0])) {
       return data.blockedCategoryList;
     }
     // Migrate from string array to object array (id will be name for backwards compatibility)
