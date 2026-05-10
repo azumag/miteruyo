@@ -21,7 +21,7 @@ describe('Popup Script', () => {
 
     vm.createContext(sandbox);
     vm.runInContext(
-      `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, migrateBlockedCategories, parseCategoryOptionValue };`,
+      `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, normalizeCategoryList, migrateBlockedCategories, parseCategoryOptionValue };`,
       sandbox,
       { filename: 'popup.js' }
     );
@@ -58,6 +58,20 @@ describe('Popup Script', () => {
     expect(__testExports.normalizeStoredChannels(null)).toEqual([]);
     expect(__testExports.normalizeStoredChannels('broken')).toEqual([]);
     expect(__testExports.normalizeStoredChannels({ 0: { name: 'broken' } })).toEqual([]);
+  });
+
+  it('normalizes popup category lists before channel row rendering uses them', async () => {
+    const { __testExports } = await loadPopupTestExports();
+    const categories = [{ id: '1', name: 'Just Chatting' }];
+
+    expect(__testExports.normalizeCategoryList(categories)).toEqual(categories);
+    expect(__testExports.normalizeCategoryList(['Just Chatting'])).toEqual([
+      { id: null, name: 'Just Chatting' },
+    ]);
+    expect(__testExports.normalizeCategoryList(null)).toEqual([]);
+    expect(__testExports.normalizeCategoryList('broken')).toEqual([]);
+    expect(__testExports.normalizeCategoryList({ 0: { id: '1', name: 'Broken' } })).toEqual([]);
+    expect(__testExports.normalizeCategoryList([{ id: '1' }, null, 1])).toEqual([]);
   });
 
   it('keeps migrated blocked category objects with null ids', async () => {

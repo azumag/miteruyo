@@ -39,6 +39,23 @@ function normalizeStoredChannels(channels) {
   return Array.isArray(channels) ? channels : [];
 }
 
+function normalizeCategoryList(categories) {
+  if (!Array.isArray(categories)) return [];
+
+  return categories
+    .map(category => {
+      if (typeof category === 'string') {
+        return { id: null, name: category };
+      }
+      return category;
+    })
+    .filter(category =>
+      category &&
+      typeof category === 'object' &&
+      typeof category.name === 'string'
+    );
+}
+
 function parseCategoryOptionValue(value) {
   try {
     const category = JSON.parse(value);
@@ -336,7 +353,7 @@ const channelCleanups = [];
 // Render category tags (shared implementation for DRY)
 function renderCategoryTags({ container, categories, badgeClass, onDelete }) {
   container.innerHTML = '';
-  categories.forEach(cat => {
+  normalizeCategoryList(categories).forEach(cat => {
     const tag = document.createElement('span');
     tag.className = `badge ${badgeClass} d-flex align-items-center`;
     tag.textContent = cat.name;
@@ -999,12 +1016,14 @@ async function addChannelToList(channel, newAdded = false) {
 
   // Current allowed categories (array of {id, name} or legacy string array)
   // Migrate legacy format if needed
-  let currentAllowed = channel.allowedCategoryList || [];
-  if (currentAllowed.length === 0 && channel.allowedCategories && Array.isArray(channel.allowedCategories)) {
+  let currentAllowed = normalizeCategoryList(channel.allowedCategoryList);
+  if (currentAllowed.length > 0 && Array.isArray(channel.allowedCategoryList) && typeof channel.allowedCategoryList[0] === 'string') {
+    channel.allowedCategoryList = currentAllowed;
+    saveChannelToList(channel);
+  }
+  if (currentAllowed.length === 0 && Array.isArray(channel.allowedCategories)) {
     // Migrate from old string array format
-    currentAllowed = channel.allowedCategories.map(name =>
-      typeof name === 'string' ? { id: null, name } : name
-    );
+    currentAllowed = normalizeCategoryList(channel.allowedCategories);
     channel.allowedCategoryList = currentAllowed;
     saveChannelToList(channel);
   }
@@ -1033,7 +1052,7 @@ async function addChannelToList(channel, newAdded = false) {
     }
 
     chrome.storage.local.get('blockedCategoryList', (data) => {
-      const categories = data.blockedCategoryList || [];
+      const categories = normalizeCategoryList(data.blockedCategoryList);
       categories.forEach(cat => {
         // Check if already in allowed list (by id or name)
         const isAlreadyAllowed = currentAllowed.some(c =>
@@ -1123,7 +1142,11 @@ async function addChannelToList(channel, newAdded = false) {
   allowedOnlyTagList.className = 'd-flex flex-wrap gap-1 mb-1';
 
   // Current allowed-only categories (array of {id, name})
-  let currentAllowedOnly = channel.allowedOnlyCategoryList || [];
+  let currentAllowedOnly = normalizeCategoryList(channel.allowedOnlyCategoryList);
+  if (currentAllowedOnly.length > 0 && Array.isArray(channel.allowedOnlyCategoryList) && typeof channel.allowedOnlyCategoryList[0] === 'string') {
+    channel.allowedOnlyCategoryList = currentAllowedOnly;
+    saveChannelToList(channel);
+  }
 
   // Function to render the tag list
   const renderAllowedOnlyTags = () => {
@@ -1189,11 +1212,10 @@ async function addChannelToList(channel, newAdded = false) {
   catContentDiv.className = 'ps-3';
 
   // Migrate old formats to {id, name} array if needed
-  let channelBlockedCategories = channel.blockedCategoryList || [];
+  let channelBlockedCategories = normalizeCategoryList(channel.blockedCategoryList);
   // Check if it's in old string array or comma-separated format
-  if (channelBlockedCategories.length > 0 && typeof channelBlockedCategories[0] === 'string') {
-    // Migrate from string array
-    channelBlockedCategories = channelBlockedCategories.map(name => ({ id: null, name }));
+  if (channelBlockedCategories.length > 0 && Array.isArray(channel.blockedCategoryList) && typeof channel.blockedCategoryList[0] === 'string') {
+    // Persist migrated string array
     channel.blockedCategoryList = channelBlockedCategories;
     saveChannelToList(channel);
   } else if (channelBlockedCategories.length === 0 && channel.blockedCategories) {
@@ -1218,7 +1240,7 @@ async function addChannelToList(channel, newAdded = false) {
 
   const checkCatOverlap = () => {
     chrome.storage.local.get('blockedCategoryList', (data) => {
-      const globalBlocked = data.blockedCategoryList || [];
+      const globalBlocked = normalizeCategoryList(data.blockedCategoryList);
       if (globalBlocked.length === 0) {
         catAlert.classList.add('d-none');
         return;
@@ -1300,7 +1322,7 @@ async function addChannelToList(channel, newAdded = false) {
   // Function to update UI state based on allowed-only categories
   const updateChannelCategoryUIState = () => {
     chrome.storage.local.get('allowedOnlyCategoryList', (data) => {
-      const globalAllowedOnly = data.allowedOnlyCategoryList || [];
+      const globalAllowedOnly = normalizeCategoryList(data.allowedOnlyCategoryList);
       const hasChannelAllowedOnly = currentAllowedOnly.length > 0;
       const hasGlobalAllowedOnly = globalAllowedOnly.length > 0;
       const hasAllowedOnly = hasChannelAllowedOnly || hasGlobalAllowedOnly;
