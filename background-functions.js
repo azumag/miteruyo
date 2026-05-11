@@ -181,9 +181,16 @@ function normalizeStoredChannels(channels) {
 function normalizeCategoryList(categories) {
   if (!Array.isArray(categories)) return [];
 
-  return categories.map(item =>
-    typeof item === 'string' ? { id: null, name: item } : (item || { id: null, name: '' })
-  ).filter(item => item.name);
+  return categories
+    .map(item =>
+      typeof item === 'string' ? { id: null, name: item } : item
+    )
+    .filter(item =>
+      item &&
+      typeof item === 'object' &&
+      typeof item.name === 'string' &&
+      item.name
+    );
 }
 
 export async function validateToken(token) {

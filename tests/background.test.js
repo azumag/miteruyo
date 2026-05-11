@@ -893,6 +893,41 @@ describe('Background Script', () => {
 
       expect(result).toBe(false);
     });
+
+    it('should ignore category filter entries with non-string names without throwing', async () => {
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string' && keys === 'isSkipBrandedContent') {
+          return Promise.resolve({ isSkipBrandedContent: false });
+        }
+        return Promise.resolve({
+          allowedOnlyCategoryList: [
+            { id: '999', name: { broken: true } },
+            { id: '123', name: 'Allowed Game' },
+          ],
+          blockedCategoryList: [
+            { id: '456', name: 123 },
+            { id: '789', name: 'Other Blocked Game' },
+          ],
+          blockedCategoryNames: '',
+        });
+      });
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        game_id: '123',
+        game_name: 'Allowed Game',
+        allowedOnlyCategoryList: [
+          { id: '456', name: ['broken'] },
+          { id: '123', name: 'Allowed Game' },
+        ],
+        allowedCategoryList: [{ id: '456', name: { broken: true } }],
+        blockedCategoryList: [{ id: '456', name: { broken: true } }],
+      });
+
+      expect(result).toBe(true);
+    });
   });
 
   describe('tabRotationAlarm', () => {
