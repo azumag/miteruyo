@@ -404,14 +404,15 @@ async function migrateBlockedCategories() {
 async function migrateAllowedOnlyCategories() {
   const data = await chrome.storage.local.get(['allowedOnlyCategoryList']);
 
-  // Check if already in new format (array of objects with id)
-  if (data.allowedOnlyCategoryList && Array.isArray(data.allowedOnlyCategoryList)) {
-    // Check if it's already in {id, name} format
-    if (data.allowedOnlyCategoryList.length === 0 || (data.allowedOnlyCategoryList[0] && typeof data.allowedOnlyCategoryList[0] === 'object' && 'id' in data.allowedOnlyCategoryList[0])) {
+  if (Array.isArray(data.allowedOnlyCategoryList)) {
+    const migrated = normalizeCategoryList(data.allowedOnlyCategoryList);
+    const alreadyNormalized = migrated.length === data.allowedOnlyCategoryList.length &&
+      migrated.every((category, index) => category === data.allowedOnlyCategoryList[index]);
+
+    if (alreadyNormalized) {
       return data.allowedOnlyCategoryList;
     }
-    // Migrate from string array to object array (id will be null for backwards compatibility)
-    const migrated = data.allowedOnlyCategoryList.map(name => ({ id: null, name }));
+
     await chrome.storage.local.set({ allowedOnlyCategoryList: migrated });
     return migrated;
   }

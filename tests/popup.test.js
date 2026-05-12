@@ -11,7 +11,7 @@ describe('Popup Script', () => {
     );
     const migrationSource = source.slice(
       source.indexOf('async function migrateBlockedCategories'),
-      source.indexOf('// Migrate allowed-only categories')
+      source.indexOf('// Render global allowed-only categories tag list')
     );
     const sandbox = {
       console: {
@@ -21,7 +21,7 @@ describe('Popup Script', () => {
 
     vm.createContext(sandbox);
     vm.runInContext(
-      `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, normalizeCategoryList, migrateBlockedCategories, parseCategoryOptionValue };`,
+      `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, normalizeCategoryList, migrateBlockedCategories, migrateAllowedOnlyCategories, parseCategoryOptionValue };`,
       sandbox,
       { filename: 'popup.js' }
     );
@@ -92,5 +92,32 @@ describe('Popup Script', () => {
 
     await expect(__testExports.migrateBlockedCategories()).resolves.toBe(blockedCategoryList);
     expect(set).not.toHaveBeenCalled();
+  });
+
+  it('normalizes malformed allowed-only category objects during migration', async () => {
+    const sandbox = await loadPopupTestExports();
+    const { __testExports } = sandbox;
+    const allowedOnlyCategoryList = [
+      { id: '1' },
+      { id: '2', name: { broken: true } },
+      { id: '3', name: 'Just Chatting' },
+    ];
+    const set = vi.fn();
+
+    sandbox.chrome = {
+      storage: {
+        local: {
+          get: vi.fn().mockResolvedValue({ allowedOnlyCategoryList }),
+          set,
+        },
+      },
+    };
+
+    await expect(__testExports.migrateAllowedOnlyCategories()).resolves.toEqual([
+      { id: '3', name: 'Just Chatting' },
+    ]);
+    expect(set).toHaveBeenCalledWith({
+      allowedOnlyCategoryList: [{ id: '3', name: 'Just Chatting' }],
+    });
   });
 });
