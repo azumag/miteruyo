@@ -94,6 +94,33 @@ describe('Popup Script', () => {
     expect(set).not.toHaveBeenCalled();
   });
 
+  it('normalizes malformed blocked category objects during migration', async () => {
+    const sandbox = await loadPopupTestExports();
+    const { __testExports } = sandbox;
+    const blockedCategoryList = [
+      { id: '1' },
+      { id: '2', name: { broken: true } },
+      { id: '3', name: 'Just Chatting' },
+    ];
+    const set = vi.fn();
+
+    sandbox.chrome = {
+      storage: {
+        local: {
+          get: vi.fn().mockResolvedValue({ blockedCategoryList }),
+          set,
+        },
+      },
+    };
+
+    await expect(__testExports.migrateBlockedCategories()).resolves.toEqual([
+      { id: '3', name: 'Just Chatting' },
+    ]);
+    expect(set).toHaveBeenCalledWith({
+      blockedCategoryList: [{ id: '3', name: 'Just Chatting' }],
+    });
+  });
+
   it('normalizes malformed allowed-only category objects during migration', async () => {
     const sandbox = await loadPopupTestExports();
     const { __testExports } = sandbox;
