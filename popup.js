@@ -373,14 +373,15 @@ function renderCategoryTags({ container, categories, badgeClass, onDelete }) {
 async function migrateBlockedCategories() {
   const data = await chrome.storage.local.get(['blockedCategoryNames', 'blockedCategoryList']);
 
-  // Check if already in new format (array of objects with id)
-  if (data.blockedCategoryList && Array.isArray(data.blockedCategoryList)) {
-    // Check if it's already in {id, name} format
-    if (data.blockedCategoryList.length === 0 || (data.blockedCategoryList[0] && typeof data.blockedCategoryList[0] === 'object' && 'id' in data.blockedCategoryList[0] && 'name' in data.blockedCategoryList[0])) {
+  if (Array.isArray(data.blockedCategoryList)) {
+    const migrated = normalizeCategoryList(data.blockedCategoryList);
+    const alreadyNormalized = migrated.length === data.blockedCategoryList.length &&
+      migrated.every((category, index) => category === data.blockedCategoryList[index]);
+
+    if (alreadyNormalized) {
       return data.blockedCategoryList;
     }
-    // Migrate from string array to object array (id will be name for backwards compatibility)
-    const migrated = data.blockedCategoryList.map(name => ({ id: null, name }));
+
     await chrome.storage.local.set({ blockedCategoryList: migrated });
     return migrated;
   }
