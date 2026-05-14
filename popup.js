@@ -52,7 +52,8 @@ function normalizeCategoryList(categories) {
     .filter(category =>
       category &&
       typeof category === 'object' &&
-      typeof category.name === 'string'
+      typeof category.name === 'string' &&
+      category.name !== ''
     );
 }
 
