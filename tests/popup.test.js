@@ -71,7 +71,7 @@ describe('Popup Script', () => {
     expect(__testExports.normalizeCategoryList(null)).toEqual([]);
     expect(__testExports.normalizeCategoryList('broken')).toEqual([]);
     expect(__testExports.normalizeCategoryList({ 0: { id: '1', name: 'Broken' } })).toEqual([]);
-    expect(__testExports.normalizeCategoryList([{ id: '1' }, null, 1])).toEqual([]);
+    expect(__testExports.normalizeCategoryList([{ id: '1' }, { id: '2', name: '' }, '', null, 1])).toEqual([]);
   });
 
   it('keeps migrated blocked category objects with null ids', async () => {
@@ -100,6 +100,7 @@ describe('Popup Script', () => {
     const blockedCategoryList = [
       { id: '1' },
       { id: '2', name: { broken: true } },
+      { id: '3', name: '' },
       { id: '3', name: 'Just Chatting' },
     ];
     const set = vi.fn();
@@ -127,6 +128,7 @@ describe('Popup Script', () => {
     const allowedOnlyCategoryList = [
       { id: '1' },
       { id: '2', name: { broken: true } },
+      { id: '3', name: '' },
       { id: '3', name: 'Just Chatting' },
     ];
     const set = vi.fn();
