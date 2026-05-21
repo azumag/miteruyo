@@ -928,6 +928,54 @@ describe('Background Script', () => {
 
       expect(result).toBe(true);
     });
+
+    it('should ignore whitespace-only allowed-only category names', async () => {
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string' && keys === 'isSkipBrandedContent') {
+          return Promise.resolve({ isSkipBrandedContent: false });
+        }
+        return Promise.resolve({
+          allowedOnlyCategoryList: [{ id: '999', name: '   ' }],
+          blockedCategoryList: [],
+          blockedCategoryNames: '',
+        });
+      });
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        game_id: '123',
+        game_name: 'Test Game',
+        allowedOnlyCategoryList: [{ id: '456', name: '   ' }],
+      });
+
+      expect(result).toBe(true);
+    });
+
+    it('should ignore whitespace-only blocked category names', async () => {
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string' && keys === 'isSkipBrandedContent') {
+          return Promise.resolve({ isSkipBrandedContent: false });
+        }
+        return Promise.resolve({
+          allowedOnlyCategoryList: [],
+          blockedCategoryList: [{ id: '123', name: '   ' }],
+          blockedCategoryNames: '',
+        });
+      });
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        game_id: '123',
+        game_name: 'Test Game',
+        blockedCategoryList: [{ id: '123', name: '   ' }],
+      });
+
+      expect(result).toBe(true);
+    });
   });
 
   describe('tabRotationAlarm', () => {
