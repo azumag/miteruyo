@@ -189,7 +189,7 @@ function normalizeCategoryList(categories) {
       item &&
       typeof item === 'object' &&
       typeof item.name === 'string' &&
-      item.name
+      item.name.trim() !== ''
     );
 }
 

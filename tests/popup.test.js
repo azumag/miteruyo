@@ -71,7 +71,7 @@ describe('Popup Script', () => {
     expect(__testExports.normalizeCategoryList(null)).toEqual([]);
     expect(__testExports.normalizeCategoryList('broken')).toEqual([]);
     expect(__testExports.normalizeCategoryList({ 0: { id: '1', name: 'Broken' } })).toEqual([]);
-    expect(__testExports.normalizeCategoryList([{ id: '1' }, { id: '2', name: '' }, '', null, 1])).toEqual([]);
+    expect(__testExports.normalizeCategoryList([{ id: '1' }, { id: '2', name: '' }, { id: '3', name: '   ' }, '', '  ', null, 1])).toEqual([]);
   });
 
   it('keeps migrated blocked category objects with null ids', async () => {
@@ -101,7 +101,8 @@ describe('Popup Script', () => {
       { id: '1' },
       { id: '2', name: { broken: true } },
       { id: '3', name: '' },
-      { id: '3', name: 'Just Chatting' },
+      { id: '4', name: '   ' },
+      { id: '5', name: 'Just Chatting' },
     ];
     const set = vi.fn();
 
@@ -115,10 +116,10 @@ describe('Popup Script', () => {
     };
 
     await expect(__testExports.migrateBlockedCategories()).resolves.toEqual([
-      { id: '3', name: 'Just Chatting' },
+      { id: '5', name: 'Just Chatting' },
     ]);
     expect(set).toHaveBeenCalledWith({
-      blockedCategoryList: [{ id: '3', name: 'Just Chatting' }],
+      blockedCategoryList: [{ id: '5', name: 'Just Chatting' }],
     });
   });
 
@@ -129,7 +130,8 @@ describe('Popup Script', () => {
       { id: '1' },
       { id: '2', name: { broken: true } },
       { id: '3', name: '' },
-      { id: '3', name: 'Just Chatting' },
+      { id: '4', name: '   ' },
+      { id: '5', name: 'Just Chatting' },
     ];
     const set = vi.fn();
 
@@ -143,10 +145,10 @@ describe('Popup Script', () => {
     };
 
     await expect(__testExports.migrateAllowedOnlyCategories()).resolves.toEqual([
-      { id: '3', name: 'Just Chatting' },
+      { id: '5', name: 'Just Chatting' },
     ]);
     expect(set).toHaveBeenCalledWith({
-      allowedOnlyCategoryList: [{ id: '3', name: 'Just Chatting' }],
+      allowedOnlyCategoryList: [{ id: '5', name: 'Just Chatting' }],
     });
   });
 });
