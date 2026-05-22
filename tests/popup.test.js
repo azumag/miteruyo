@@ -21,7 +21,7 @@ describe('Popup Script', () => {
 
     vm.createContext(sandbox);
     vm.runInContext(
-      `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, normalizeCategoryList, migrateBlockedCategories, migrateAllowedOnlyCategories, parseCategoryOptionValue };`,
+      `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, normalizeCategoryList, migrateBlockedCategories, migrateAllowedOnlyCategories, parseCategoryOptionValue, isSameCategory, includesCategory };`,
       sandbox,
       { filename: 'popup.js' }
     );
@@ -150,5 +150,40 @@ describe('Popup Script', () => {
     expect(set).toHaveBeenCalledWith({
       allowedOnlyCategoryList: [{ id: '5', name: 'Just Chatting' }],
     });
+  });
+
+  it('matches categories by id when both categories have ids', async () => {
+    const { __testExports } = await loadPopupTestExports();
+
+    expect(__testExports.isSameCategory(
+      { id: '509658', name: 'Just Chatting' },
+      { id: '509658', name: 'Different Name' }
+    )).toBe(true);
+    expect(__testExports.isSameCategory(
+      { id: '509658', name: 'Just Chatting' },
+      { id: '123', name: 'Just Chatting' }
+    )).toBe(false);
+  });
+
+  it('matches legacy categories by name when either id is missing', async () => {
+    const { __testExports } = await loadPopupTestExports();
+    const legacyCategory = { id: null, name: ' Just Chatting ' };
+    const twitchCategory = { id: '509658', name: 'just chatting' };
+
+    expect(__testExports.isSameCategory(legacyCategory, twitchCategory)).toBe(true);
+    expect(__testExports.includesCategory([legacyCategory], twitchCategory)).toBe(true);
+  });
+
+  it('does not match unmatched legacy names or empty names', async () => {
+    const { __testExports } = await loadPopupTestExports();
+
+    expect(__testExports.isSameCategory(
+      { id: null, name: 'Just Chatting' },
+      { id: '509658', name: 'Music' }
+    )).toBe(false);
+    expect(__testExports.isSameCategory(
+      { id: null, name: ' ' },
+      { id: null, name: '' }
+    )).toBe(false);
   });
 });
