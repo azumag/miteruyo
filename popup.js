@@ -70,6 +70,22 @@ function parseCategoryOptionValue(value) {
   }
 }
 
+function normalizeCategoryName(category) {
+  return typeof category?.name === 'string' ? category.name.trim().toLowerCase() : '';
+}
+
+function isSameCategory(category, otherCategory) {
+  if (!category || !otherCategory) return false;
+  if (category.id && otherCategory.id) return category.id === otherCategory.id;
+  const categoryName = normalizeCategoryName(category);
+  const otherCategoryName = normalizeCategoryName(otherCategory);
+  return categoryName !== '' && categoryName === otherCategoryName;
+}
+
+function includesCategory(categories, category) {
+  return categories.some(existingCategory => isSameCategory(existingCategory, category));
+}
+
 // Category search using Twitch API
 async function searchCategories(query) {
   if (!query || query.length < 1) return [];
@@ -145,8 +161,8 @@ function createCategorySearchInput(options) {
         dropdown.appendChild(noResult);
       } else {
         results.forEach(cat => {
-          // Skip if already in the list (compare by id)
-          if (existingCategories.some(c => c.id === cat.id)) return;
+          // Skip if already in the list.
+          if (includesCategory(existingCategories, cat)) return;
 
           const item = document.createElement('button');
           item.type = 'button';
@@ -516,7 +532,7 @@ chrome.storage.local.get(
     globalAllowedOnlyCategorySearch = createCategorySearchInput({
       onSelect: (category) => {
         // category is {id, name} object
-        if (!globalAllowedOnlyCategories.some(c => c.id === category.id)) {
+        if (!includesCategory(globalAllowedOnlyCategories, category)) {
           globalAllowedOnlyCategories.push(category);
           chrome.storage.local.set({ allowedOnlyCategoryList: globalAllowedOnlyCategories });
           renderGlobalAllowedOnlyTags();
@@ -537,7 +553,7 @@ chrome.storage.local.get(
     globalCategorySearch = createCategorySearchInput({
       onSelect: (category) => {
         // category is {id, name} object
-        if (!globalBlockedCategories.some(c => c.id === category.id)) {
+        if (!includesCategory(globalBlockedCategories, category)) {
           globalBlockedCategories.push(category);
           chrome.storage.local.set({ blockedCategoryList: globalBlockedCategories });
           renderGlobalBlockedTags();
@@ -1172,7 +1188,7 @@ async function addChannelToList(channel, newAdded = false) {
   const channelAllowedOnlySearch = createCategorySearchInput({
     onSelect: (category) => {
       // category is {id, name} object
-      if (!currentAllowedOnly.some(c => c.id === category.id)) {
+      if (!includesCategory(currentAllowedOnly, category)) {
         currentAllowedOnly.push(category);
         channel.allowedOnlyCategoryList = currentAllowedOnly;
         saveChannelToList(channel);
@@ -1248,13 +1264,7 @@ async function addChannelToList(channel, newAdded = false) {
         catAlert.classList.add('d-none');
         return;
       }
-      // Compare by id (if available) or name
-      const overlap = channelBlockedCategories.filter(local =>
-        globalBlocked.some(g =>
-          (local.id && g.id && local.id === g.id) ||
-          local.name.toLowerCase() === g.name.toLowerCase()
-        )
-      );
+      const overlap = channelBlockedCategories.filter(local => includesCategory(globalBlocked, local));
       if (overlap.length > 0) {
         catAlert.textContent = chrome.i18n.getMessage('categoryOverlapWarning', [overlap.map(c => c.name).join(', ')]);
         catAlert.classList.remove('d-none');
@@ -1285,7 +1295,7 @@ async function addChannelToList(channel, newAdded = false) {
   const channelCatSearch = createCategorySearchInput({
     onSelect: (category) => {
       // category is {id, name} object
-      if (!channelBlockedCategories.some(c => c.id === category.id)) {
+      if (!includesCategory(channelBlockedCategories, category)) {
         channelBlockedCategories.push(category);
         channel.blockedCategoryList = channelBlockedCategories;
         saveChannelToList(channel);
