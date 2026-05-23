@@ -1539,7 +1539,6 @@ async function refreshList() {
 
 
 loginTwitch.addEventListener('click', () => {
-  console.log(chrome.identity.getRedirectURL());
   const state = crypto.randomUUID();
   chrome.identity.launchWebAuthFlow({
     url: 'https://id.twitch.tv/oauth2/authorize?' +
@@ -1550,37 +1549,38 @@ loginTwitch.addEventListener('click', () => {
       `state=${state}`,
     interactive: true
   }, responseUrl => {
-    console.log({ responseUrl });
-    if (responseUrl) {
-      let hash = new URL(responseUrl).hash;
-      let result = parseHashToObj(hash);
-      if (result.state !== state) {
-        console.error('OAuth state mismatch: possible CSRF attack');
-        rewriteNeedsLoginButton(false);
-        return;
-      }
-      const oauth_token = result.access_token;
-      chrome.storage.local.set({ oauth_token });
-      checkTwitchConnection(oauth_token);
-    } else {
-      console.error('Invalid response URL:', responseUrl);
-      rewriteNeedsLoginButton(false);
-    }
+    handleTwitchAuthResponse(responseUrl, state);
   });
 });
+
+function handleTwitchAuthResponse(responseUrl, state) {
+  if (responseUrl) {
+    let hash = new URL(responseUrl).hash;
+    let result = parseHashToObj(hash);
+    if (result.state !== state) {
+      console.error('OAuth state mismatch: possible CSRF attack');
+      rewriteNeedsLoginButton(false);
+      return;
+    }
+    const oauth_token = result.access_token;
+    chrome.storage.local.set({ oauth_token });
+    checkTwitchConnection(oauth_token);
+  } else {
+    console.error('Invalid response URL:', responseUrl);
+    rewriteNeedsLoginButton(false);
+  }
+}
 
 function parseHashToObj(hash) {
   return Object.fromEntries(new URLSearchParams(hash.replace('#', '')));
 }
 
 function checkTwitchConnection(oauthToken) {
-  console.log('checkTwitch');
   const token = oauthToken;
   return fetch('https://id.twitch.tv/oauth2/validate', {
     headers: { 'Authorization': 'OAuth ' + token },
   })
     .then(response => {
-      console.log(response);
       rewriteNeedsLoginButton(response.ok);
       return response.ok;
     })
