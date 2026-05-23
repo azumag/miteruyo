@@ -15,6 +15,7 @@ describe('Popup Script', () => {
     );
     const sandbox = {
       console: {
+        log: vi.fn(),
         error: vi.fn(),
       }
     };
@@ -22,6 +23,39 @@ describe('Popup Script', () => {
     vm.createContext(sandbox);
     vm.runInContext(
       `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, normalizeCategoryList, migrateBlockedCategories, migrateAllowedOnlyCategories, parseCategoryOptionValue, isSameCategory, includesCategory };`,
+      sandbox,
+      { filename: 'popup.js' }
+    );
+
+    return sandbox;
+  }
+
+  async function loadPopupAuthExports() {
+    const source = await readFile(new URL('../popup.js', import.meta.url), 'utf8');
+    const authSource = source.slice(
+      source.indexOf('function handleTwitchAuthResponse'),
+      source.indexOf('function checkTwitchConnection')
+    );
+    const sandbox = {
+      chrome: {
+        storage: {
+          local: {
+            set: vi.fn(),
+          },
+        },
+      },
+      checkTwitchConnection: vi.fn(),
+      console: {
+        log: vi.fn(),
+        error: vi.fn(),
+      },
+      URL,
+      URLSearchParams,
+    };
+
+    vm.createContext(sandbox);
+    vm.runInContext(
+      `${authSource}\nglobalThis.__testExports = { handleTwitchAuthResponse, parseHashToObj };`,
       sandbox,
       { filename: 'popup.js' }
     );
@@ -185,5 +219,17 @@ describe('Popup Script', () => {
       { id: null, name: ' ' },
       { id: null, name: '' }
     )).toBe(false);
+  });
+
+  it('handles Twitch auth tokens without logging the redirect URL', async () => {
+    const sandbox = await loadPopupAuthExports();
+    const { __testExports, chrome, checkTwitchConnection, console } = sandbox;
+    const responseUrl = 'https://example.chromiumapp.org/#access_token=secret-token&state=state-1';
+
+    __testExports.handleTwitchAuthResponse(responseUrl, 'state-1');
+
+    expect(chrome.storage.local.set).toHaveBeenCalledWith({ oauth_token: 'secret-token' });
+    expect(checkTwitchConnection).toHaveBeenCalledWith('secret-token');
+    expect(console.log).not.toHaveBeenCalled();
   });
 });
