@@ -45,6 +45,7 @@ describe('Popup Script', () => {
         },
       },
       checkTwitchConnection: vi.fn(),
+      rewriteNeedsLoginButton: vi.fn(),
       console: {
         log: vi.fn(),
         error: vi.fn(),
@@ -231,5 +232,51 @@ describe('Popup Script', () => {
     expect(chrome.storage.local.set).toHaveBeenCalledWith({ oauth_token: 'secret-token' });
     expect(checkTwitchConnection).toHaveBeenCalledWith('secret-token');
     expect(console.log).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['missing token', 'https://example.chromiumapp.org/#state=state-1&token_type=bearer'],
+    ['query-string error token', 'https://example.chromiumapp.org/?error=access_denied&state=state-1'],
+    ['query-string token', 'https://example.chromiumapp.org/?access_token=query-token&state=state-1'],
+    ['empty token', 'https://example.chromiumapp.org/#access_token=&state=state-1&token_type=bearer'],
+    ['blank token', 'https://example.chromiumapp.org/#access_token=%20%20&state=state-1&token_type=bearer'],
+  ])('rejects matching-state auth callbacks with %s', async (_name, responseUrl) => {
+    const sandbox = await loadPopupAuthExports();
+    const { __testExports, chrome, checkTwitchConnection, rewriteNeedsLoginButton, console } = sandbox;
+
+    __testExports.handleTwitchAuthResponse(responseUrl, 'state-1');
+
+    expect(chrome.storage.local.set).not.toHaveBeenCalled();
+    expect(checkTwitchConnection).not.toHaveBeenCalled();
+    expect(rewriteNeedsLoginButton).toHaveBeenCalledWith(false);
+    expect(console.error).toHaveBeenCalledWith('OAuth response missing access token');
+  });
+
+  it('rejects malformed auth callbacks without logging the raw response', async () => {
+    const sandbox = await loadPopupAuthExports();
+    const { __testExports, chrome, checkTwitchConnection, rewriteNeedsLoginButton, console } = sandbox;
+
+    __testExports.handleTwitchAuthResponse('not a valid URL', 'state-1');
+
+    expect(chrome.storage.local.set).not.toHaveBeenCalled();
+    expect(checkTwitchConnection).not.toHaveBeenCalled();
+    expect(rewriteNeedsLoginButton).toHaveBeenCalledWith(false);
+    expect(console.error).toHaveBeenCalledWith('Invalid OAuth response');
+    expect(console.error.mock.calls.flat().join('\n')).not.toContain('not a valid URL');
+  });
+
+  it('preserves state mismatch rejection before token storage', async () => {
+    const sandbox = await loadPopupAuthExports();
+    const { __testExports, chrome, checkTwitchConnection, rewriteNeedsLoginButton, console } = sandbox;
+
+    __testExports.handleTwitchAuthResponse(
+      'https://example.chromiumapp.org/#access_token=secret-token&state=attacker',
+      'state-1'
+    );
+
+    expect(chrome.storage.local.set).not.toHaveBeenCalled();
+    expect(checkTwitchConnection).not.toHaveBeenCalled();
+    expect(rewriteNeedsLoginButton).toHaveBeenCalledWith(false);
+    expect(console.error).toHaveBeenCalledWith('OAuth state mismatch: possible CSRF attack');
   });
 });

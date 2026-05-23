@@ -1554,25 +1554,50 @@ loginTwitch.addEventListener('click', () => {
 });
 
 function handleTwitchAuthResponse(responseUrl, state) {
-  if (responseUrl) {
-    let hash = new URL(responseUrl).hash;
-    let result = parseHashToObj(hash);
-    if (result.state !== state) {
-      console.error('OAuth state mismatch: possible CSRF attack');
-      rewriteNeedsLoginButton(false);
-      return;
-    }
-    const oauth_token = result.access_token;
-    chrome.storage.local.set({ oauth_token });
-    checkTwitchConnection(oauth_token);
-  } else {
-    console.error('Invalid response URL:', responseUrl);
+  if (!responseUrl) {
+    console.error('Invalid OAuth response');
     rewriteNeedsLoginButton(false);
+    return;
   }
+
+  let result;
+  try {
+    const callbackUrl = new URL(responseUrl);
+    const fragmentParams = parseHashToObj(callbackUrl.hash);
+    result = {
+      ...Object.fromEntries(callbackUrl.searchParams),
+      ...fragmentParams,
+      access_token: fragmentParams.access_token,
+    };
+  } catch {
+    console.error('Invalid OAuth response');
+    rewriteNeedsLoginButton(false);
+    return;
+  }
+
+  if (result.state !== state) {
+    console.error('OAuth state mismatch: possible CSRF attack');
+    rewriteNeedsLoginButton(false);
+    return;
+  }
+
+  const oauth_token = result.access_token;
+  if (!isValidOAuthAccessToken(oauth_token)) {
+    console.error('OAuth response missing access token');
+    rewriteNeedsLoginButton(false);
+    return;
+  }
+
+  chrome.storage.local.set({ oauth_token });
+  checkTwitchConnection(oauth_token);
 }
 
 function parseHashToObj(hash) {
   return Object.fromEntries(new URLSearchParams(hash.replace('#', '')));
+}
+
+function isValidOAuthAccessToken(accessToken) {
+  return typeof accessToken === 'string' && accessToken.trim() !== '';
 }
 
 function checkTwitchConnection(oauthToken) {

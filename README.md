@@ -157,6 +157,9 @@ Check the service worker console for:
 - `Timeout for {channel}:` - Request exceeded 10 seconds
 - `HTTP error 401:` - OAuth token expired/invalid
 
+### Twitch Login Callback Errors
+If the Twitch OAuth redirect is canceled, denied, malformed, or missing `access_token`, Miteruyo leaves any stored token unchanged and asks you to log in again from the popup.
+
 ### Storage Issues
 - Clear extension storage: `chrome.storage.local.clear()`
 - Re-authenticate via extension popup
