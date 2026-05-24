@@ -18,29 +18,34 @@ const TWITCH_NON_CHANNEL_PATHS = [
   'clips', 'popout', 'embed', 'chat', 'broadcast'
 ];
 
-// URLがTwitchのチャンネルページかどうかをチェック
-export function isTwitchChannelPage(url) {
-  if (!url || !url.includes('twitch.tv')) return false;
-
+function parseTwitchChannelUrl(url) {
   try {
     const urlObj = new URL(url);
+    if (!['http:', 'https:'].includes(urlObj.protocol)) return null;
+    if (!['twitch.tv', 'www.twitch.tv'].includes(urlObj.hostname)) return null;
+
     const pathParts = urlObj.pathname.split('/').filter(p => p);
 
     // パスがない場合はチャンネルページではない
-    if (pathParts.length === 0) return false;
+    if (pathParts.length === 0) return null;
 
     const firstPath = pathParts[0].toLowerCase();
 
     // システムページの場合はチャンネルページではない
-    if (TWITCH_NON_CHANNEL_PATHS.includes(firstPath)) return false;
+    if (TWITCH_NON_CHANNEL_PATHS.includes(firstPath)) return null;
 
     // チャンネル名として有効かチェック（英数字、アンダースコア、3-25文字）
-    if (!/^[a-z0-9_]{3,25}$/i.test(firstPath)) return false;
+    if (!/^[a-z0-9_]{3,25}$/i.test(firstPath)) return null;
 
-    return true;
+    return firstPath;
   } catch {
-    return false;
+    return null;
   }
+}
+
+// URLがTwitchのチャンネルページかどうかをチェック
+export function isTwitchChannelPage(url) {
+  return parseTwitchChannelUrl(url) !== null;
 }
 
 // Service Workerの再起動に備えてアラームを確認・作成する関数
@@ -352,10 +357,9 @@ async function closeUnwantedTabs(updatedChannels) {
 
   for (const tab of tabs) {
     if (!tab.url) continue;
-    const match = tab.url.match(/https?:\/\/(?:www\.)?twitch\.tv\/([^/?]+)/);
-    if (!match) continue;
+    const channelName = parseTwitchChannelUrl(tab.url);
+    if (!channelName) continue;
 
-    const channelName = match[1].toLowerCase();
     const channel = updatedChannels.find(c => c.name?.toLowerCase() === channelName);
     if (!channel) continue;
 
@@ -402,8 +406,7 @@ export async function displaceNonPriorityTabs(channels) {
     if (!ch.isPriority) continue;
     if (!(await shouldOpenChannel(ch))) continue;
     const hasTab = twitchTabs.some(t => {
-      const m = t.url.match(/twitch\.tv\/([^/?]+)/);
-      return m && m[1].toLowerCase() === ch.name?.toLowerCase();
+      return parseTwitchChannelUrl(t.url) === ch.name?.toLowerCase();
     });
     if (!hasTab) priorityNeedSlots++;
   }
@@ -411,9 +414,8 @@ export async function displaceNonPriorityTabs(channels) {
 
   // 非優先タブを特定して必要数だけ閉じる
   const nonPriorityTabs = twitchTabs.filter(t => {
-    const m = t.url.match(/twitch\.tv\/([^/?]+)/);
-    if (!m) return false;
-    const name = m[1].toLowerCase();
+    const name = parseTwitchChannelUrl(t.url);
+    if (!name) return false;
     const ch = channels.find(c => c.name?.toLowerCase() === name);
     return ch && !ch.isPriority;
   });
@@ -707,9 +709,7 @@ export async function checkOfflineWithTab(tabId) {
   }
 
   // URLからチャンネル名を抽出
-  const urlObj = new URL(tabUrl);
-  const pathParts = urlObj.pathname.split('/').filter(p => p);
-  const channelName = pathParts[0].split('?')[0];
+  const channelName = parseTwitchChannelUrl(tabUrl);
   console.log('channelName', channelName);
 
   const accessToken = migrateOAuthToken((await chrome.storage.local.get('oauth_token')).oauth_token);
