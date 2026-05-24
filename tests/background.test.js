@@ -55,6 +55,12 @@ describe('Background Script', () => {
       expect(isTwitchChannelPage('')).toBe(false);
       expect(isTwitchChannelPage('https://example.com')).toBe(false);
     });
+
+    it('should reject spoofed Twitch hostnames and embedded URLs', () => {
+      expect(isTwitchChannelPage('https://twitch.tv.evil.example/testuser')).toBe(false);
+      expect(isTwitchChannelPage('https://evil.example/path/https://twitch.tv/testuser')).toBe(false);
+      expect(isTwitchChannelPage('https://notwitch.tv/testuser')).toBe(false);
+    });
   });
 
   describe('ensureAlarmsExist', () => {
@@ -1828,6 +1834,7 @@ describe('Background Script', () => {
         { url: 'https://www.twitch.tv/channel1' },
         { url: 'https://www.twitch.tv/channel2' },
         { url: 'https://www.twitch.tv/directory' },
+        { url: 'https://twitch.tv.evil.example/channel3' },
         { url: 'https://www.google.com' },
         { url: null },
       ]);
@@ -2299,6 +2306,72 @@ describe('Background Script', () => {
 
       // Tab should be closed - channel went offline
       expect(chromeMock.tabs.remove).toHaveBeenCalledWith(1);
+    });
+
+    it('should not close non-Twitch tabs with embedded Twitch URLs', async () => {
+      const mockStreamData = {
+        data: [{
+          game_name: 'Valorant',
+          game_id: '516575',
+          title: 'Stream Title',
+          viewer_count: 100,
+          tags: [],
+          user_id: '12345',
+        }],
+      };
+      const mockChannelData = {
+        data: [{ is_branded_content: false }],
+      };
+
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockStreamData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockChannelData),
+        });
+
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string') {
+          if (keys === 'isEnabledAutoClose') return Promise.resolve({ isEnabledAutoClose: true });
+          if (keys === 'isSkipBrandedContent') return Promise.resolve({ isSkipBrandedContent: false });
+          if (keys === 'lastOpenWindowId') return Promise.resolve({ lastOpenWindowId: 100 });
+          return Promise.resolve({});
+        }
+        if (Array.isArray(keys)) {
+          if (keys.includes('isEnabled')) {
+            return Promise.resolve({
+              isEnabled: true,
+              isEnabledNotifications: false,
+              isOpenMultiTwitch: false,
+              channels: [{ name: 'testchannel', onLive: true, onLiveOpen: true }],
+              oauth_token: 'test_token',
+            });
+          }
+          if (keys.includes('allowedOnlyCategoryList')) {
+            return Promise.resolve({
+              allowedOnlyCategoryList: [],
+              blockedCategoryList: [],
+              blockedCategoryNames: '',
+            });
+          }
+          if (keys.includes('isOpenNewWindow')) {
+            return Promise.resolve({ isOpenNewWindow: false, isEnabledMaxTabs: false });
+          }
+        }
+        return Promise.resolve({});
+      });
+
+      chromeMock.tabs.query.mockResolvedValue([
+        { id: 1, url: 'https://evil.example/path/https://twitch.tv/testchannel', windowId: 100 },
+        { id: 2, url: 'https://twitch.tv.evil.example/testchannel', windowId: 100 },
+      ]);
+
+      await checkStreams();
+
+      expect(chromeMock.tabs.remove).not.toHaveBeenCalled();
     });
   });
 
