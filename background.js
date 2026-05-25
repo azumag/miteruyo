@@ -96,7 +96,8 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
 
       const data = await chrome.storage.local.get('channels');
       const channels = Array.isArray(data.channels) ? data.channels : [];
-      const index = channels.findIndex((c) => c?.name === channel.name);
+      const normalizedChannelName = channel.name.toLowerCase();
+      const index = channels.findIndex((c) => c?.name?.toLowerCase() === normalizedChannelName);
 
       if (index === -1) {
         const filteredChannels = channels.filter(c => c !== null);

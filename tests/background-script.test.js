@@ -85,4 +85,21 @@ describe('background.js context menu channel add', () => {
       ],
     });
   });
+
+  it('does not add a duplicate context menu channel with different casing', async () => {
+    chromeMock.storage.local.get.mockResolvedValue({
+      channels: [
+        { name: 'testuser', categoriesFilter: '', tagsFilter: '', onLiveOpen: true },
+      ],
+    });
+    const handler = await loadContextMenuHandler();
+
+    await handler({
+      menuItemId: 'addToMiteruyo',
+      linkUrl: 'https://www.twitch.tv/TestUser',
+    });
+
+    expect(chromeMock.storage.local.set).not.toHaveBeenCalled();
+    expect(backgroundFunctionsMock.checkStreams).not.toHaveBeenCalled();
+  });
 });
