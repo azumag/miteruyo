@@ -39,6 +39,16 @@ function normalizeStoredChannels(channels) {
   return Array.isArray(channels) ? channels : [];
 }
 
+function normalizeChannelName(channel) {
+  return typeof channel?.name === 'string' ? channel.name.toLowerCase() : '';
+}
+
+function isSameChannel(channel, otherChannel) {
+  const channelName = normalizeChannelName(channel);
+  const otherChannelName = normalizeChannelName(otherChannel);
+  return channelName !== '' && channelName === otherChannelName;
+}
+
 function normalizeCategoryList(categories) {
   if (!Array.isArray(categories)) return [];
 
@@ -1420,7 +1430,7 @@ addChannelBtn.addEventListener('click', async () => {
 
 async function duplicatedChannel(channel) {
   const data = await chrome.storage.local.get('channels');
-  return (normalizeStoredChannels(data.channels).findIndex((c) => c?.name === channel.name) !== -1);
+  return (normalizeStoredChannels(data.channels).findIndex((c) => isSameChannel(c, channel)) !== -1);
 }
 
 function saveChannelToList(channel) {
@@ -1430,7 +1440,7 @@ function saveChannelToList(channel) {
       const newChannels = [channel];
       chrome.storage.local.set({ channels: newChannels });
     } else {
-      const index = storedChannels.findIndex((c) => c?.name === channel.name);
+      const index = storedChannels.findIndex((c) => isSameChannel(c, channel));
 
       if (index !== -1) {
         storedChannels.splice(index, 1);

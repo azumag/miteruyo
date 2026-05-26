@@ -22,7 +22,7 @@ describe('Popup Script', () => {
 
     vm.createContext(sandbox);
     vm.runInContext(
-      `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, normalizeCategoryList, migrateBlockedCategories, migrateAllowedOnlyCategories, parseCategoryOptionValue, isSameCategory, includesCategory };`,
+      `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, normalizeChannelName, isSameChannel, normalizeCategoryList, migrateBlockedCategories, migrateAllowedOnlyCategories, parseCategoryOptionValue, isSameCategory, includesCategory };`,
       sandbox,
       { filename: 'popup.js' }
     );
@@ -64,6 +64,40 @@ describe('Popup Script', () => {
     return sandbox;
   }
 
+  async function loadPopupChannelExports(channels) {
+    const source = await readFile(new URL('../popup.js', import.meta.url), 'utf8');
+    const helperSource = source.slice(
+      source.indexOf('function normalizeStoredChannels'),
+      source.indexOf('// Category search using Twitch API')
+    );
+    const channelSource = source.slice(
+      source.indexOf('async function duplicatedChannel'),
+      source.indexOf('enableSwitch.addEventListener')
+    );
+    const sandbox = {
+      chrome: {
+        storage: {
+          local: {
+            get: vi.fn((_key, callback) => {
+              if (callback) callback({ channels });
+              return Promise.resolve({ channels });
+            }),
+            set: vi.fn(),
+          },
+        },
+      },
+    };
+
+    vm.createContext(sandbox);
+    vm.runInContext(
+      `${helperSource}\n${channelSource}\nglobalThis.__testExports = { duplicatedChannel, saveChannelToList };`,
+      sandbox,
+      { filename: 'popup.js' }
+    );
+
+    return sandbox;
+  }
+
   it('parses valid category option values', async () => {
     const { __testExports, console } = await loadPopupTestExports();
 
@@ -93,6 +127,39 @@ describe('Popup Script', () => {
     expect(__testExports.normalizeStoredChannels(null)).toEqual([]);
     expect(__testExports.normalizeStoredChannels('broken')).toEqual([]);
     expect(__testExports.normalizeStoredChannels({ 0: { name: 'broken' } })).toEqual([]);
+  });
+
+  it('matches channel names case-insensitively for popup duplicate checks', async () => {
+    const { __testExports } = await loadPopupTestExports();
+
+    expect(__testExports.isSameChannel(
+      { name: 'testuser' },
+      { name: 'TestUser' }
+    )).toBe(true);
+    expect(__testExports.isSameChannel(
+      { name: 'testuser' },
+      { name: 'otheruser' }
+    )).toBe(false);
+    expect(__testExports.isSameChannel(
+      { name: '' },
+      { name: '' }
+    )).toBe(false);
+  });
+
+  it('detects manually added channels with different casing as duplicates', async () => {
+    const { __testExports } = await loadPopupChannelExports([{ name: 'testuser' }]);
+
+    await expect(__testExports.duplicatedChannel({ name: 'TestUser' })).resolves.toBe(true);
+  });
+
+  it('replaces casing-only duplicate channels instead of appending them', async () => {
+    const sandbox = await loadPopupChannelExports([{ name: 'testuser', onLiveOpen: false }]);
+
+    sandbox.__testExports.saveChannelToList({ name: 'TestUser', onLiveOpen: true });
+
+    expect(sandbox.chrome.storage.local.set).toHaveBeenCalledWith({
+      channels: [{ name: 'TestUser', onLiveOpen: true }],
+    });
   });
 
   it('normalizes popup category lists before channel row rendering uses them', async () => {
