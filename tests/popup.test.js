@@ -22,7 +22,7 @@ describe('Popup Script', () => {
 
     vm.createContext(sandbox);
     vm.runInContext(
-      `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, normalizeChannelName, isSameChannel, normalizeCategoryList, migrateBlockedCategories, migrateAllowedOnlyCategories, parseCategoryOptionValue, isSameCategory, includesCategory };`,
+      `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, normalizeChannelName, isSameChannel, normalizeCategoryList, migrateBlockedCategories, migrateAllowedOnlyCategories, parseCategoryOptionValue, isSameCategory, includesCategory, getCategoriesNotAlreadyIncluded, addCategoryIfMissing };`,
       sandbox,
       { filename: 'popup.js' }
     );
@@ -274,6 +274,30 @@ describe('Popup Script', () => {
 
     expect(__testExports.isSameCategory(legacyCategory, twitchCategory)).toBe(true);
     expect(__testExports.includesCategory([legacyCategory], twitchCategory)).toBe(true);
+  });
+
+  it('filters channel allowed dropdown options with legacy category matching', async () => {
+    const { __testExports } = await loadPopupTestExports();
+    const currentAllowed = [{ id: null, name: 'Just Chatting' }];
+    const blockedCategories = [
+      { id: '509658', name: 'just chatting' },
+      { id: '26936', name: 'Music' },
+    ];
+
+    expect(__testExports.getCategoriesNotAlreadyIncluded(blockedCategories, currentAllowed)).toEqual([
+      { id: '26936', name: 'Music' },
+    ]);
+  });
+
+  it('does not append channel allowed dropdown selections already matched by legacy category name', async () => {
+    const { __testExports } = await loadPopupTestExports();
+    const currentAllowed = [{ id: null, name: 'Just Chatting' }];
+
+    expect(__testExports.addCategoryIfMissing(currentAllowed, {
+      id: '509658',
+      name: 'just chatting',
+    })).toBe(false);
+    expect(currentAllowed).toEqual([{ id: null, name: 'Just Chatting' }]);
   });
 
   it('does not match unmatched legacy names or empty names', async () => {

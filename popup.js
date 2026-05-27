@@ -96,6 +96,16 @@ function includesCategory(categories, category) {
   return categories.some(existingCategory => isSameCategory(existingCategory, category));
 }
 
+function getCategoriesNotAlreadyIncluded(categories, existingCategories) {
+  return categories.filter(category => !includesCategory(existingCategories, category));
+}
+
+function addCategoryIfMissing(categories, category) {
+  if (includesCategory(categories, category)) return false;
+  categories.push(category);
+  return true;
+}
+
 // Category search using Twitch API
 async function searchCategories(query) {
   if (!query || query.length < 1) return [];
@@ -1082,17 +1092,11 @@ async function addChannelToList(channel, newAdded = false) {
 
     chrome.storage.local.get('blockedCategoryList', (data) => {
       const categories = normalizeCategoryList(data.blockedCategoryList);
-      categories.forEach(cat => {
-        // Check if already in allowed list (by id or name)
-        const isAlreadyAllowed = currentAllowed.some(c =>
-          (cat.id && c.id === cat.id) || c.name === cat.name
-        );
-        if (!isAlreadyAllowed) {
-          const option = document.createElement('option');
-          option.value = JSON.stringify(cat); // Store full object
-          option.textContent = cat.name;
-          allowDropdown.appendChild(option);
-        }
+      getCategoriesNotAlreadyIncluded(categories, currentAllowed).forEach(cat => {
+        const option = document.createElement('option');
+        option.value = JSON.stringify(cat); // Store full object
+        option.textContent = cat.name;
+        allowDropdown.appendChild(option);
       });
       // Reset to default option
       allowDropdown.selectedIndex = 0;
@@ -1106,11 +1110,7 @@ async function addChannelToList(channel, newAdded = false) {
       const selected = parseCategoryOptionValue(selectedValue);
       if (!selected) return;
 
-      const isAlreadyAllowed = currentAllowed.some(c =>
-        (selected.id && c.id === selected.id) || c.name === selected.name
-      );
-      if (!isAlreadyAllowed) {
-        currentAllowed.push(selected);
+      if (addCategoryIfMissing(currentAllowed, selected)) {
         channel.allowedCategoryList = currentAllowed;
         saveChannelToList(channel);
         renderAllowTags();
