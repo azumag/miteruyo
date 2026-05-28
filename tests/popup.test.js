@@ -22,7 +22,7 @@ describe('Popup Script', () => {
 
     vm.createContext(sandbox);
     vm.runInContext(
-      `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, normalizeChannelName, isSameChannel, normalizeCategoryList, migrateBlockedCategories, migrateAllowedOnlyCategories, parseCategoryOptionValue, isSameCategory, includesCategory, getCategoriesNotAlreadyIncluded, addCategoryIfMissing };`,
+      `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, normalizeChannelName, isSameChannel, normalizeCategoryList, migrateBlockedCategories, migrateAllowedOnlyCategories, parseCategoryOptionValue, isSameCategory, includesCategory, getCategoriesNotAlreadyIncluded, addCategoryIfMissing, removeMatchingCategories };`,
       sandbox,
       { filename: 'popup.js' }
     );
@@ -298,6 +298,39 @@ describe('Popup Script', () => {
       name: 'just chatting',
     })).toBe(false);
     expect(currentAllowed).toEqual([{ id: null, name: 'Just Chatting' }]);
+  });
+
+  it('removes equivalent legacy and Twitch category tags together', async () => {
+    const { __testExports } = await loadPopupTestExports();
+    const categories = [
+      { id: null, name: 'Just Chatting' },
+      { id: '509658', name: 'just chatting' },
+      { id: '26936', name: 'Music' },
+    ];
+
+    expect(__testExports.removeMatchingCategories(categories, {
+      id: '509658',
+      name: 'Just Chatting',
+    })).toEqual([
+      { id: '26936', name: 'Music' },
+    ]);
+  });
+
+  it('keeps same-name categories with different Twitch ids when removing category tags', async () => {
+    const { __testExports } = await loadPopupTestExports();
+    const categories = [
+      { id: '509658', name: 'Just Chatting' },
+      { id: '123', name: 'Just Chatting' },
+      { id: null, name: 'Music' },
+    ];
+
+    expect(__testExports.removeMatchingCategories(categories, {
+      id: '509658',
+      name: 'Just Chatting',
+    })).toEqual([
+      { id: '123', name: 'Just Chatting' },
+      { id: null, name: 'Music' },
+    ]);
   });
 
   it('does not match unmatched legacy names or empty names', async () => {

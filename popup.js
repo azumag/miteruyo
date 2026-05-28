@@ -106,6 +106,10 @@ function addCategoryIfMissing(categories, category) {
   return true;
 }
 
+function removeMatchingCategories(categories, category) {
+  return categories.filter(existingCategory => !isSameCategory(existingCategory, category));
+}
+
 // Category search using Twitch API
 async function searchCategories(query) {
   if (!query || query.length < 1) return [];
@@ -465,7 +469,7 @@ function renderGlobalAllowedOnlyTags() {
     categories: globalAllowedOnlyCategories,
     badgeClass: 'bg-success',
     onDelete: (cat) => {
-      globalAllowedOnlyCategories = globalAllowedOnlyCategories.filter(c => c.id !== cat.id || c.name !== cat.name);
+      globalAllowedOnlyCategories = removeMatchingCategories(globalAllowedOnlyCategories, cat);
       chrome.storage.local.set({ allowedOnlyCategoryList: globalAllowedOnlyCategories });
       renderGlobalAllowedOnlyTags();
       globalAllowedOnlyCategorySearch?.updateExistingCategories(globalAllowedOnlyCategories);
@@ -494,7 +498,7 @@ function renderGlobalBlockedTags() {
     categories: globalBlockedCategories,
     badgeClass: 'bg-danger',
     onDelete: (cat) => {
-      globalBlockedCategories = globalBlockedCategories.filter(c => c.id !== cat.id || c.name !== cat.name);
+      globalBlockedCategories = removeMatchingCategories(globalBlockedCategories, cat);
       chrome.storage.local.set({ blockedCategoryList: globalBlockedCategories });
       renderGlobalBlockedTags();
       globalCategorySearch?.updateExistingCategories(globalBlockedCategories);
@@ -1074,7 +1078,7 @@ async function addChannelToList(channel, newAdded = false) {
       categories: currentAllowed,
       badgeClass: 'bg-success',
       onDelete: (cat) => {
-        currentAllowed = currentAllowed.filter(c => c.id !== cat.id || c.name !== cat.name);
+        currentAllowed = removeMatchingCategories(currentAllowed, cat);
         channel.allowedCategoryList = currentAllowed;
         saveChannelToList(channel);
         renderAllowTags();
@@ -1184,7 +1188,7 @@ async function addChannelToList(channel, newAdded = false) {
       categories: currentAllowedOnly,
       badgeClass: 'bg-primary',
       onDelete: (cat) => {
-        currentAllowedOnly = currentAllowedOnly.filter(c => c.id !== cat.id || c.name !== cat.name);
+        currentAllowedOnly = removeMatchingCategories(currentAllowedOnly, cat);
         channel.allowedOnlyCategoryList = currentAllowedOnly;
         saveChannelToList(channel);
         renderAllowedOnlyTags();
@@ -1291,7 +1295,7 @@ async function addChannelToList(channel, newAdded = false) {
       categories: channelBlockedCategories,
       badgeClass: 'bg-danger',
       onDelete: (cat) => {
-        channelBlockedCategories = channelBlockedCategories.filter(c => c.id !== cat.id || c.name !== cat.name);
+        channelBlockedCategories = removeMatchingCategories(channelBlockedCategories, cat);
         channel.blockedCategoryList = channelBlockedCategories;
         saveChannelToList(channel);
         renderCatTags();
