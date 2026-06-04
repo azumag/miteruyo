@@ -70,6 +70,10 @@ describe('Popup Script', () => {
       source.indexOf('function normalizeStoredChannels'),
       source.indexOf('// Category search using Twitch API')
     );
+    const removeSource = source.slice(
+      source.indexOf('function removeChannel'),
+      source.indexOf('const CHANNEL_NAME_REGEX')
+    );
     const channelSource = source.slice(
       source.indexOf('async function duplicatedChannel'),
       source.indexOf('enableSwitch.addEventListener')
@@ -90,7 +94,7 @@ describe('Popup Script', () => {
 
     vm.createContext(sandbox);
     vm.runInContext(
-      `${helperSource}\n${channelSource}\nglobalThis.__testExports = { duplicatedChannel, saveChannelToList };`,
+      `${helperSource}\n${removeSource}\n${channelSource}\nglobalThis.__testExports = { removeChannel, duplicatedChannel, saveChannelToList };`,
       sandbox,
       { filename: 'popup.js' }
     );
@@ -159,6 +163,21 @@ describe('Popup Script', () => {
 
     expect(sandbox.chrome.storage.local.set).toHaveBeenCalledWith({
       channels: [{ name: 'TestUser', onLiveOpen: true }],
+    });
+  });
+
+  it('removes casing-equivalent stored channels when deleting a channel', async () => {
+    const sandbox = await loadPopupChannelExports([
+      { name: 'testuser', onLiveOpen: false },
+      { name: 'TestUser', onLiveOpen: true },
+      { name: 'otheruser', onLiveOpen: true },
+      null,
+    ]);
+
+    sandbox.__testExports.removeChannel({ name: 'TESTUSER' });
+
+    expect(sandbox.chrome.storage.local.set).toHaveBeenCalledWith({
+      channels: [{ name: 'otheruser', onLiveOpen: true }, null],
     });
   });
 

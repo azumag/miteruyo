@@ -1393,7 +1393,7 @@ async function addChannelToList(channel, newAdded = false) {
 
 function removeChannel(channel) {
   chrome.storage.local.get('channels', (data) => {
-    const newChannels = normalizeStoredChannels(data.channels).filter((c) => c?.name !== channel.name);
+    const newChannels = normalizeStoredChannels(data.channels).filter((c) => !isSameChannel(c, channel));
     chrome.storage.local.set({ channels: newChannels });
   });
 }
