@@ -43,6 +43,27 @@ function parseTwitchChannelUrl(url) {
   }
 }
 
+function isMatchingChannelTabUrl(tabUrl, targetURL) {
+  if (!tabUrl || !tabUrl.startsWith('http')) {
+    return false;
+  }
+
+  const tabChannelName = parseTwitchChannelUrl(tabUrl);
+  const targetChannelName = parseTwitchChannelUrl(targetURL);
+  if (tabChannelName && targetChannelName) {
+    return tabChannelName === targetChannelName;
+  }
+
+  try {
+    // 既存のタブのURLからクエリパラメータを除去
+    const tabURLWithoutQuery = new URL(tabUrl);
+    tabURLWithoutQuery.search = '';
+    return tabURLWithoutQuery.toString() === targetURL;
+  } catch {
+    return false;
+  }
+}
+
 // URLがTwitchのチャンネルページかどうかをチェック
 export function isTwitchChannelPage(url) {
   return parseTwitchChannelUrl(url) !== null;
@@ -658,7 +679,7 @@ export async function channelQueuedStreams(channelQueue) {
           // 新しいウィンドウを作成する必要がある
           const tabs = await chrome.tabs.query({});
           const targetURL = channelURL(channel);
-          const matchingTabs = tabs.filter(tab => tab.url === targetURL);
+          const matchingTabs = tabs.filter(tab => isMatchingChannelTabUrl(tab.url, targetURL));
 
           if (matchingTabs.length === 0) {
             console.log('openNewWindow', { targetURL, matchingTabs: matchingTabs.length });
@@ -839,21 +860,7 @@ async function openTabIfNotExists(channel, windowId = null) {
   const targetURL = channelURL(channel);
   console.log('openTabIfNotExists', { targetURL, windowId });
   const tabs = await chrome.tabs.query({});
-  const matchingTabs = tabs.filter(tab => {
-    // タブのURLが無効な場合はスキップ（chrome://、about:blank など）
-    if (!tab.url || !tab.url.startsWith('http')) {
-      return false;
-    }
-    try {
-      // 既存のタブのURLからクエリパラメータを除去
-      const tabURLWithoutQuery = new URL(tab.url);
-      tabURLWithoutQuery.search = '';
-      return tabURLWithoutQuery.toString() === targetURL; // クエリパラメータを除去したURLで比較
-    } catch {
-      // 無効なURLの場合はスキップ
-      return false;
-    }
-  });
+  const matchingTabs = tabs.filter(tab => isMatchingChannelTabUrl(tab.url, targetURL));
 
   if (matchingTabs.length === 0) {
     await chrome.tabs.create({ url: targetURL, windowId });
