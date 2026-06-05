@@ -1754,6 +1754,98 @@ describe('Background Script', () => {
     });
   });
 
+  describe('channelQueuedStreams open-new-window duplicate checks', () => {
+    function mockOpenNewWindowStorage() {
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (Array.isArray(keys) && keys.includes('isOpenNewWindow')) {
+          return Promise.resolve({
+            isOpenNewWindow: true,
+            isEnabledMaxTabs: false,
+            maxTabCount: 5,
+          });
+        }
+        if (keys === 'lastOpenWindowId') {
+          return Promise.resolve({ lastOpenWindowId: 999 });
+        }
+        if (keys === 'isSkipBrandedContent') {
+          return Promise.resolve({ isSkipBrandedContent: false });
+        }
+        if (Array.isArray(keys) && keys.includes('allowedOnlyCategoryList')) {
+          return Promise.resolve({
+            allowedOnlyCategoryList: [],
+            blockedCategoryList: [],
+            blockedCategoryNames: '',
+          });
+        }
+        return Promise.resolve({});
+      });
+    }
+
+    it('should not create a new window when an existing Twitch channel tab differs only by casing', async () => {
+      const channels = [
+        { name: 'TestUser', onLive: true, onLiveOpen: true },
+      ];
+
+      mockOpenNewWindowStorage();
+      chromeMock.windows.get.mockRejectedValue(new Error('Window not found'));
+      chromeMock.tabs.query.mockResolvedValue([
+        { id: 1, url: 'https://www.twitch.tv/testuser', windowId: 100 },
+      ]);
+
+      await channelQueuedStreams(channels);
+
+      expect(chromeMock.windows.create).not.toHaveBeenCalled();
+      expect(chromeMock.storage.local.set).not.toHaveBeenCalledWith({ channels });
+      expect(channels[0].hasBeenOpened).toBeUndefined();
+    });
+
+    it('should create a new window when no casing-equivalent Twitch channel tab exists', async () => {
+      const channels = [
+        { name: 'TestUser', onLive: true, onLiveOpen: true },
+      ];
+
+      mockOpenNewWindowStorage();
+      chromeMock.windows.get.mockRejectedValue(new Error('Window not found'));
+      chromeMock.tabs.query.mockResolvedValue([
+        { id: 1, url: 'https://www.twitch.tv/otheruser', windowId: 100 },
+      ]);
+      chromeMock.windows.create.mockResolvedValue({ id: 200 });
+
+      await channelQueuedStreams(channels);
+
+      expect(chromeMock.windows.create).toHaveBeenCalledWith({
+        url: 'https://www.twitch.tv/TestUser',
+      });
+      expect(chromeMock.storage.local.set).toHaveBeenCalledWith({ lastOpenWindowId: 200 });
+      expect(chromeMock.storage.local.set).toHaveBeenCalledWith({ channels });
+      expect(channels[0].hasBeenOpened).toBe(true);
+    });
+
+    it('should preserve exact URL matching for custom non-Twitch channel URLs', async () => {
+      const channels = [
+        {
+          name: 'TestUser',
+          url: 'https://example.com/TestUser',
+          onLive: true,
+          onLiveOpen: true,
+        },
+      ];
+
+      mockOpenNewWindowStorage();
+      chromeMock.windows.get.mockRejectedValue(new Error('Window not found'));
+      chromeMock.tabs.query.mockResolvedValue([
+        { id: 1, url: 'https://example.com/testuser', windowId: 100 },
+      ]);
+      chromeMock.windows.create.mockResolvedValue({ id: 200 });
+
+      await channelQueuedStreams(channels);
+
+      expect(chromeMock.windows.create).toHaveBeenCalledWith({
+        url: 'https://example.com/TestUser',
+      });
+    });
+  });
+
   describe('openInManagedWindow', () => {
     it('should open tab in current window when isOpenNewWindow is false', async () => {
       chromeMock.storage.local.get.mockResolvedValue({
