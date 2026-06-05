@@ -102,7 +102,7 @@ export async function ensureAlarmsExist() {
 
 // Miteruyoの管理対象ウィンドウでタブを開く
 export async function openInManagedWindow(channelName) {
-  const url = twitchDomain + '/' + channelName;
+  const url = twitchDomain + '/' + channelName.toLowerCase();
   const data = await chrome.storage.local.get(['isOpenNewWindow', 'lastOpenWindowId']);
 
   if (data.isOpenNewWindow) {
