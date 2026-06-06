@@ -1890,11 +1890,47 @@ describe('Background Script', () => {
       });
       // checkWindowExists calls windows.get with { populate: false }
       chromeMock.windows.get.mockResolvedValue({ id: 123 });
+      chromeMock.tabs.query.mockResolvedValue([]);
 
       await openInManagedWindow('testchannel');
 
       expect(chromeMock.tabs.create).toHaveBeenCalledWith({
         url: 'https://www.twitch.tv/testchannel',
+        windowId: 123,
+      });
+      expect(chromeMock.windows.create).not.toHaveBeenCalled();
+    });
+
+    it('should not add a duplicate casing-equivalent Twitch tab to an existing managed window', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({
+        isOpenNewWindow: true,
+        lastOpenWindowId: 123,
+      });
+      chromeMock.windows.get.mockResolvedValue({ id: 123 });
+      chromeMock.tabs.query.mockResolvedValue([
+        { id: 1, url: 'https://www.twitch.tv/testchannel', windowId: 123 },
+      ]);
+
+      await openInManagedWindow('TestChannel');
+
+      expect(chromeMock.tabs.create).not.toHaveBeenCalled();
+      expect(chromeMock.windows.create).not.toHaveBeenCalled();
+    });
+
+    it('should add a tab to an existing managed window when no matching channel tab exists', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({
+        isOpenNewWindow: true,
+        lastOpenWindowId: 123,
+      });
+      chromeMock.windows.get.mockResolvedValue({ id: 123 });
+      chromeMock.tabs.query.mockResolvedValue([
+        { id: 1, url: 'https://www.twitch.tv/otherchannel', windowId: 123 },
+      ]);
+
+      await openInManagedWindow('TestChannel');
+
+      expect(chromeMock.tabs.create).toHaveBeenCalledWith({
+        url: 'https://www.twitch.tv/TestChannel',
         windowId: 123,
       });
       expect(chromeMock.windows.create).not.toHaveBeenCalled();
