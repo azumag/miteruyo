@@ -164,11 +164,12 @@ export async function checkTabRotate() {
     const tabsToRemove = [];
     for (const tab of tabs) {
       if (!tab.url || !tab.url.startsWith('http')) continue;
-      const urlWithoutQuery = tab.url.split('?')[0];
-      if (seenUrls.has(urlWithoutQuery)) {
+      const channelName = parseTwitchChannelUrl(tab.url);
+      const dedupKey = channelName || tab.url.split('?')[0];
+      if (seenUrls.has(dedupKey)) {
         tabsToRemove.push(tab.id);
       } else {
-        seenUrls.add(urlWithoutQuery);
+        seenUrls.add(dedupKey);
       }
     }
     if (tabsToRemove.length > 0) {
