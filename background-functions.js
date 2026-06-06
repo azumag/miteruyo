@@ -118,8 +118,8 @@ export async function openInManagedWindow(channelName) {
     }
 
     if (windowId) {
-      // 既存の管理対象ウィンドウにタブを追加
-      await chrome.tabs.create({ url, windowId });
+      // 既存の管理対象ウィンドウにタブを追加（重複チェック付き）
+      await openTabIfNotExists({ name: channelName }, windowId);
     } else {
       // 新しいウィンドウを作成して管理対象に登録
       const newWindow = await chrome.windows.create({ url });
