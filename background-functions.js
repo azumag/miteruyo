@@ -158,17 +158,18 @@ export async function checkTabRotate() {
     chrome.tabs.update(tabs[currentTabIndex].id, { muted: enableTabMute });
     chrome.tabs.update(tabs[nextTabIndex].id, { active: true, muted: false });
 
-    // Close duplicate tabs
-    // Deduplicate tabs based on URL without query parameters
+    // Close duplicate tabs. Twitch channel pages use channel identity;
+    // other URLs keep the existing URL-without-query behavior.
     const seenUrls = new Set();
     const tabsToRemove = [];
     for (const tab of tabs) {
       if (!tab.url || !tab.url.startsWith('http')) continue;
-      const urlWithoutQuery = tab.url.split('?')[0];
-      if (seenUrls.has(urlWithoutQuery)) {
+      const channelName = parseTwitchChannelUrl(tab.url);
+      const dedupKey = channelName || tab.url.split('?')[0];
+      if (seenUrls.has(dedupKey)) {
         tabsToRemove.push(tab.id);
       } else {
-        seenUrls.add(urlWithoutQuery);
+        seenUrls.add(dedupKey);
       }
     }
     if (tabsToRemove.length > 0) {

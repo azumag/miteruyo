@@ -1448,6 +1448,64 @@ describe('Background Script', () => {
         expect(chromeMock.tabs.update).toHaveBeenCalledWith(2, { active: true, muted: false });
       });
 
+      it('should remove casing-equivalent Twitch channel tabs during rotation', async () => {
+        const windowId = 123;
+        const tabs = [
+          { id: 1, url: 'https://www.twitch.tv/TestUser', active: true },
+          { id: 2, url: 'https://www.twitch.tv/anotheruser', active: false },
+          { id: 3, url: 'https://www.twitch.tv/testuser', active: false },
+        ];
+
+        chromeMock.storage.local.get.mockImplementation((key) => {
+          if (key === 'isEnabledTabRotation') {
+            return Promise.resolve({ isEnabledTabRotation: true });
+          }
+          if (key === 'lastOpenWindowId') {
+            return Promise.resolve({ lastOpenWindowId: windowId });
+          }
+          if (key === 'isEnabledTabMute') {
+            return Promise.resolve({ isEnabledTabMute: false });
+          }
+          return Promise.resolve({});
+        });
+
+        chromeMock.windows.get.mockResolvedValue({ id: windowId });
+        chromeMock.tabs.query.mockResolvedValue(tabs);
+
+        await checkTabRotate();
+
+        expect(chromeMock.tabs.remove).toHaveBeenCalledWith([3]);
+      });
+
+      it('should keep non-Twitch tabs with casing-different paths during rotation', async () => {
+        const windowId = 123;
+        const tabs = [
+          { id: 1, url: 'https://example.com/TestUser', active: true },
+          { id: 2, url: 'https://example.com/testuser', active: false },
+          { id: 3, url: 'https://example.com/TestUser?ref=duplicate', active: false },
+        ];
+
+        chromeMock.storage.local.get.mockImplementation((key) => {
+          if (key === 'isEnabledTabRotation') {
+            return Promise.resolve({ isEnabledTabRotation: true });
+          }
+          if (key === 'lastOpenWindowId') {
+            return Promise.resolve({ lastOpenWindowId: windowId });
+          }
+          if (key === 'isEnabledTabMute') {
+            return Promise.resolve({ isEnabledTabMute: false });
+          }
+          return Promise.resolve({});
+        });
+
+        chromeMock.windows.get.mockResolvedValue({ id: windowId });
+        chromeMock.tabs.query.mockResolvedValue(tabs);
+
+        await checkTabRotate();
+
+        expect(chromeMock.tabs.remove).toHaveBeenCalledWith([3]);
+      });
+
       it('should clear lastOpenWindowId when window does not exist', async () => {
         const windowId = 123;
 
