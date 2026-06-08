@@ -2788,6 +2788,40 @@ describe('Background Script', () => {
         // No displacement needed - priority channel already open
         expect(chromeMock.tabs.remove).not.toHaveBeenCalled();
       });
+
+      it('should ignore malformed channel names when displacing tabs', async () => {
+        const channels = [
+          { name: 123, onLive: true, onLiveOpen: true, isPriority: true },
+          { name: { value: 'broken' }, onLive: true, onLiveOpen: true, isPriority: false },
+          { name: 'PriorityOne', onLive: true, onLiveOpen: true, isPriority: true },
+          { name: 'nonpriority1', onLive: true, onLiveOpen: true, isPriority: false },
+        ];
+
+        chromeMock.storage.local.get.mockImplementation((keys) => {
+          if (Array.isArray(keys) && keys.includes('isEnabledMaxTabs')) {
+            return Promise.resolve({ isEnabledMaxTabs: true, maxTabCount: 2, lastOpenWindowId: null });
+          }
+          if (Array.isArray(keys) && keys.includes('allowedOnlyCategoryList')) {
+            return Promise.resolve({
+              allowedOnlyCategoryList: [],
+              blockedCategoryList: [],
+              blockedCategoryNames: '',
+            });
+          }
+          return Promise.resolve({});
+        });
+
+        chromeMock.tabs.query.mockResolvedValue([
+          { id: 1, url: 'https://www.twitch.tv/nonpriority1' },
+          { id: 2, url: 'https://www.twitch.tv/nonpriority2' },
+        ]);
+        chromeMock.tabs.remove.mockResolvedValue();
+
+        await displaceNonPriorityTabs(channels);
+
+        expect(chromeMock.tabs.remove).toHaveBeenCalledTimes(1);
+        expect(chromeMock.tabs.remove).toHaveBeenCalledWith(1);
+      });
     });
   });
 

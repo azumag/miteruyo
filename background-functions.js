@@ -43,6 +43,10 @@ function parseTwitchChannelUrl(url) {
   }
 }
 
+function normalizeChannelName(name) {
+  return typeof name === 'string' ? name.toLowerCase() : null;
+}
+
 function isMatchingChannelTabUrl(tabUrl, targetURL) {
   if (!tabUrl || !tabUrl.startsWith('http')) {
     return false;
@@ -382,7 +386,7 @@ async function closeUnwantedTabs(updatedChannels) {
     const channelName = parseTwitchChannelUrl(tab.url);
     if (!channelName) continue;
 
-    const channel = updatedChannels.find(c => c.name?.toLowerCase() === channelName);
+    const channel = updatedChannels.find(c => normalizeChannelName(c?.name) === channelName);
     if (!channel) continue;
 
     // オフラインのチャンネルは閉じる
@@ -427,8 +431,10 @@ export async function displaceNonPriorityTabs(channels) {
     if (!ch) continue;
     if (!ch.isPriority) continue;
     if (!(await shouldOpenChannel(ch))) continue;
+    const normalizedChannelName = normalizeChannelName(ch.name);
+    if (!normalizedChannelName) continue;
     const hasTab = twitchTabs.some(t => {
-      return parseTwitchChannelUrl(t.url) === ch.name?.toLowerCase();
+      return parseTwitchChannelUrl(t.url) === normalizedChannelName;
     });
     if (!hasTab) priorityNeedSlots++;
   }
@@ -438,7 +444,7 @@ export async function displaceNonPriorityTabs(channels) {
   const nonPriorityTabs = twitchTabs.filter(t => {
     const name = parseTwitchChannelUrl(t.url);
     if (!name) return false;
-    const ch = channels.find(c => c.name?.toLowerCase() === name);
+    const ch = channels.find(c => normalizeChannelName(c?.name) === name);
     return ch && !ch.isPriority;
   });
 
