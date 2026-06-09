@@ -86,6 +86,31 @@ describe('background.js context menu channel add', () => {
     });
   });
 
+  it('ignores malformed stored channel names when appending a new context menu channel', async () => {
+    chromeMock.storage.local.get.mockResolvedValue({
+      channels: [
+        null,
+        { name: 123, categoriesFilter: '', tagsFilter: '', onLiveOpen: true },
+        { name: {}, categoriesFilter: '', tagsFilter: '', onLiveOpen: true },
+      ],
+    });
+    const handler = await loadContextMenuHandler();
+
+    await handler({
+      menuItemId: 'addToMiteruyo',
+      linkUrl: 'https://www.twitch.tv/NewChannel',
+    });
+
+    expect(chromeMock.storage.local.set).toHaveBeenCalledWith({
+      channels: [
+        { name: 123, categoriesFilter: '', tagsFilter: '', onLiveOpen: true },
+        { name: {}, categoriesFilter: '', tagsFilter: '', onLiveOpen: true },
+        { name: 'NewChannel', categoriesFilter: '', tagsFilter: '', onLiveOpen: true },
+      ],
+    });
+    expect(backgroundFunctionsMock.checkStreams).toHaveBeenCalledTimes(1);
+  });
+
   it('does not add a duplicate context menu channel with different casing', async () => {
     chromeMock.storage.local.get.mockResolvedValue({
       channels: [

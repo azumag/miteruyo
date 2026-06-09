@@ -12,6 +12,10 @@ import {
   onNotificationClicked,
 } from './background-functions.js';
 
+function normalizeChannelName(name) {
+  return typeof name === 'string' ? name.toLowerCase() : null;
+}
+
 // Service Worker起動時にもアラームを確認（フォールバック）
 ensureAlarmsExist().catch(e => console.error('ensureAlarmsExist error:', e));
 
@@ -96,8 +100,8 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
 
       const data = await chrome.storage.local.get('channels');
       const channels = Array.isArray(data.channels) ? data.channels : [];
-      const normalizedChannelName = channel.name.toLowerCase();
-      const index = channels.findIndex((c) => c?.name?.toLowerCase() === normalizedChannelName);
+      const normalizedChannelName = normalizeChannelName(channel.name);
+      const index = channels.findIndex((c) => normalizeChannelName(c?.name) === normalizedChannelName);
 
       if (index === -1) {
         const filteredChannels = channels.filter(c => c !== null);
