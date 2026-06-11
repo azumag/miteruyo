@@ -224,6 +224,10 @@ function normalizeCategoryList(categories) {
     );
 }
 
+function normalizeCategoryName(name) {
+  return typeof name === 'string' ? name.toLowerCase() : null;
+}
+
 export async function validateToken(token) {
   try {
     const response = await fetch('https://id.twitch.tv/oauth2/validate', {
@@ -573,7 +577,7 @@ export async function shouldOpenChannel(channel, { forAutoClose = false } = {}) 
     }
 
     const gameId = channel.game_id;
-    const gameName = channel.game_name?.toLowerCase();
+    const gameName = normalizeCategoryName(channel.game_name);
 
     const isInAllowedOnly = activeAllowedOnlyList.some(cat =>
       (gameId && cat.id && cat.id === gameId) ||
@@ -611,7 +615,7 @@ export async function shouldOpenChannel(channel, { forAutoClose = false } = {}) 
 
   if (combinedBlockedList.length > 0 && (channel.game_id || channel.game_name)) {
     const gameId = channel.game_id;
-    const gameName = channel.game_name?.toLowerCase();
+    const gameName = normalizeCategoryName(channel.game_name);
 
     // Check if this category is explicitly allowed for this channel (by id first, then name)
     const isAllowed = allowedCategoryList.some(cat =>

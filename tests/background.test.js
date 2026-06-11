@@ -982,6 +982,52 @@ describe('Background Script', () => {
 
       expect(result).toBe(true);
     });
+
+    it('should ignore non-string game names without throwing when category filters use names', async () => {
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string' && keys === 'isSkipBrandedContent') {
+          return Promise.resolve({ isSkipBrandedContent: false });
+        }
+        return Promise.resolve({
+          allowedOnlyCategoryList: [{ id: null, name: 'Allowed Game' }],
+          blockedCategoryList: [],
+          blockedCategoryNames: '',
+        });
+      });
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        game_name: { broken: true },
+      });
+
+      expect(result).toBe(false);
+    });
+
+    it('should still match category filters by game id when game name is non-string', async () => {
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string' && keys === 'isSkipBrandedContent') {
+          return Promise.resolve({ isSkipBrandedContent: false });
+        }
+        return Promise.resolve({
+          allowedOnlyCategoryList: [],
+          blockedCategoryList: [{ id: '123', name: 'Blocked Game' }],
+          blockedCategoryNames: '',
+        });
+      });
+
+      const result = await shouldOpenChannel({
+        name: 'test',
+        onLive: true,
+        onLiveOpen: true,
+        game_id: '123',
+        game_name: 123,
+        allowedCategoryList: [{ id: '123', name: 'Allowed Game' }],
+      });
+
+      expect(result).toBe(true);
+    });
   });
 
   describe('tabRotationAlarm', () => {
