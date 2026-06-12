@@ -346,6 +346,51 @@ describe('Background Script', () => {
         windowId: 10,
       });
     });
+
+    it('should ignore live channels with invalid names when building the MultiTwitch URL', async () => {
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (Array.isArray(keys) && keys.includes('channels')) {
+          return Promise.resolve({
+            isEnabled: true,
+            channels: [
+              { name: 'first', onLive: true, onLiveOpen: true },
+              { name: 123, onLive: true, onLiveOpen: true },
+              { name: { value: 'broken' }, onLive: true, onLiveOpen: true },
+              { onLive: true, onLiveOpen: true },
+              { name: 'second', onLive: true, onLiveOpen: true },
+            ],
+          });
+        }
+        if (keys === 'lastOpenWindowId') {
+          return Promise.resolve({ lastOpenWindowId: 10 });
+        }
+        return Promise.resolve({});
+      });
+      chromeMock.tabs.query.mockResolvedValue([]);
+
+      await channelQueuedStreamsInMultiTwitch();
+
+      expect(chromeMock.tabs.create).toHaveBeenCalledWith({
+        url: 'https://multitwitch.tv/first/second',
+        windowId: 10,
+      });
+    });
+
+    it('should not open MultiTwitch when every live channel has an invalid name', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        channels: [
+          { name: 123, onLive: true, onLiveOpen: true },
+          { name: { value: 'broken' }, onLive: true, onLiveOpen: true },
+          { onLive: true, onLiveOpen: true },
+        ],
+      });
+
+      await channelQueuedStreamsInMultiTwitch();
+
+      expect(chromeMock.tabs.query).not.toHaveBeenCalled();
+      expect(chromeMock.tabs.create).not.toHaveBeenCalled();
+    });
   });
 
   describe('API response error handling', () => {

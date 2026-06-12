@@ -47,6 +47,12 @@ function normalizeChannelName(name) {
   return typeof name === 'string' ? name.toLowerCase() : null;
 }
 
+function normalizeMultiTwitchChannelName(name) {
+  if (typeof name !== 'string') return null;
+  const trimmedName = name.trim();
+  return /^[a-z0-9_]{3,25}$/i.test(trimmedName) ? trimmedName : null;
+}
+
 function isMatchingChannelTabUrl(tabUrl, targetURL) {
   if (!tabUrl || !tabUrl.startsWith('http')) {
     return false;
@@ -501,7 +507,11 @@ export async function channelQueuedStreamsInMultiTwitch() {
   if (liveChannels.length === 0) return;
 
   // MultiTwitch URLの作成
-  const channelNames = liveChannels.map(c => c.name).join('/');
+  const channelNames = liveChannels
+    .map(c => normalizeMultiTwitchChannelName(c.name))
+    .filter(Boolean)
+    .join('/');
+  if (!channelNames) return;
   const multiTwitchUrl = `https://multitwitch.tv/${channelNames}`;
 
   // すでに開いているウィンドウか新しいウィンドウで開く
