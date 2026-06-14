@@ -305,6 +305,58 @@ describe('Background Script', () => {
       );
       consoleErrorSpy.mockRestore();
     });
+
+    it('should not include channels with non-string names in stream checks', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+        headers: { get: () => null },
+      });
+
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [
+          { name: 'validchannel', onLiveOpen: false },
+          { name: 123, onLiveOpen: true, onLive: true },
+          { name: { value: 'broken' }, onLiveOpen: true, onLive: true },
+          { onLiveOpen: true, onLive: true },
+        ],
+        oauth_token: 'test_token',
+        isEnabledAutoClose: false,
+      });
+
+      await checkStreams();
+
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        'https://api.twitch.tv/helix/streams?user_login=validchannel',
+        expect.any(Object)
+      );
+
+      const setCall = chromeMock.storage.local.set.mock.calls.find(
+        call => call[0].channels
+      );
+      expect(setCall).toBeDefined();
+      expect(setCall[0].channels[1]).toMatchObject({
+        name: 123,
+        onLive: false,
+        status: 'error',
+        lastError: 'Invalid channel name',
+      });
+      expect(setCall[0].channels[2]).toMatchObject({
+        name: { value: 'broken' },
+        onLive: false,
+        status: 'error',
+        lastError: 'Invalid channel name',
+      });
+      expect(setCall[0].channels[3]).toMatchObject({
+        onLive: false,
+        status: 'error',
+        lastError: 'Invalid channel name',
+      });
+    });
   });
 
   describe('channelQueuedStreamsInMultiTwitch', () => {
