@@ -948,7 +948,18 @@ async function fetchWithRetry(url, options, maxRetries = 1) {
 async function checkStream(channel, oauth_token) {
   if (!channel) return null;
 
-  const url = `https://api.twitch.tv/helix/streams?user_login=${channel.name}`;
+  const channelName = normalizeMultiTwitchChannelName(channel.name);
+  if (!channelName) {
+    return {
+      ...channel,
+      onLive: false,
+      status: 'error',
+      lastError: 'Invalid channel name',
+      lastChecked: Date.now()
+    };
+  }
+
+  const url = `https://api.twitch.tv/helix/streams?user_login=${channelName}`;
   const options = {
     headers: {
       'Client-ID': clientId,
@@ -968,7 +979,7 @@ async function checkStream(channel, oauth_token) {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      console.error(`checkStream: HTTP error ${response.status} for ${channel.name}`);
+      console.error(`checkStream: HTTP error ${response.status} for ${channelName}`);
       return { ...channel, status: 'error', lastError: `HTTP ${response.status}` };
     }
 
@@ -976,12 +987,12 @@ async function checkStream(channel, oauth_token) {
     try {
       data = await response.json();
     } catch {
-      console.error(`checkStream: JSON parse error for ${channel.name}`);
+      console.error(`checkStream: JSON parse error for ${channelName}`);
       return { ...channel, status: 'error', lastError: 'JSON parse error' };
     }
 
     if (data.data === undefined) {
-      console.error(`checkStream: Invalid response for ${channel.name}`, data);
+      console.error(`checkStream: Invalid response for ${channelName}`, data);
       return { ...channel, status: 'error', lastError: 'Invalid response' };
     }
 
@@ -999,17 +1010,17 @@ async function checkStream(channel, oauth_token) {
           try {
             channelData = await channelResponse.json();
           } catch {
-            console.error(`checkStream: JSON parse error for channel info ${channel.name}`);
+            console.error(`checkStream: JSON parse error for channel info ${channelName}`);
           }
           if (channelData && channelData.data && channelData.data.length > 0) {
             is_branded_content = channelData.data[0].is_branded_content === true;
           }
         }
       } catch (error) {
-        console.error(`checkStream: Error fetching channel info for ${channel.name}:`, error);
+        console.error(`checkStream: Error fetching channel info for ${channelName}:`, error);
       }
 
-      console.log('online', channel.name, {
+      console.log('online', channelName, {
         is_branded_content,
         game_name: stream.game_name
       });
@@ -1027,7 +1038,7 @@ async function checkStream(channel, oauth_token) {
         lastChecked: Date.now()
       };
     } else {
-      console.log('offline', channel.name);
+      console.log('offline', channelName);
       return {
         ...channel,
         onLive: false,
@@ -1037,10 +1048,10 @@ async function checkStream(channel, oauth_token) {
     }
   } catch (error) {
     if (error.name === 'AbortError') {
-      console.error(`checkStream: Timeout for ${channel.name}`);
+      console.error(`checkStream: Timeout for ${channelName}`);
       return { ...channel, status: 'error', lastError: 'Timeout' };
     }
-    console.error(`checkStream: Error for ${channel.name}:`, error);
+    console.error(`checkStream: Error for ${channelName}:`, error);
     return { ...channel, status: 'error', lastError: error.message };
   }
 }
