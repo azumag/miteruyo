@@ -682,6 +682,8 @@ export async function channelQueuedStreams(channelQueue) {
       if (isEnabledMaxTabs) {
         if (currentTabCount >= max) break;
       }
+      const targetURL = channelURL(channel);
+      if (!targetURL) continue;
       if (await shouldOpenChannel(channel)) {
         console.log('channelQueueStreams', { currentWindowId });
 
@@ -699,7 +701,6 @@ export async function channelQueuedStreams(channelQueue) {
         } else {
           // 新しいウィンドウを作成する必要がある
           const tabs = await chrome.tabs.query({});
-          const targetURL = channelURL(channel);
           const matchingTabs = tabs.filter(tab => isMatchingChannelTabUrl(tab.url, targetURL));
 
           if (matchingTabs.length === 0) {
@@ -721,6 +722,7 @@ export async function channelQueuedStreams(channelQueue) {
       if (isEnabledMaxTabs) {
         if (currentTabCount >= max) break;
       }
+      if (!channelURL(channel)) continue;
       if (await shouldOpenChannel(channel)) {
         const wasOpened = await openTabIfNotExists(channel);
         if (wasOpened) {
@@ -865,7 +867,9 @@ function shuffleArray(arr) {
 
 function channelURL(channel) {
   if (channel.url) return channel.url;
-  return twitchDomain + '/' + channel.name;
+  const channelName = normalizeMultiTwitchChannelName(channel.name);
+  if (!channelName) return null;
+  return twitchDomain + '/' + channelName;
 }
 
 async function checkWindowExists(windowId) {
@@ -879,6 +883,7 @@ async function checkWindowExists(windowId) {
 
 async function openTabIfNotExists(channel, windowId = null) {
   const targetURL = channelURL(channel);
+  if (!targetURL) return false;
   console.log('openTabIfNotExists', { targetURL, windowId });
   const tabs = await chrome.tabs.query({});
   const matchingTabs = tabs.filter(tab => isMatchingChannelTabUrl(tab.url, targetURL));

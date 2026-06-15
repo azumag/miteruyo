@@ -2290,6 +2290,92 @@ describe('Background Script', () => {
       expect(chromeMock.tabs.create).toHaveBeenCalledTimes(2);
     });
 
+    it('should skip invalid channel names while opening valid queued channels', async () => {
+      const channels = [
+        { name: 123, onLive: true, onLiveOpen: true, isPriority: true },
+        { onLive: true, onLiveOpen: true, isPriority: true },
+        { name: '', onLive: true, onLiveOpen: true, isPriority: true },
+        { name: { value: 'bad' }, onLive: true, onLiveOpen: true, isPriority: true },
+        { name: 'valid_channel', onLive: true, onLiveOpen: true, isPriority: true },
+      ];
+
+      let existingTabs = [];
+      chromeMock.tabs.query.mockImplementation(() => Promise.resolve([...existingTabs]));
+      chromeMock.tabs.create.mockImplementation(({ url }) => {
+        const newTab = { url, id: existingTabs.length + 1 };
+        existingTabs.push(newTab);
+        return Promise.resolve(newTab);
+      });
+
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (Array.isArray(keys) && keys.includes('isOpenNewWindow')) {
+          return Promise.resolve({ isOpenNewWindow: false, isEnabledMaxTabs: false });
+        }
+        if (Array.isArray(keys) && keys.includes('allowedOnlyCategoryList')) {
+          return Promise.resolve({
+            allowedOnlyCategoryList: [],
+            blockedCategoryList: [],
+            blockedCategoryNames: '',
+          });
+        }
+        return Promise.resolve({});
+      });
+
+      await channelQueuedStreams(channels);
+
+      expect(chromeMock.tabs.create).toHaveBeenCalledTimes(1);
+      expect(chromeMock.tabs.create).toHaveBeenCalledWith({
+        url: 'https://www.twitch.tv/valid_channel',
+        windowId: null,
+      });
+      expect(channels.slice(0, 4).every(channel => channel.hasBeenOpened !== true)).toBe(true);
+      expect(channels[4].hasBeenOpened).toBe(true);
+    });
+
+    it('should not count invalid queued channels toward the max tab limit', async () => {
+      const channels = [
+        { name: 123, onLive: true, onLiveOpen: true, isPriority: true },
+        { name: 'valid_channel', onLive: true, onLiveOpen: true, isPriority: true },
+      ];
+
+      let existingTabs = [
+        { url: 'https://www.twitch.tv/existing1', id: 101 },
+        { url: 'https://www.twitch.tv/existing2', id: 102 },
+        { url: 'https://www.twitch.tv/existing3', id: 103 },
+        { url: 'https://www.twitch.tv/existing4', id: 104 },
+      ];
+      chromeMock.tabs.query.mockImplementation(() => Promise.resolve([...existingTabs]));
+      chromeMock.tabs.create.mockImplementation(({ url }) => {
+        const newTab = { url, id: existingTabs.length + 200 };
+        existingTabs.push(newTab);
+        return Promise.resolve(newTab);
+      });
+
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (Array.isArray(keys) && keys.includes('isOpenNewWindow')) {
+          return Promise.resolve({ isOpenNewWindow: false, isEnabledMaxTabs: true, maxTabCount: 5 });
+        }
+        if (Array.isArray(keys) && keys.includes('allowedOnlyCategoryList')) {
+          return Promise.resolve({
+            allowedOnlyCategoryList: [],
+            blockedCategoryList: [],
+            blockedCategoryNames: '',
+          });
+        }
+        return Promise.resolve({});
+      });
+
+      await channelQueuedStreams(channels);
+
+      expect(chromeMock.tabs.create).toHaveBeenCalledTimes(1);
+      expect(chromeMock.tabs.create).toHaveBeenCalledWith({
+        url: 'https://www.twitch.tv/valid_channel',
+        windowId: null,
+      });
+      expect(channels[0].hasBeenOpened).toBeUndefined();
+      expect(channels[1].hasBeenOpened).toBe(true);
+    });
+
     it('should default to 5 when maxTabCount is not set', async () => {
       const channels = [
         { name: 'channel1', onLive: true, onLiveOpen: true },
