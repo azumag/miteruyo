@@ -64,6 +64,52 @@ describe('Popup Script', () => {
     return sandbox;
   }
 
+  async function loadPopupStreamExports() {
+    const source = await readFile(new URL('../popup.js', import.meta.url), 'utf8');
+    const clientIdSource = source.slice(
+      source.indexOf('const clientId'),
+      source.indexOf('// Migrate old nested token format')
+    );
+    const migrateSource = source.slice(
+      source.indexOf('function migrateOAuthToken'),
+      source.indexOf('function normalizeStoredChannels')
+    );
+    const helperSource = source.slice(
+      source.indexOf('function normalizeStoredChannels'),
+      source.indexOf('// Category search using Twitch API')
+    );
+    const streamSource = source.slice(
+      source.indexOf('async function checkStream'),
+      source.indexOf('// Miteruyoの管理対象ウィンドウでタブを開く')
+    );
+    const sandbox = {
+      chrome: {
+        storage: {
+          local: {
+            get: vi.fn(() => Promise.resolve({ oauth_token: 'token-1' })),
+          },
+        },
+      },
+      fetch: vi.fn(),
+      AbortController,
+      setTimeout,
+      clearTimeout,
+      console: {
+        log: vi.fn(),
+        error: vi.fn(),
+      },
+    };
+
+    vm.createContext(sandbox);
+    vm.runInContext(
+      `${clientIdSource}\n${migrateSource}\n${helperSource}\n${streamSource}\nglobalThis.__testExports = { checkStream };`,
+      sandbox,
+      { filename: 'popup.js' }
+    );
+
+    return sandbox;
+  }
+
   async function loadPopupChannelExports(channels) {
     const source = await readFile(new URL('../popup.js', import.meta.url), 'utf8');
     const helperSource = source.slice(
@@ -72,7 +118,7 @@ describe('Popup Script', () => {
     );
     const removeSource = source.slice(
       source.indexOf('function removeChannel'),
-      source.indexOf('const CHANNEL_NAME_REGEX')
+      source.indexOf('channelInput.addEventListener')
     );
     const channelSource = source.slice(
       source.indexOf('async function duplicatedChannel'),
@@ -421,5 +467,43 @@ describe('Popup Script', () => {
     expect(checkTwitchConnection).not.toHaveBeenCalled();
     expect(rewriteNeedsLoginButton).toHaveBeenCalledWith(false);
     expect(console.error).toHaveBeenCalledWith('OAuth state mismatch: possible CSRF attack');
+  });
+
+  it.each([
+    ['non-string name', { name: 123 }],
+    ['missing name', { onLiveOpen: true }],
+    ['empty name', { name: '' }],
+    ['too-short name', { name: 'ab' }],
+    ['invalid characters', { name: 'bad user' }],
+  ])('does not query Twitch streams for %s', async (_name, channel) => {
+    const sandbox = await loadPopupStreamExports();
+    const { __testExports, chrome, fetch } = sandbox;
+
+    const result = await __testExports.checkStream(channel);
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(chrome.storage.local.get).not.toHaveBeenCalled();
+    expect(result).toBe(channel);
+    expect(result.onLive).toBe(false);
+    expect(result.status).toBe('error');
+    expect(result.lastError).toBe('Invalid channel name');
+  });
+
+  it('queries Twitch streams for valid stored channel names', async () => {
+    const sandbox = await loadPopupStreamExports();
+    const { __testExports, chrome, fetch } = sandbox;
+    fetch.mockResolvedValue({ ok: false, status: 401 });
+    const channel = { name: 'Valid_User' };
+
+    const result = await __testExports.checkStream(channel);
+
+    expect(chrome.storage.local.get).toHaveBeenCalledWith('oauth_token');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][0]).toBe('https://api.twitch.tv/helix/streams?user_login=Valid_User');
+    expect(fetch.mock.calls[0][1].headers).toEqual({
+      'Client-ID': 'lt060jwpltwp3weqdk53dx450aj99p',
+      'Authorization': 'Bearer token-1',
+    });
+    expect(result.status).toBe('error');
   });
 });
