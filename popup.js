@@ -26,6 +26,7 @@ const aboutBtn = document.getElementById('aboutBtn');
 const liveFilterSwitch = document.getElementById('liveFilterSwitch');
 
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
+const CHANNEL_NAME_REGEX = /^[a-z0-9_]{3,25}$/i;
 
 // Migrate old nested token format { oauth_token: "token" } (object) to flat string "token"
 function migrateOAuthToken(token) {
@@ -41,6 +42,11 @@ function normalizeStoredChannels(channels) {
 
 function normalizeChannelName(channel) {
   return typeof channel?.name === 'string' ? channel.name.toLowerCase() : '';
+}
+
+function getValidTwitchChannelName(channel) {
+  if (typeof channel?.name !== 'string') return '';
+  return CHANNEL_NAME_REGEX.test(channel.name) ? channel.name : '';
 }
 
 function isSameChannel(channel, otherChannel) {
@@ -1398,8 +1404,6 @@ function removeChannel(channel) {
   });
 }
 
-const CHANNEL_NAME_REGEX = /^[a-z0-9_]{3,25}$/i;
-
 channelInput.addEventListener('input', () => {
   channelInput.classList.remove('is-invalid');
 });
@@ -1644,9 +1648,17 @@ function rewriteNeedsLoginButton(isOk) {
 async function checkStream(channel) {
   if (!channel) return;
 
+  const channelName = getValidTwitchChannelName(channel);
+  if (!channelName) {
+    channel.onLive = false;
+    channel.status = 'error';
+    channel.lastError = 'Invalid channel name';
+    return channel;
+  }
+
   const oauth_token = migrateOAuthToken((await chrome.storage.local.get('oauth_token')).oauth_token);
 
-  const url = `https://api.twitch.tv/helix/streams?user_login=${channel.name}`;
+  const url = `https://api.twitch.tv/helix/streams?user_login=${channelName}`;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
   const options = {
