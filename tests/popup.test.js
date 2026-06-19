@@ -6,7 +6,7 @@ describe('Popup Script', () => {
   async function loadPopupTestExports() {
     const source = await readFile(new URL('../popup.js', import.meta.url), 'utf8');
     const helperSource = source.slice(
-      source.indexOf('function normalizeStoredChannels'),
+      source.indexOf('const CHANNEL_NAME_REGEX'),
       source.indexOf('// Category search using Twitch API')
     );
     const migrationSource = source.slice(
@@ -22,7 +22,7 @@ describe('Popup Script', () => {
 
     vm.createContext(sandbox);
     vm.runInContext(
-      `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, normalizeChannelName, isSameChannel, normalizeCategoryList, migrateBlockedCategories, migrateAllowedOnlyCategories, parseCategoryOptionValue, isSameCategory, includesCategory, getCategoriesNotAlreadyIncluded, addCategoryIfMissing, removeMatchingCategories };`,
+      `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, normalizeChannelName, getValidTwitchChannelName, canRenderChannelSettings, isSameChannel, normalizeCategoryList, migrateBlockedCategories, migrateAllowedOnlyCategories, parseCategoryOptionValue, isSameCategory, includesCategory, getCategoriesNotAlreadyIncluded, addCategoryIfMissing, removeMatchingCategories };`,
       sandbox,
       { filename: 'popup.js' }
     );
@@ -194,6 +194,25 @@ describe('Popup Script', () => {
       { name: '' },
       { name: '' }
     )).toBe(false);
+  });
+
+  it('only renders settings controls for valid stored channel names', async () => {
+    const { __testExports } = await loadPopupTestExports();
+
+    expect(__testExports.canRenderChannelSettings({ name: 'Valid_User' })).toBe(true);
+    expect(__testExports.getValidTwitchChannelName({ name: 'Valid_User' })).toBe('Valid_User');
+
+    for (const channel of [
+      { name: 123 },
+      { name: {} },
+      {},
+      { name: '' },
+      { name: 'ab' },
+      { name: 'invalid user' },
+    ]) {
+      expect(__testExports.canRenderChannelSettings(channel)).toBe(false);
+      expect(__testExports.getValidTwitchChannelName(channel)).toBe('');
+    }
   });
 
   it('detects manually added channels with different casing as duplicates', async () => {

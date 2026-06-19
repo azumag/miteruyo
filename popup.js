@@ -49,6 +49,10 @@ function getValidTwitchChannelName(channel) {
   return CHANNEL_NAME_REGEX.test(channel.name) ? channel.name : '';
 }
 
+function canRenderChannelSettings(channel) {
+  return getValidTwitchChannelName(channel) !== '';
+}
+
 function isSameChannel(channel, otherChannel) {
   const channelName = normalizeChannelName(channel);
   const otherChannelName = normalizeChannelName(otherChannel);
@@ -639,6 +643,8 @@ async function addChannelToList(channel, newAdded = false) {
   if (!newAdded && channel.status !== 'error' && liveFilterSwitch.checked && !channel.onLive) return;
 
   let cleanupFn;
+  const validChannelName = getValidTwitchChannelName(channel);
+  const rendersChannelSettings = canRenderChannelSettings(channel);
 
   const pauseMsg = chrome.i18n.getMessage('pause');
 
@@ -660,16 +666,18 @@ async function addChannelToList(channel, newAdded = false) {
     openButton.textContent = channel.onLiveOpen ? chrome.i18n.getMessage('statusLive') : pauseMsg;
     openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
     openButton.style.width = '72px';
-    openButton.addEventListener('click', () => {
-      openInManagedWindow(channel.name);
-    });
+    if (rendersChannelSettings) {
+      openButton.addEventListener('click', () => {
+        openInManagedWindow(validChannelName);
+      });
+    }
   } else {
     openButton.textContent = channel.onLiveOpen ? chrome.i18n.getMessage('statusOffline') : pauseMsg;
     openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
     openButton.style.width = '72px';
   }
 
-  if (channel.status === 'error') {
+  if (channel.status === 'error' || !rendersChannelSettings) {
     openButton.textContent = chrome.i18n.getMessage('statusNotFound');
     openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
     openButton.style.width = '72px';
@@ -695,7 +703,7 @@ async function addChannelToList(channel, newAdded = false) {
       openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
       openButton.style.width = '72px';
       openButton.addEventListener('click', () => {
-        openInManagedWindow(channel.name);
+        openInManagedWindow(validChannelName);
       });
     } else {
       openButton.textContent = channel.onLiveOpen ? chrome.i18n.getMessage('statusOffline') : pauseMsg;
@@ -704,12 +712,12 @@ async function addChannelToList(channel, newAdded = false) {
     }
   });
 
-  if (channel.status !== 'error') {
+  if (channel.status !== 'error' && rendersChannelSettings) {
     statusContainer.appendChild(onLiveOpenSwitch);
   }
 
   // Snooze Button (ライブ中かつエラーでない場合のみ表示)
-  if (channel.onLive && channel.status !== 'error') {
+  if (channel.onLive && channel.status !== 'error' && rendersChannelSettings) {
     const snoozeBtn = document.createElement('button');
     const snoozeIcon = document.createElement('i');
     const updateSnoozeUI = () => {
@@ -740,7 +748,7 @@ async function addChannelToList(channel, newAdded = false) {
   }
 
   // Priority Toggle Button (エラーでない場合のみ表示)
-  if (channel.status !== 'error') {
+  if (channel.status !== 'error' && rendersChannelSettings) {
     const priorityBtn = document.createElement('button');
     const priorityIcon = document.createElement('i');
     const updatePriorityUI = () => {
@@ -791,7 +799,9 @@ async function addChannelToList(channel, newAdded = false) {
       nextRow.hidden = !nextRow.hidden;
     }
   };
-  removetd.appendChild(settingsBtn);
+  if (rendersChannelSettings) {
+    removetd.appendChild(settingsBtn);
+  }
 
   // Remove Button
   const removeButton = document.createElement('i');
@@ -819,6 +829,8 @@ async function addChannelToList(channel, newAdded = false) {
   tr.appendChild(removetd);
 
   channelTable.appendChild(tr);
+
+  if (!rendersChannelSettings) return;
 
   // --- Settings Row ---
   const settingsTr = document.createElement('tr');
