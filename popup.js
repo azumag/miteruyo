@@ -59,6 +59,12 @@ function isSameChannel(channel, otherChannel) {
   return channelName !== '' && channelName === otherChannelName;
 }
 
+function shouldRemoveStoredChannel(storedChannel, targetChannel, storedIndex, targetIndex) {
+  if (isSameChannel(storedChannel, targetChannel)) return true;
+  if (isSameChannel(targetChannel, targetChannel)) return false;
+  return storedIndex === targetIndex && storedChannel !== null;
+}
+
 function normalizeCategoryList(categories) {
   if (!Array.isArray(categories)) return [];
 
@@ -620,12 +626,12 @@ chrome.storage.local.get(
 
 async function updateList(dchannels) {
   const checkStreams = [];
-  for (const _channel of normalizeStoredChannels(dchannels)) {
+  for (const [_index, _channel] of normalizeStoredChannels(dchannels).entries()) {
     checkStreams.push(
       checkStream(_channel)
         .then((channel) => {
           if (channel) {
-            addChannelToList(channel);
+            addChannelToList(channel, false, _index);
             return channel;
           }
         })
@@ -639,7 +645,7 @@ async function updateList(dchannels) {
   }
 }
 
-async function addChannelToList(channel, newAdded = false) {
+async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
   if (!newAdded && channel.status !== 'error' && liveFilterSwitch.checked && !channel.onLive) return;
 
   let cleanupFn;
@@ -816,7 +822,7 @@ async function addChannelToList(channel, newAdded = false) {
         nextRow.remove();
       }
       tr.remove();
-      removeChannel(channel);
+      removeChannel(channel, storageIndex);
       // Cleanup listeners
       if (cleanupFn) {
         cleanupFn();
@@ -1409,9 +1415,10 @@ async function addChannelToList(channel, newAdded = false) {
   channelTable.appendChild(settingsTr);
 }
 
-function removeChannel(channel) {
+function removeChannel(channel, storageIndex = -1) {
   chrome.storage.local.get('channels', (data) => {
-    const newChannels = normalizeStoredChannels(data.channels).filter((c) => !isSameChannel(c, channel));
+    const newChannels = normalizeStoredChannels(data.channels)
+      .filter((c, index) => !shouldRemoveStoredChannel(c, channel, index, storageIndex));
     chrome.storage.local.set({ channels: newChannels });
   });
 }

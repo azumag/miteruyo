@@ -246,6 +246,53 @@ describe('Popup Script', () => {
     });
   });
 
+  it('removes only the clicked malformed stored channel by storage index', async () => {
+    const malformedNumber = { name: 123, marker: 'clicked' };
+    const malformedObject = { name: {}, marker: 'kept-object' };
+    const emptyName = { name: '', marker: 'kept-empty' };
+    const sameMalformedNumber = { name: 123, marker: 'kept-number' };
+    const sandbox = await loadPopupChannelExports([
+      malformedNumber,
+      malformedObject,
+      emptyName,
+      sameMalformedNumber,
+      { name: 'validuser' },
+    ]);
+
+    sandbox.__testExports.removeChannel(malformedNumber, 0);
+
+    expect(sandbox.chrome.storage.local.set).toHaveBeenCalledWith({
+      channels: [
+        malformedObject,
+        emptyName,
+        sameMalformedNumber,
+        { name: 'validuser' },
+      ],
+    });
+  });
+
+  it('removes an empty-name stored channel without wiping other malformed rows', async () => {
+    const malformedNumber = { name: 123 };
+    const emptyName = { name: '' };
+    const nameless = {};
+    const sandbox = await loadPopupChannelExports([
+      malformedNumber,
+      emptyName,
+      nameless,
+      { name: 'validuser' },
+    ]);
+
+    sandbox.__testExports.removeChannel(emptyName, 1);
+
+    expect(sandbox.chrome.storage.local.set).toHaveBeenCalledWith({
+      channels: [
+        malformedNumber,
+        nameless,
+        { name: 'validuser' },
+      ],
+    });
+  });
+
   it('normalizes popup category lists before channel row rendering uses them', async () => {
     const { __testExports } = await loadPopupTestExports();
     const categories = [{ id: '1', name: 'Just Chatting' }];
