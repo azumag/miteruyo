@@ -1,5 +1,6 @@
 const FETCH_TIMEOUT_MS = 10000;
 const NOTIFICATION_ID_PREFIX = 'miteruyo-live-';
+const AUTH_NOTIFICATION_ID = 'miteruyo-auth-expired';
 const MIN_CHECK_INTERVAL_MINUTES = 1;
 const MAX_CHECK_INTERVAL_MINUTES = 60;
 const DEFAULT_CHECK_INTERVAL_MINUTES = 1;
@@ -112,7 +113,10 @@ export async function ensureAlarmsExist() {
 
 // Miteruyoの管理対象ウィンドウでタブを開く
 export async function openInManagedWindow(channelName) {
-  const url = twitchDomain + '/' + channelName;
+  const normalizedChannelName = normalizeMultiTwitchChannelName(channelName);
+  if (!normalizedChannelName) return;
+
+  const url = twitchDomain + '/' + normalizedChannelName.toLowerCase();
   const data = await chrome.storage.local.get(['isOpenNewWindow', 'lastOpenWindowId']);
 
   if (data.isOpenNewWindow) {
@@ -129,7 +133,7 @@ export async function openInManagedWindow(channelName) {
 
     if (windowId) {
       // 既存の管理対象ウィンドウに重複がなければタブを追加
-      await openTabIfNotExists({ name: channelName }, windowId);
+      await openTabIfNotExists({ url }, windowId);
     } else {
       // 新しいウィンドウを作成して管理対象に登録
       const newWindow = await chrome.windows.create({ url });
@@ -245,11 +249,21 @@ export async function validateToken(token) {
   }
 }
 
+// MV3のバッジ状態はブラウザの完全な再起動をまたいで保持されないため、
+// 起動時に isAuthExpired を読み直してバッジを復元する（Issue #147）
+export async function restoreAuthExpiredBadge() {
+  const data = await chrome.storage.local.get('isAuthExpired');
+  if (data.isAuthExpired === true) {
+    chrome.action.setBadgeText({ text: '!' });
+    chrome.action.setBadgeBackgroundColor({ color: '#dc3545' });
+  }
+}
+
 export async function checkStreams() {
   console.log('checkStreams started at:', new Date().toISOString());
 
   try {
-    const data = await chrome.storage.local.get(['isEnabled', 'isEnabledNotifications', 'isOpenMultiTwitch', 'channels', 'oauth_token']);
+    const data = await chrome.storage.local.get(['isEnabled', 'isEnabledNotifications', 'isOpenMultiTwitch', 'channels', 'oauth_token', 'isAuthExpired']);
     console.log('checkStreams data:', {
       isEnabled: data.isEnabled,
       isEnabledNotifications: data.isEnabledNotifications,
@@ -304,9 +318,43 @@ export async function checkStreams() {
       }
     }
 
+    // 認証エラー（401）を検知したチャンネルがあるかチェック（Issue #147）
+    // checkStream() が設定する一時フィールド authError を見る。lastError は表示用の文字列で
+    // フォーマットが変わりうるうえ成功時にクリアされないため、検知シグナルとしては使わない
+    const hasAuthError = updatedChannels.some(channel => channel && channel.authError === true);
+
+    // authError は保存対象のチャンネルスキーマに含めない一時シグナルなので検知したら直ちに
+    // 取り除く。updatedChannels はこの後、通知判定・activeChannels・channelQueuedStreams()
+    // 経由の書き戻し（tabを開いた場合に channels を再保存する）など複数の経路で参照される
+    // ため、ここで一箇所だけ取り除けば経路に関わらず漏れなく保存対象から除外できる
+    // （残したままだと成功時の { ...channel } スプレッドで次回以降のポーリングに引き継がれ、
+    // 一度401になると二度と検知が解除されなくなる）
+    for (const channel of updatedChannels) {
+      if (channel) delete channel.authError;
+    }
+
+    // 既知の制限（Issue #147）: ポーリング中（最大10秒×チャンネル数、並列）にポップアップ側で
+    // 再ログインが完了すると、この結果は古いトークンに基づいたまま isAuthExpired を上書きし、
+    // バッジ・通知が一時的に再表示されることがある。次のポーリング（最短1分間隔）で新しい
+    // トークンの結果に基づき自動的に解消されるため、影響は一時的。厳密に防ぐには
+    // ポップアップとService Worker間の同期機構が必要になり、この既知の限定的な事象に対して
+    // 見合わないため対応していない
+
     // 一括でストレージに保存（個別保存より効率的）
-    await chrome.storage.local.set({ channels: updatedChannels });
+    await chrome.storage.local.set({ channels: updatedChannels, isAuthExpired: hasAuthError });
     console.log('checkStreams: channels saved');
+
+    // 認証切れの検知に応じてバッジ・通知を更新（Issue #147）
+    // ライブ通知のON/OFF設定とは独立したエラーシグナルのため、isEnabledNotifications に関わらず常時発火
+    const wasAuthExpired = data.isAuthExpired === true;
+    if (hasAuthError && !wasAuthExpired) {
+      chrome.action.setBadgeText({ text: '!' });
+      chrome.action.setBadgeBackgroundColor({ color: '#dc3545' });
+      showAuthExpiredNotification();
+    } else if (!hasAuthError && wasAuthExpired) {
+      chrome.action.setBadgeText({ text: '' });
+      chrome.notifications.clear(AUTH_NOTIFICATION_ID);
+    }
 
     // 通知の判定
     const isEnabledNotifications = data.isEnabledNotifications;
@@ -834,6 +882,11 @@ export async function onWindowRemoved(windowId) {
 }
 
 export async function onNotificationClicked(notificationId) {
+  if (notificationId === AUTH_NOTIFICATION_ID) {
+    chrome.notifications.clear(notificationId);
+    return;
+  }
+
   const channelName = parseNotificationChannelName(notificationId);
   if (!channelName) {
     return;
@@ -844,6 +897,21 @@ export async function onNotificationClicked(notificationId) {
 }
 
 // --- Internal (non-exported) helper functions ---
+
+// 認証切れ通知を表示（Issue #147: トークン期限切れ検知）
+function showAuthExpiredNotification() {
+  const options = {
+    type: 'basic',
+    iconUrl: chrome.runtime.getURL('icon.png'),
+    title: chrome.i18n.getMessage('authExpiredTitle') || 'Twitchの認証が切れました',
+    message: chrome.i18n.getMessage('authExpiredBody') || 'ポップアップを開いて再度ログインしてください',
+    priority: 2,
+    eventTime: Date.now(),
+    requireInteraction: false
+  };
+
+  chrome.notifications.create(AUTH_NOTIFICATION_ID, options);
+}
 
 // 通知IDからチャンネル名を抽出・バリデーション
 // Format: miteruyo-live-{channelName}-{timestamp}
@@ -985,7 +1053,14 @@ async function checkStream(channel, oauth_token) {
 
     if (!response.ok) {
       console.error(`checkStream: HTTP error ${response.status} for ${channelName}`);
-      return { ...channel, status: 'error', lastError: `HTTP ${response.status}` };
+      const result = { ...channel, status: 'error', lastError: `HTTP ${response.status}` };
+      // 401はトークン期限切れの明示的シグナル（Issue #147）。checkStreams() が読み取った直後に
+      // 保存前に取り除く一時フィールドのため、成功時の { ...channel } スプレッドで古い値が
+      // 引き継がれて検知が固着する心配はない
+      if (response.status === 401) {
+        result.authError = true;
+      }
+      return result;
     }
 
     let data;

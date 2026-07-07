@@ -137,6 +137,14 @@
 		"message": "出さない",
 		"description": "個別設定の通知設定（オフ）"
 	},
+	"authExpiredTitle": {
+		"message": "Twitchの認証が切れました",
+		"description": "認証切れ通知のタイトル"
+	},
+	"authExpiredBody": {
+		"message": "ポップアップを開いて再度ログインしてください",
+		"description": "認証切れ通知の本文"
+	},
 	"about": {
 		"message": "Miteruyoについて",
 		"description": "Aboutボタン/タイトル"

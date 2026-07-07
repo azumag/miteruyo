@@ -27,6 +27,10 @@ const liveFilterSwitch = document.getElementById('liveFilterSwitch');
 
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
 const CHANNEL_NAME_REGEX = /^[a-z0-9_]{3,25}$/i;
+// popup.js is a classic (non-module) script and background-functions.js's service worker
+// runs in a separate context, so this can't be imported — must stay in sync with
+// AUTH_NOTIFICATION_ID in background-functions.js (Issue #147)
+const AUTH_NOTIFICATION_ID = 'miteruyo-auth-expired';
 
 // Migrate old nested token format { oauth_token: "token" } (object) to flat string "token"
 function migrateOAuthToken(token) {
@@ -1727,6 +1731,11 @@ function checkTwitchConnection(oauthToken) {
   })
     .then(response => {
       rewriteNeedsLoginButton(response.ok);
+      if (response.ok) {
+        chrome.action.setBadgeText({ text: '' });
+        chrome.storage.local.set({ isAuthExpired: false });
+        chrome.notifications.clear(AUTH_NOTIFICATION_ID);
+      }
       return response.ok;
     })
     .catch(error => {

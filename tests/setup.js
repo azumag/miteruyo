@@ -71,6 +71,10 @@ export function createChromeMock() {
         addListener: vi.fn(),
       },
     },
+    action: {
+      setBadgeText: vi.fn(),
+      setBadgeBackgroundColor: vi.fn(),
+    },
     contextMenus: {
       create: vi.fn(),
       onClicked: {

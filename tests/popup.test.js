@@ -123,6 +123,39 @@ describe('Popup Script', () => {
     return sandbox;
   }
 
+  async function loadPopupConnectionExports() {
+    const source = await readFile(new URL('../popup.js', import.meta.url), 'utf8');
+    const connectionSource = source.slice(
+      source.indexOf('function checkTwitchConnection'),
+      source.indexOf('async function checkStream')
+    );
+    const mainElement = { hidden: false };
+    const loginTwitchElement = { textContent: '', disabled: false };
+    const sandbox = {
+      chrome: {
+        storage: { local: { set: vi.fn() } },
+        action: { setBadgeText: vi.fn() },
+        notifications: { clear: vi.fn() },
+      },
+      document: {
+        getElementById: vi.fn((id) => (id === 'main' ? mainElement : loginTwitchElement)),
+      },
+      loginTwitch: loginTwitchElement,
+      AUTH_NOTIFICATION_ID: 'miteruyo-auth-expired',
+      fetch: vi.fn(),
+      console: { log: vi.fn(), error: vi.fn() },
+    };
+
+    vm.createContext(sandbox);
+    vm.runInContext(
+      `${connectionSource}\nglobalThis.__testExports = { checkTwitchConnection, rewriteNeedsLoginButton };`,
+      sandbox,
+      { filename: 'popup.js' }
+    );
+
+    return { sandbox, mainElement, loginTwitchElement };
+  }
+
   async function loadPopupChannelExports(channels) {
     const source = await readFile(new URL('../popup.js', import.meta.url), 'utf8');
     const helperSource = source.slice(
@@ -656,6 +689,41 @@ describe('Popup Script', () => {
     expect(checkTwitchConnection).not.toHaveBeenCalled();
     expect(rewriteNeedsLoginButton).toHaveBeenCalledWith(false);
     expect(console.error).toHaveBeenCalledWith('OAuth state mismatch: possible CSRF attack');
+  });
+
+  it('clears the auth-expired badge and flag when reconnecting succeeds', async () => {
+    const { sandbox } = await loadPopupConnectionExports();
+    sandbox.fetch.mockResolvedValue({ ok: true });
+
+    const result = await sandbox.__testExports.checkTwitchConnection('valid-token');
+
+    expect(result).toBe(true);
+    expect(sandbox.chrome.action.setBadgeText).toHaveBeenCalledWith({ text: '' });
+    expect(sandbox.chrome.storage.local.set).toHaveBeenCalledWith({ isAuthExpired: false });
+    expect(sandbox.chrome.notifications.clear).toHaveBeenCalledWith('miteruyo-auth-expired');
+  });
+
+  it('does not touch the badge when reconnecting still fails', async () => {
+    const { sandbox } = await loadPopupConnectionExports();
+    sandbox.fetch.mockResolvedValue({ ok: false });
+
+    const result = await sandbox.__testExports.checkTwitchConnection('bad-token');
+
+    expect(result).toBe(false);
+    expect(sandbox.chrome.action.setBadgeText).not.toHaveBeenCalled();
+    expect(sandbox.chrome.storage.local.set).not.toHaveBeenCalled();
+  });
+
+  it('keeps its AUTH_NOTIFICATION_ID constant in sync with background-functions.js (issue #147)', async () => {
+    const popupSource = await readFile(new URL('../popup.js', import.meta.url), 'utf8');
+    const backgroundSource = await readFile(new URL('../background-functions.js', import.meta.url), 'utf8');
+
+    const popupMatch = popupSource.match(/const AUTH_NOTIFICATION_ID = '([^']+)';/);
+    const backgroundMatch = backgroundSource.match(/const AUTH_NOTIFICATION_ID = '([^']+)';/);
+
+    expect(popupMatch).not.toBeNull();
+    expect(backgroundMatch).not.toBeNull();
+    expect(popupMatch[1]).toBe(backgroundMatch[1]);
   });
 
   it.each([

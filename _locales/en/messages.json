@@ -137,6 +137,14 @@
 		"message": "Off",
 		"description": "Per-channel notification setting (Off)"
 	},
+	"authExpiredTitle": {
+		"message": "Twitch login expired",
+		"description": "Title for the auth-expired notification"
+	},
+	"authExpiredBody": {
+		"message": "Open the popup and log in again",
+		"description": "Body for the auth-expired notification"
+	},
 	"about": {
 		"message": "About Miteruyo",
 		"description": "About button/title"

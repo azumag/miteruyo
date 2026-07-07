@@ -19,6 +19,7 @@ const backgroundFunctionsMock = vi.hoisted(() => ({
   onStorageChangedForTabRotation: vi.fn().mockResolvedValue(undefined),
   onStorageChangedForCheckInterval: vi.fn().mockResolvedValue(undefined),
   onNotificationClicked: vi.fn().mockResolvedValue(undefined),
+  restoreAuthExpiredBadge: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../background-functions.js', () => backgroundFunctionsMock);

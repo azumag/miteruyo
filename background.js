@@ -10,6 +10,7 @@ import {
   onStorageChangedForTabRotation,
   onStorageChangedForCheckInterval,
   onNotificationClicked,
+  restoreAuthExpiredBadge,
 } from './background-functions.js';
 
 function normalizeChannelName(name) {
@@ -18,12 +19,14 @@ function normalizeChannelName(name) {
 
 // Service Worker起動時にもアラームを確認（フォールバック）
 ensureAlarmsExist().catch(e => console.error('ensureAlarmsExist error:', e));
+restoreAuthExpiredBadge().catch(e => console.error('restoreAuthExpiredBadge error:', e));
 
 // Chrome起動時にアラームを確認
 chrome.runtime.onStartup.addListener(async () => {
   try {
     console.log('onStartup event');
     await ensureAlarmsExist();
+    await restoreAuthExpiredBadge();
   } catch (e) {
     console.error('onStartup error:', e);
   }

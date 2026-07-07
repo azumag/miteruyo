@@ -169,10 +169,11 @@ Check Chrome DevTools:
 2. Console for: `ensureAlarmsExist called` and `checkStreams started`
 
 ### API Errors
-Check the service worker console for:
+If your Twitch token expires or is revoked (HTTP 401 from Twitch), Miteruyo shows a red `!` badge on the toolbar icon and sends a one-time desktop notification asking you to log in again — open the popup and click the "Please login to Twitch" button. The badge and notification only fire once per expiration (they don't repeat every polling cycle) and clear automatically once you reconnect.
+
+For other, non-auth API errors, check the service worker console for:
 - `Error checking channel {name}:` - API call failed
 - `Timeout for {channel}:` - Request exceeded 10 seconds
-- `HTTP error 401:` - OAuth token expired/invalid
 
 ### Twitch Login Callback Errors
 If the Twitch OAuth redirect is canceled, denied, malformed, or missing `access_token`, Miteruyo leaves any stored token unchanged and asks you to log in again from the popup.

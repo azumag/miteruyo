@@ -19,6 +19,7 @@ import {
   checkOfflineWithTab,
   countTwitchChannelTabs,
   displaceNonPriorityTabs,
+  restoreAuthExpiredBadge,
 } from '../background-functions.js';
 
 describe('Background Script', () => {
@@ -533,6 +534,196 @@ describe('Background Script', () => {
       );
       expect(setCall).toBeDefined();
       expect(setCall[0].channels[0].status).toBe('offline');
+    });
+  });
+
+  describe('Auth expiration detection (issue #147)', () => {
+    it('should show a badge and fire one notification when the token first expires (401)', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ error: 'Unauthorized' }),
+        headers: { get: () => null },
+      });
+
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [{ name: 'testchannel', onLiveOpen: false }],
+        oauth_token: 'expired_token',
+        isEnabledAutoClose: false,
+        isAuthExpired: false,
+      });
+
+      await checkStreams();
+
+      expect(chromeMock.action.setBadgeText).toHaveBeenCalledWith({ text: '!' });
+      expect(chromeMock.action.setBadgeBackgroundColor).toHaveBeenCalledWith({ color: '#dc3545' });
+      expect(chromeMock.notifications.create).toHaveBeenCalledTimes(1);
+      expect(chromeMock.notifications.create).toHaveBeenCalledWith(
+        'miteruyo-auth-expired',
+        expect.objectContaining({ type: 'basic' })
+      );
+
+      const setCall = chromeMock.storage.local.set.mock.calls.find(call => call[0].channels);
+      expect(setCall[0].isAuthExpired).toBe(true);
+    });
+
+    it('should not re-fire the notification on subsequent polls while still expired', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ error: 'Unauthorized' }),
+        headers: { get: () => null },
+      });
+
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [{ name: 'testchannel', onLiveOpen: false }],
+        oauth_token: 'expired_token',
+        isEnabledAutoClose: false,
+        isAuthExpired: true, // already flagged from a previous poll
+      });
+
+      await checkStreams();
+
+      expect(chromeMock.notifications.create).not.toHaveBeenCalled();
+      expect(chromeMock.action.setBadgeText).not.toHaveBeenCalled();
+
+      const setCall = chromeMock.storage.local.set.mock.calls.find(call => call[0].channels);
+      expect(setCall[0].isAuthExpired).toBe(true);
+    });
+
+    it('should clear the badge and notification and persist recovery when the token becomes valid again', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+        headers: { get: () => null },
+      });
+
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        // Realistic fixture: this channel still carries the lastError string a prior
+        // failed (401) poll recorded — recovery must not depend on that field being absent.
+        channels: [{ name: 'testchannel', onLiveOpen: false, status: 'error', lastError: 'HTTP 401' }],
+        oauth_token: 'new_token',
+        isEnabledAutoClose: false,
+        isAuthExpired: true,
+      });
+
+      await checkStreams();
+
+      expect(chromeMock.action.setBadgeText).toHaveBeenCalledWith({ text: '' });
+      expect(chromeMock.notifications.clear).toHaveBeenCalledWith('miteruyo-auth-expired');
+      expect(chromeMock.notifications.create).not.toHaveBeenCalled();
+
+      const setCall = chromeMock.storage.local.set.mock.calls.find(call => call[0].channels);
+      expect(setCall[0].isAuthExpired).toBe(false);
+    });
+
+    it('should not get stuck permanently expired once a channel with a stale HTTP 401 lastError starts succeeding again', async () => {
+      // Regression test: checkStream's success paths used to spread `{...channel}` forward
+      // without clearing `lastError`, so a channel that once hit 401 would keep tripping
+      // hasAuthError forever even after the token was fixed. Run two consecutive successful
+      // polls to prove the fix is durable, not a one-off.
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+        headers: { get: () => null },
+      });
+
+      const storageState = {
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [{ name: 'testchannel', onLiveOpen: false, status: 'error', lastError: 'HTTP 401' }],
+        oauth_token: 'new_token',
+        isEnabledAutoClose: false,
+        isAuthExpired: true,
+      };
+      chromeMock.storage.local.get.mockImplementation(() => Promise.resolve(storageState));
+      chromeMock.storage.local.set.mockImplementation((data) => {
+        Object.assign(storageState, data);
+        return Promise.resolve();
+      });
+
+      await checkStreams();
+      expect(storageState.isAuthExpired).toBe(false);
+
+      await checkStreams();
+      expect(storageState.isAuthExpired).toBe(false);
+      expect(chromeMock.action.setBadgeText).not.toHaveBeenCalledWith({ text: '!' });
+    });
+
+    it('should not leak the transient authError field into storage via channelQueuedStreams\' own write-back', async () => {
+      // Regression test: channelQueuedStreams() does its own chrome.storage.local.set({channels})
+      // when it opens a tab, reusing the same channel object references checkStreams() computed.
+      // A channel that was already onLive/onLiveOpen before hitting a 401 keeps onLive:true
+      // through the error branch's {...channel} spread, so it can still trigger a tab-open here.
+      // If authError isn't stripped from those shared objects before this second write path
+      // runs, the stale signal leaks into storage independently of the primary storage write.
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ error: 'Unauthorized' }),
+        headers: { get: () => null },
+      });
+
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string') {
+          if (keys === 'isEnabledAutoClose') return Promise.resolve({ isEnabledAutoClose: false });
+          return Promise.resolve({});
+        }
+        if (Array.isArray(keys) && keys.includes('isEnabled')) {
+          return Promise.resolve({
+            isEnabled: true,
+            isEnabledNotifications: false,
+            isOpenMultiTwitch: false,
+            channels: [{ name: 'testchannel', onLive: true, onLiveOpen: true, hasBeenOpened: false }],
+            oauth_token: 'expired_token',
+            isAuthExpired: false,
+          });
+        }
+        if (Array.isArray(keys) && keys.includes('isOpenNewWindow')) {
+          return Promise.resolve({ isOpenNewWindow: false, isEnabledMaxTabs: false });
+        }
+        return Promise.resolve({});
+      });
+      chromeMock.tabs.query.mockResolvedValue([]);
+
+      await checkStreams();
+
+      const channelWriteCalls = chromeMock.storage.local.set.mock.calls.filter(call => call[0].channels);
+      expect(channelWriteCalls.length).toBeGreaterThan(0);
+      for (const call of channelWriteCalls) {
+        for (const channel of call[0].channels) {
+          expect(channel).not.toHaveProperty('authError');
+        }
+      }
+    });
+  });
+
+  describe('restoreAuthExpiredBadge (issue #147)', () => {
+    it('should re-apply the badge on startup if isAuthExpired was already true', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({ isAuthExpired: true });
+
+      await restoreAuthExpiredBadge();
+
+      expect(chromeMock.action.setBadgeText).toHaveBeenCalledWith({ text: '!' });
+      expect(chromeMock.action.setBadgeBackgroundColor).toHaveBeenCalledWith({ color: '#dc3545' });
+    });
+
+    it('should do nothing on startup if isAuthExpired is not set', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({ isAuthExpired: false });
+
+      await restoreAuthExpiredBadge();
+
+      expect(chromeMock.action.setBadgeText).not.toHaveBeenCalled();
     });
   });
 
@@ -1953,6 +2144,13 @@ describe('Background Script', () => {
 
       expect(chromeMock.notifications.clear).not.toHaveBeenCalled();
     });
+
+    it('should clear the auth-expired notification without opening a tab', async () => {
+      await onNotificationClicked('miteruyo-auth-expired');
+
+      expect(chromeMock.notifications.clear).toHaveBeenCalledWith('miteruyo-auth-expired');
+      expect(chromeMock.tabs.create).not.toHaveBeenCalled();
+    });
   });
 
   describe('channelQueuedStreams open-new-window duplicate checks', () => {
@@ -2055,7 +2253,7 @@ describe('Background Script', () => {
       });
       chromeMock.tabs.create.mockResolvedValue({ id: 1, windowId: 789 });
 
-      await openInManagedWindow('testchannel');
+      await openInManagedWindow('TestChannel');
 
       expect(chromeMock.tabs.create).toHaveBeenCalledWith({
         url: 'https://www.twitch.tv/testchannel',
@@ -2073,7 +2271,7 @@ describe('Background Script', () => {
       });
       chromeMock.windows.create.mockResolvedValue({ id: 42 });
 
-      await openInManagedWindow('testchannel');
+      await openInManagedWindow('TestChannel');
 
       expect(chromeMock.windows.create).toHaveBeenCalledWith({
         url: 'https://www.twitch.tv/testchannel',
@@ -2132,7 +2330,7 @@ describe('Background Script', () => {
       await openInManagedWindow('TestChannel');
 
       expect(chromeMock.tabs.create).toHaveBeenCalledWith({
-        url: 'https://www.twitch.tv/TestChannel',
+        url: 'https://www.twitch.tv/testchannel',
         windowId: 123,
       });
       expect(chromeMock.windows.create).not.toHaveBeenCalled();
@@ -2147,7 +2345,7 @@ describe('Background Script', () => {
       chromeMock.windows.get.mockRejectedValue(new Error('Window not found'));
       chromeMock.windows.create.mockResolvedValue({ id: 50 });
 
-      await openInManagedWindow('testchannel');
+      await openInManagedWindow('TestChannel');
 
       expect(chromeMock.windows.create).toHaveBeenCalledWith({
         url: 'https://www.twitch.tv/testchannel',
@@ -2155,6 +2353,19 @@ describe('Background Script', () => {
       expect(chromeMock.storage.local.set).toHaveBeenCalledWith({
         lastOpenWindowId: 50,
       });
+    });
+
+    it('should ignore invalid channel names', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({
+        isOpenNewWindow: false,
+        lastOpenWindowId: null,
+      });
+
+      await openInManagedWindow('not a channel');
+
+      expect(chromeMock.tabs.create).not.toHaveBeenCalled();
+      expect(chromeMock.windows.create).not.toHaveBeenCalled();
+      expect(chromeMock.storage.local.set).not.toHaveBeenCalled();
     });
   });
 
