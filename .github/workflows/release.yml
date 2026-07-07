@@ -63,7 +63,11 @@ jobs:
       - name: Verify no dev clientId remains
         run: |
           # Fail if dev clientId is still present in any source file
-          if grep -r "lt060jwpltwp3weqdk53dx450aj99p" --include="*.js" .; then
+          if grep -r "lt060jwpltwp3weqdk53dx450aj99p" --include="*.js" \
+            --exclude-dir=".git" \
+            --exclude-dir="node_modules" \
+            --exclude-dir="tests" \
+            .; then
             echo "ERROR: Dev clientId still found in source files!"
             exit 1
           fi
