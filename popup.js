@@ -778,12 +778,7 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
 
   // 3. Channel Name
   const cntd = document.createElement('td');
-  // Essential for text-overflow in table cells
-  cntd.style.maxWidth = '0';
-  cntd.style.width = '100%';
-  cntd.style.whiteSpace = 'nowrap';
-  cntd.style.overflow = 'hidden';
-  cntd.style.textOverflow = 'ellipsis';
+  cntd.className = 'channel-name-cell';
 
   // 優先チャンネルの表示用インジケーター（設定パネル内のトグルと連動、読み取り専用）
   const priorityIndicator = document.createElement('i');

@@ -23,6 +23,7 @@ A Chrome extension that monitors Twitch channels and automatically opens streams
 
 Each channel row keeps status and actions compact for the Chrome popup:
 
+- Long channel names are truncated with an ellipsis so status and action buttons stay visible in the narrow popup.
 - `LIVE` / `OFFLINE` / `NOT FOUND`: stream status. `LIVE` can be clicked to open the channel in the managed Miteruyo window.
 - Pause/play icon: toggles whether that channel should auto-open when it goes live.
 - Moon icon: snoozes a live channel until its next stream.

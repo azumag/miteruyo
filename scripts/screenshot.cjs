@@ -42,7 +42,7 @@ async function takeScreenshot(options = {}) {
 
     // Open popup page directly
     const page = await browser.newPage();
-    await page.setViewport({ width: 400, height: 900 });
+    await page.setViewport({ width: 330, height: 900 });
     await page.goto(`chrome-extension://${extensionId}/popup.html`, {
       waitUntil: 'networkidle0',
     });
@@ -96,22 +96,41 @@ async function takeScreenshot(options = {}) {
       const channelTableBody = document.getElementById('channelTableBody');
       if (!channelTableBody) return;
 
-      // Create mock channel row
-      const tr = document.createElement('tr');
-
-      const nameTd = document.createElement('td');
-      nameTd.innerHTML = '<span class="badge bg-success me-1">LIVE</span><a href="#" class="small">test_channel</a>';
-      tr.appendChild(nameTd);
-
-      const statusTd = document.createElement('td');
-      statusTd.innerHTML = '<small class="text-muted">Just Chatting</small>';
-      tr.appendChild(statusTd);
-
-      const btnTd = document.createElement('td');
-      btnTd.innerHTML = '<button class="btn btn-outline-secondary btn-sm">...</button>';
-      tr.appendChild(btnTd);
-
-      channelTableBody.appendChild(tr);
+      // Create mock channel rows using the same layout classes as popup.js.
+      const rows = [
+        { channelName: 'icarus0219', statusLabel: chrome.i18n.getMessage('statusLive') || 'LIVE', statusClass: 'success', showToggle: true, showSettings: true },
+        { channelName: 'snoozed_user', statusLabel: chrome.i18n.getMessage('snoozed') || 'Snoozed', statusClass: 'warning', showToggle: true, showSettings: true },
+        { channelName: 'byodoji', statusLabel: chrome.i18n.getMessage('statusOffline') || 'OFFLINE', statusClass: 'danger', showToggle: true, showSettings: true },
+        { channelName: 'missing_channel', statusLabel: chrome.i18n.getMessage('statusNotFound') || 'NOT FOUND', statusClass: 'danger', showToggle: false, showSettings: false },
+      ];
+      for (const row of rows) {
+        const tr = document.createElement('tr');
+        tr.className = 'align-middle channel-tr';
+        tr.innerHTML = `
+          <td>
+            <div class="channel-controls">
+              <button class="btn btn-outline-${row.statusClass} btn-sm channel-status-btn" type="button">${row.statusLabel}</button>
+              ${row.showToggle ? `<button class="btn btn-outline-secondary btn-sm channel-icon-btn" type="button">
+                <i class="bi bi-play-fill"></i>
+              </button>` : ''}
+            </div>
+          </td>
+          <td class="channel-name-cell">
+            <span title="${row.channelName}">${row.channelName}</span>
+          </td>
+          <td class="text-end">
+            <div class="channel-row-actions" role="group" aria-label="Channel actions">
+              ${row.showSettings ? `<button class="channel-row-action" type="button" aria-label="Settings">
+                <i class="bi bi-gear"></i>
+              </button>` : ''}
+              <button class="channel-row-action text-danger" type="button" aria-label="Delete">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </td>
+        `;
+        channelTableBody.appendChild(tr);
+      }
 
       // Create settings row (expanded)
       const settingsTr = document.createElement('tr');
@@ -169,6 +188,69 @@ async function takeScreenshot(options = {}) {
         }
       });
       await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    const layoutMetrics = await page.evaluate(() => ({
+      scrollWidth: document.scrollingElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }));
+    if (layoutMetrics.scrollWidth > layoutMetrics.clientWidth) {
+      throw new Error(`Popup layout overflow: scrollWidth=${layoutMetrics.scrollWidth}, clientWidth=${layoutMetrics.clientWidth}`);
+    }
+
+    const clippedStatusLabels = await page.evaluate(() => (
+      Array.from(document.querySelectorAll('.channel-status-btn'))
+        .filter(button => button.scrollWidth > button.clientWidth || button.scrollHeight > button.clientHeight)
+        .map(button => ({
+          label: button.textContent.trim(),
+          clientWidth: button.clientWidth,
+          scrollWidth: button.scrollWidth,
+        }))
+    ));
+    if (clippedStatusLabels.length > 0) {
+      throw new Error(`Popup status labels clipped: ${JSON.stringify(clippedStatusLabels)}`);
+    }
+
+    const statusWidths = await page.evaluate(() => (
+      Array.from(document.querySelectorAll('.channel-status-btn'))
+        .map(button => ({
+          label: button.textContent.trim(),
+          width: Math.round(button.getBoundingClientRect().width),
+        }))
+    ));
+    const distinctStatusWidths = new Set(statusWidths.map(button => button.width));
+    if (distinctStatusWidths.size > 1) {
+      throw new Error(`Popup status button widths differ: ${JSON.stringify(statusWidths)}`);
+    }
+
+    const clippedSwitchLabels = await page.evaluate(() => (
+      Array.from(document.querySelectorAll('.popup-switch .form-check-label'))
+        .filter(label => label.scrollWidth > label.clientWidth || label.scrollHeight > label.clientHeight)
+        .map(label => ({
+          label: label.textContent.trim(),
+          clientWidth: label.clientWidth,
+          scrollWidth: label.scrollWidth,
+        }))
+    ));
+    if (clippedSwitchLabels.length > 0) {
+      throw new Error(`Popup switch labels clipped: ${JSON.stringify(clippedSwitchLabels)}`);
+    }
+
+    const viewportOverflow = await page.evaluate(() => (
+      Array.from(document.querySelectorAll('.popup-switch, .channel-controls, .channel-row-actions'))
+        .filter(element => {
+          const rect = element.getBoundingClientRect();
+          return rect.left < -0.5 || rect.right > document.documentElement.clientWidth + 0.5;
+        })
+        .map(element => ({
+          className: element.className,
+          left: element.getBoundingClientRect().left,
+          right: element.getBoundingClientRect().right,
+          clientWidth: document.documentElement.clientWidth,
+        }))
+    ));
+    if (viewportOverflow.length > 0) {
+      throw new Error(`Popup controls overflow viewport: ${JSON.stringify(viewportOverflow)}`);
     }
 
     // Take screenshot

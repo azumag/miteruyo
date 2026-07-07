@@ -150,7 +150,7 @@
 		"description": "Support link label"
 	},
 	"supportMessage": {
-		"message": "If you like this extension, please consider supporting me!",
+		"message": "If you like this extension, please consider supporting me! I also accept bug reports and feature requests here.",
 		"description": "Support request message"
 	},
 	"githubLink": {

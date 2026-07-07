@@ -3,6 +3,10 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 
 describe('Popup Script', () => {
+  async function loadPopupHtml() {
+    return readFile(new URL('../popup.html', import.meta.url), 'utf8');
+  }
+
   async function loadPopupTestExports() {
     const source = await readFile(new URL('../popup.js', import.meta.url), 'utf8');
     const helperSource = source.slice(
@@ -156,6 +160,33 @@ describe('Popup Script', () => {
 
     return sandbox;
   }
+
+  it('keeps the add-channel and filter controls constrained to the popup width', async () => {
+    const html = await loadPopupHtml();
+
+    expect(html).toContain('input-group has-validation channel-add-group');
+    expect(html).toContain('max-width: 100%;');
+    expect(html).toContain('.channel-add-group');
+    expect(html).toContain('flex-wrap: nowrap;');
+    expect(html).toContain('#channelInput');
+    expect(html).toContain('#addChannelBtn');
+    expect(html).toContain('.popup-switches');
+    expect(html).toContain('.popup-switch');
+    expect(html).not.toContain('row form-switch');
+  });
+
+  it('gives channel row controls fixed space and lets channel names truncate', async () => {
+    const html = await loadPopupHtml();
+    const popupSource = await readFile(new URL('../popup.js', import.meta.url), 'utf8');
+
+    expect(html).toContain('table-layout: fixed;');
+    expect(html).toContain('flex: 0 0 80px;');
+    expect(html).toContain('<col style="width: 124px;">');
+    expect(html).toContain('<col style="width: 60px;">');
+    expect(html).toContain('.channel-name-cell');
+    expect(html).toContain('text-overflow: ellipsis;');
+    expect(popupSource).toContain("cntd.className = 'channel-name-cell';");
+  });
 
   it('parses valid category option values', async () => {
     const { __testExports, console } = await loadPopupTestExports();

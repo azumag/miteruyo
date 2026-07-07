@@ -150,7 +150,7 @@
 		"description": "支援リンク用ラベル"
 	},
 	"supportMessage": {
-		"message": "気に入ったらご支援頂けますと幸いです",
+		"message": "気に入ったらご支援頂けますと幸いです。修正/要望もこちらで承ります",
 		"description": "支援のお願いメッセージ"
 	},
 	"githubLink": {
