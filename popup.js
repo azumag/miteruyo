@@ -364,6 +364,22 @@ document.addEventListener('DOMContentLoaded', function () {
   const supportMessageLabel = document.getElementById('supportMessageLabel');
   if (supportMessageLabel) supportMessageLabel.textContent = chrome.i18n.getMessage('supportMessage');
 
+  const mutedHelpTitle = document.getElementById('mutedHelpTitle');
+  if (mutedHelpTitle) mutedHelpTitle.textContent = chrome.i18n.getMessage('mutedHelpTitle');
+
+  const mutedHelpBody = document.getElementById('mutedHelpBody');
+  if (mutedHelpBody) mutedHelpBody.textContent = chrome.i18n.getMessage('mutedHelpBody');
+
+  const openTwitchSoundSettingsLabel = document.getElementById('openTwitchSoundSettingsLabel');
+  if (openTwitchSoundSettingsLabel) openTwitchSoundSettingsLabel.textContent = chrome.i18n.getMessage('openTwitchSoundSettingsLabel');
+
+  const openTwitchSoundSettingsButton = document.getElementById('openTwitchSoundSettingsButton');
+  if (openTwitchSoundSettingsButton) {
+    openTwitchSoundSettingsButton.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'chrome://settings/content/siteDetails?site=https%3A%2F%2Fwww.twitch.tv' });
+    });
+  }
+
   // バージョン情報の設定
   const aboutVersion = document.getElementById('aboutVersion');
   if (aboutVersion) {
@@ -663,7 +679,11 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
   const validChannelName = getValidTwitchChannelName(channel);
   const rendersChannelSettings = canRenderChannelSettings(channel);
 
-  const pauseMsg = chrome.i18n.getMessage('pause');
+  const channelLabel = label => `${label}: ${channel.name}`;
+  const setButtonLabel = (button, label, title = label) => {
+    button.title = title;
+    button.setAttribute('aria-label', label);
+  };
 
   const tr = document.createElement('tr');
   tr.className = 'align-middle'; // Ensure vertical centering
@@ -672,11 +692,12 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
   // 1. Live Status & On/Off Switch
   const statusTd = document.createElement('td');
   const statusContainer = document.createElement('div');
-  statusContainer.className = 'd-flex align-items-center gap-1';
+  statusContainer.className = 'channel-controls';
   statusTd.appendChild(statusContainer);
   tr.appendChild(statusTd);
 
   const openButton = document.createElement('button');
+  openButton.type = 'button';
   statusContainer.appendChild(openButton);
 
   // ライブ中タブを開く（通常状態でライブ中のときのみ有効）
@@ -687,46 +708,58 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
   });
 
   const updateOpenButtonDisplay = () => {
-    openButton.style.width = '72px';
-
+    let label;
+    let buttonClass;
     if (channel.status === 'error' || !rendersChannelSettings) {
-      openButton.textContent = chrome.i18n.getMessage('statusNotFound');
-      openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
+      label = chrome.i18n.getMessage('statusNotFound');
+      buttonClass = 'btn btn-outline-danger btn-sm channel-status-btn';
     } else if (channel.snoozed && channel.onLive) {
-      openButton.textContent = chrome.i18n.getMessage('snoozed');
-      openButton.setAttribute('class', 'btn btn-outline-warning btn-sm');
+      label = chrome.i18n.getMessage('snoozed');
+      buttonClass = 'btn btn-outline-warning btn-sm channel-status-btn';
     } else if (!channel.onLiveOpen) {
-      openButton.textContent = pauseMsg;
-      openButton.setAttribute('class', channel.onLive ? 'btn btn-outline-success btn-sm' : 'btn btn-outline-danger btn-sm');
+      label = chrome.i18n.getMessage('pause');
+      buttonClass = channel.onLive ? 'btn btn-outline-success btn-sm channel-status-btn' : 'btn btn-outline-danger btn-sm channel-status-btn';
     } else if (channel.onLive) {
-      openButton.textContent = chrome.i18n.getMessage('statusLive');
-      openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
+      label = chrome.i18n.getMessage('statusLive');
+      buttonClass = 'btn btn-outline-success btn-sm channel-status-btn';
     } else {
-      openButton.textContent = chrome.i18n.getMessage('statusOffline');
-      openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
+      label = chrome.i18n.getMessage('statusOffline');
+      buttonClass = 'btn btn-outline-danger btn-sm channel-status-btn';
     }
+
+    openButton.textContent = label;
+    openButton.className = buttonClass;
+    const openLabel = channel.onLive && rendersChannelSettings ? chrome.i18n.getMessage('openChannel') : label;
+    setButtonLabel(openButton, channelLabel(openLabel), channelLabel(label));
   };
   updateOpenButtonDisplay();
 
   // Auto-Open Toggle Button: 通常 → スヌーズ → 停止 → 通常 の3状態を1つのボタンで循環
   const autoOpenToggleBtn = document.createElement('button');
+  autoOpenToggleBtn.type = 'button';
   const autoOpenToggleIcon = document.createElement('i');
   autoOpenToggleBtn.appendChild(autoOpenToggleIcon);
 
   const updateAutoOpenToggleUI = () => {
+    let buttonClass;
+    let iconClass;
+    let label;
     if (channel.snoozed) {
-      autoOpenToggleBtn.setAttribute('class', 'btn btn-warning btn-sm');
-      autoOpenToggleIcon.setAttribute('class', 'bi bi-moon-fill');
-      autoOpenToggleBtn.title = chrome.i18n.getMessage('autoOpenStateSnoozed');
+      buttonClass = 'btn btn-warning btn-sm channel-icon-btn';
+      iconClass = 'bi bi-moon-fill';
+      label = chrome.i18n.getMessage('autoOpenStateSnoozed');
     } else if (!channel.onLiveOpen) {
-      autoOpenToggleBtn.setAttribute('class', 'btn btn-outline-danger btn-sm');
-      autoOpenToggleIcon.setAttribute('class', 'bi bi-pause-fill');
-      autoOpenToggleBtn.title = chrome.i18n.getMessage('autoOpenStatePaused');
+      buttonClass = 'btn btn-outline-danger btn-sm channel-icon-btn';
+      iconClass = 'bi bi-pause-fill';
+      label = chrome.i18n.getMessage('autoOpenStatePaused');
     } else {
-      autoOpenToggleBtn.setAttribute('class', 'btn btn-outline-secondary btn-sm');
-      autoOpenToggleIcon.setAttribute('class', 'bi bi-play-fill');
-      autoOpenToggleBtn.title = chrome.i18n.getMessage('autoOpenStateNormal');
+      buttonClass = 'btn btn-outline-secondary btn-sm channel-icon-btn';
+      iconClass = 'bi bi-play-fill';
+      label = chrome.i18n.getMessage('autoOpenStateNormal');
     }
+    autoOpenToggleBtn.className = buttonClass;
+    autoOpenToggleIcon.className = iconClass;
+    setButtonLabel(autoOpenToggleBtn, channelLabel(label));
   };
   updateAutoOpenToggleUI();
 
@@ -772,11 +805,19 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
   // 4. Actions (Settings & Delete)
   const removetd = document.createElement('td');
   removetd.className = 'text-end';
+  const rowActions = document.createElement('div');
+  rowActions.className = 'channel-row-actions';
+  rowActions.setAttribute('role', 'group');
+  rowActions.setAttribute('aria-label', chrome.i18n.getMessage('channelActions'));
 
   // Settings Button
-  const settingsBtn = document.createElement('i');
-  settingsBtn.className = 'bi bi-gear me-2';
-  settingsBtn.style.cursor = 'pointer';
+  const settingsBtn = document.createElement('button');
+  settingsBtn.type = 'button';
+  settingsBtn.className = 'channel-row-action';
+  setButtonLabel(settingsBtn, channelLabel(chrome.i18n.getMessage('channelSettings')));
+  const settingsIcon = document.createElement('i');
+  settingsIcon.className = 'bi bi-gear';
+  settingsBtn.appendChild(settingsIcon);
   settingsBtn.onclick = () => {
     const nextRow = tr.nextSibling;
     if (nextRow && nextRow.classList.contains('settings-tr')) {
@@ -784,13 +825,17 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
     }
   };
   if (rendersChannelSettings) {
-    removetd.appendChild(settingsBtn);
+    rowActions.appendChild(settingsBtn);
   }
 
   // Remove Button
-  const removeButton = document.createElement('i');
-  removeButton.className = 'bi bi-trash';
-  removeButton.style.cursor = 'pointer';
+  const removeButton = document.createElement('button');
+  removeButton.type = 'button';
+  removeButton.className = 'channel-row-action text-danger';
+  setButtonLabel(removeButton, channelLabel(chrome.i18n.getMessage('deleteChannel')));
+  const removeIcon = document.createElement('i');
+  removeIcon.className = 'bi bi-trash';
+  removeButton.appendChild(removeIcon);
   removeButton.addEventListener('click', () => {
     const confirmMessage = chrome.i18n.getMessage('confirmDelete', channel.name);
     if (window.confirm(confirmMessage)) {
@@ -809,7 +854,8 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
       }
     }
   });
-  removetd.appendChild(removeButton);
+  rowActions.appendChild(removeButton);
+  removetd.appendChild(rowActions);
   tr.appendChild(removetd);
 
   channelTable.appendChild(tr);
@@ -1568,8 +1614,16 @@ if (enableNotifications) {
 }
 
 if (aboutBtn) {
+  const aboutModalElement = document.getElementById('aboutModal');
+  // 閉じるボタンにフォーカスが残ったままaria-hiddenが設定されるとアクセシビリティ警告が出るため、
+  // hide開始時に明示的にフォーカスを外す
+  aboutModalElement?.addEventListener('hide.bs.modal', () => {
+    if (aboutModalElement.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
+  });
   aboutBtn.addEventListener('click', () => {
-    const aboutModal = new bootstrap.Modal(document.getElementById('aboutModal'));
+    const aboutModal = new bootstrap.Modal(aboutModalElement);
     aboutModal.show();
   });
 }
@@ -1594,21 +1648,37 @@ async function refreshList() {
 
 
 loginTwitch.addEventListener('click', () => {
-  const state = crypto.randomUUID();
-  chrome.identity.launchWebAuthFlow({
-    url: 'https://id.twitch.tv/oauth2/authorize?' +
-      `client_id=${clientId}&` +
-      `redirect_uri=${chrome.identity.getRedirectURL()}&` +
-      'response_type=token&' +
-      'scope=user:read:email&' +
-      `state=${state}`,
-    interactive: true
-  }, responseUrl => {
-    handleTwitchAuthResponse(responseUrl, state);
-  });
+  startTwitchAuthFlow();
 });
 
-function handleTwitchAuthResponse(responseUrl, state) {
+function startTwitchAuthFlow() {
+  const state = crypto.randomUUID();
+  const authUrl = new URL('https://id.twitch.tv/oauth2/authorize');
+  authUrl.search = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: chrome.identity.getRedirectURL(),
+    response_type: 'token',
+    scope: 'user:read:email',
+    state,
+  }).toString();
+
+  chrome.identity.launchWebAuthFlow({
+    url: authUrl.toString(),
+    interactive: true
+  }, responseUrl => {
+    // Reading chrome.runtime.lastError here marks it as handled and avoids the
+    // "Unchecked runtime.lastError" warning when the auth flow fails to load.
+    handleTwitchAuthResponse(responseUrl, state, chrome.runtime.lastError);
+  });
+}
+
+function handleTwitchAuthResponse(responseUrl, state, error) {
+  if (error) {
+    console.error('Twitch authorization failed:', error.message || 'Unknown authorization error');
+    rewriteNeedsLoginButton(false);
+    return;
+  }
+
   if (!responseUrl) {
     console.error('Invalid OAuth response');
     rewriteNeedsLoginButton(false);

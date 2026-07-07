@@ -19,6 +19,21 @@ A Chrome extension that monitors Twitch channels and automatically opens streams
 - **Priority Channels**: Mark a channel as priority (in its settings panel) to ensure it gets tab slots first when max tabs is enabled
 - **Dynamic Tab Rotation**: Automatically adjust rotation interval based on tab count (e.g., 10min / 5 tabs = 2min per tab)
 
+## Popup Channel Controls
+
+Each channel row keeps status and actions compact for the Chrome popup:
+
+- `LIVE` / `OFFLINE` / `NOT FOUND`: stream status. `LIVE` can be clicked to open the channel in the managed Miteruyo window.
+- Pause/play icon: toggles whether that channel should auto-open when it goes live.
+- Moon icon: snoozes a live channel until its next stream.
+- Star icon: marks the channel as priority when max-tab limits are enabled.
+- Gear icon: opens per-channel settings.
+- Trash icon: removes the channel after confirmation.
+
+Tabs opened by Miteruyo are explicitly unmuted when they open. If auto-mute is enabled, inactive managed tabs can still be muted until activation or tab rotation brings them forward.
+
+Twitch's in-player "Click to unmute" state is separate from Chrome's tab mute state, and Miteruyo does not attempt to clear it automatically. Chrome's autoplay policy blocks scripted attempts to unmute or raise the volume on a page that has never received a real user gesture, and forcing it anyway causes Chrome to pause the video outright ("Unmuting failed and the element was paused instead because the user didn't interact with the document before"). A manual click on Twitch's own unmute control is required once per stream; see [known issues](../../issues) for background on why this can't be automated from a content script.
+
 ## Improvements (v1.0.11+)
 
 ### Service Worker Reliability
@@ -132,6 +147,7 @@ npm run lint:fix
 - **Rotation**: Cycles through open stream tabs at set interval
 - **Muting**: Automatically mutes all tabs except the active one
 - **Auto-close**: Closes tabs when their streams go offline
+- **URL Safety**: Treats only `twitch.tv` and `www.twitch.tv` channel URLs as managed Twitch tabs
 
 ## API Integration
 
@@ -159,6 +175,10 @@ Check the service worker console for:
 
 ### Twitch Login Callback Errors
 If the Twitch OAuth redirect is canceled, denied, malformed, or missing `access_token`, Miteruyo leaves any stored token unchanged and asks you to log in again from the popup.
+
+If the authorization page itself fails to open (e.g. a network blip or Twitch being unreachable), Chrome reports `Authorization page could not be loaded`. Miteruyo surfaces this as `Twitch authorization failed: <reason>` in the popup console and asks you to log in again. Retry once your connection is back.
+
+The Twitch application must also allow the exact Chrome Identity redirect URL shown by `chrome.identity.getRedirectURL()` (`https://<extension-id>.chromiumapp.org/`) in the Twitch Developer Console. Unpacked development installs can have a different extension ID from the published extension, so register the URL for the extension you are actually running, including the trailing slash.
 
 ### Storage Issues
 - Clear extension storage: `chrome.storage.local.clear()`

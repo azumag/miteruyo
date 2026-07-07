@@ -2092,6 +2092,7 @@ describe('Background Script', () => {
       // checkWindowExists calls windows.get with { populate: false }
       chromeMock.windows.get.mockResolvedValue({ id: 123 });
       chromeMock.tabs.query.mockResolvedValue([]);
+      chromeMock.tabs.create.mockResolvedValue({ id: 9, windowId: 123 });
 
       await openInManagedWindow('testchannel');
 
@@ -2164,6 +2165,7 @@ describe('Background Script', () => {
         { url: 'https://www.twitch.tv/channel2' },
         { url: 'https://www.twitch.tv/directory' },
         { url: 'https://twitch.tv.evil.example/channel3' },
+        { url: 'https://evil.example/path/https://twitch.tv/channel4' },
         { url: 'https://www.google.com' },
         { url: null },
       ]);
@@ -2481,6 +2483,44 @@ describe('Background Script', () => {
 
       // Tab should be closed because category is blocked
       expect(chromeMock.tabs.remove).toHaveBeenCalledWith(1);
+    });
+
+    it('should not close non-Twitch tabs whose URL contains a Twitch channel URL', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+      });
+
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (typeof keys === 'string') {
+          if (keys === 'isEnabledAutoClose') return Promise.resolve({ isEnabledAutoClose: true });
+          if (keys === 'lastOpenWindowId') return Promise.resolve({ lastOpenWindowId: 100 });
+          return Promise.resolve({});
+        }
+        if (Array.isArray(keys)) {
+          if (keys.includes('isEnabled')) {
+            return Promise.resolve({
+              isEnabled: true,
+              isEnabledNotifications: false,
+              isOpenMultiTwitch: false,
+              channels: [{ name: 'testchannel', onLive: true, onLiveOpen: true }],
+              oauth_token: 'test_token',
+            });
+          }
+          if (keys.includes('isOpenNewWindow')) {
+            return Promise.resolve({ isOpenNewWindow: false, isEnabledMaxTabs: false });
+          }
+        }
+        return Promise.resolve({});
+      });
+
+      chromeMock.tabs.query.mockResolvedValue([
+        { id: 1, url: 'https://evil.example/path/https://twitch.tv/testchannel', windowId: 100 },
+      ]);
+
+      await checkStreams();
+
+      expect(chromeMock.tabs.remove).not.toHaveBeenCalled();
     });
 
     it('should NOT close tabs when stream category is not blocked', async () => {

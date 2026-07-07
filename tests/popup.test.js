@@ -33,7 +33,7 @@ describe('Popup Script', () => {
   async function loadPopupAuthExports() {
     const source = await readFile(new URL('../popup.js', import.meta.url), 'utf8');
     const authSource = source.slice(
-      source.indexOf('function handleTwitchAuthResponse'),
+      source.indexOf('function startTwitchAuthFlow'),
       source.indexOf('function checkTwitchConnection')
     );
     const sandbox = {
@@ -43,7 +43,16 @@ describe('Popup Script', () => {
             set: vi.fn(),
           },
         },
+        identity: {
+          getRedirectURL: () => 'https://example.chromiumapp.org/',
+          launchWebAuthFlow: vi.fn(),
+        },
+        runtime: {
+          lastError: null,
+        },
       },
+      clientId: 'test-client-id',
+      crypto: { randomUUID: () => 'state-1' },
       checkTwitchConnection: vi.fn(),
       rewriteNeedsLoginButton: vi.fn(),
       console: {
@@ -56,7 +65,7 @@ describe('Popup Script', () => {
 
     vm.createContext(sandbox);
     vm.runInContext(
-      `${authSource}\nglobalThis.__testExports = { handleTwitchAuthResponse, parseHashToObj };`,
+      `${authSource}\nglobalThis.__testExports = { startTwitchAuthFlow, handleTwitchAuthResponse, parseHashToObj };`,
       sandbox,
       { filename: 'popup.js' }
     );
@@ -525,6 +534,69 @@ describe('Popup Script', () => {
     expect(checkTwitchConnection).not.toHaveBeenCalled();
     expect(rewriteNeedsLoginButton).toHaveBeenCalledWith(false);
     expect(console.error).toHaveBeenCalledWith('OAuth response missing access token');
+  });
+
+  it('rejects auth callbacks when launchWebAuthFlow reports an error', async () => {
+    const sandbox = await loadPopupAuthExports();
+    const { __testExports, chrome, checkTwitchConnection, rewriteNeedsLoginButton, console } = sandbox;
+
+    __testExports.handleTwitchAuthResponse(undefined, 'state-1', {
+      message: 'Authorization page could not be loaded.',
+    });
+
+    expect(chrome.storage.local.set).not.toHaveBeenCalled();
+    expect(checkTwitchConnection).not.toHaveBeenCalled();
+    expect(rewriteNeedsLoginButton).toHaveBeenCalledTimes(1);
+    expect(rewriteNeedsLoginButton).toHaveBeenCalledWith(false);
+    // The error branch must short-circuit: only the failure is logged, never the
+    // misleading generic 'Invalid OAuth response'.
+    expect(console.error).toHaveBeenCalledTimes(1);
+    expect(console.error).toHaveBeenCalledWith(
+      'Twitch authorization failed:',
+      'Authorization page could not be loaded.'
+    );
+    expect(console.error).not.toHaveBeenCalledWith('Invalid OAuth response');
+  });
+
+  it('reads chrome.runtime.lastError inside the launchWebAuthFlow callback', async () => {
+    const sandbox = await loadPopupAuthExports();
+    const { __testExports, chrome, checkTwitchConnection, rewriteNeedsLoginButton, console } = sandbox;
+    // Simulate Chrome failing to load the auth page: callback fires with no
+    // responseUrl while chrome.runtime.lastError is populated.
+    chrome.runtime.lastError = { message: 'Authorization page could not be loaded.' };
+    chrome.identity.launchWebAuthFlow.mockImplementation((_options, callback) => {
+      callback(undefined);
+    });
+
+    __testExports.startTwitchAuthFlow();
+
+    expect(chrome.identity.launchWebAuthFlow).toHaveBeenCalledTimes(1);
+    expect(chrome.storage.local.set).not.toHaveBeenCalled();
+    expect(checkTwitchConnection).not.toHaveBeenCalled();
+    expect(rewriteNeedsLoginButton).toHaveBeenCalledWith(false);
+    expect(console.error).toHaveBeenCalledWith(
+      'Twitch authorization failed:',
+      'Authorization page could not be loaded.'
+    );
+  });
+
+  it('builds the Twitch auth URL with encoded redirect and scope parameters', async () => {
+    const sandbox = await loadPopupAuthExports();
+    const { __testExports, chrome } = sandbox;
+    chrome.identity.launchWebAuthFlow.mockImplementation(() => {});
+
+    __testExports.startTwitchAuthFlow();
+
+    const options = chrome.identity.launchWebAuthFlow.mock.calls[0][0];
+    const authUrl = new URL(options.url);
+    expect(authUrl.origin).toBe('https://id.twitch.tv');
+    expect(authUrl.pathname).toBe('/oauth2/authorize');
+    expect(authUrl.searchParams.get('client_id')).toBe('test-client-id');
+    expect(authUrl.searchParams.get('redirect_uri')).toBe('https://example.chromiumapp.org/');
+    expect(authUrl.searchParams.get('response_type')).toBe('token');
+    expect(authUrl.searchParams.get('scope')).toBe('user:read:email');
+    expect(authUrl.searchParams.get('state')).toBe('state-1');
+    expect(options.url).toContain('redirect_uri=https%3A%2F%2Fexample.chromiumapp.org%2F');
   });
 
   it('rejects malformed auth callbacks without logging the raw response', async () => {

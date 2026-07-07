@@ -127,4 +127,14 @@ describe('background.js context menu channel add', () => {
     expect(chromeMock.storage.local.set).not.toHaveBeenCalled();
     expect(backgroundFunctionsMock.checkStreams).not.toHaveBeenCalled();
   });
+
+  it('clears the managed window state when a managed window is removed', async () => {
+    vi.resetModules();
+    await import('../background.js');
+    const handler = chromeMock.windows.onRemoved.addListener.mock.calls[0][0];
+
+    await handler(42);
+
+    expect(backgroundFunctionsMock.onWindowRemoved).toHaveBeenCalledWith(42);
+  });
 });

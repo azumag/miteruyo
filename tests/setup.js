@@ -3,6 +3,23 @@ import { vi } from 'vitest';
 // Chrome API Mock
 export function createChromeMock() {
   const storage = {};
+  const sessionStorage = {};
+  const createStorageArea = (targetStorage) => ({
+    get: vi.fn((keys) => {
+      if (typeof keys === 'string') {
+        return Promise.resolve({ [keys]: targetStorage[keys] });
+      }
+      const result = {};
+      for (const key of keys) {
+        result[key] = targetStorage[key];
+      }
+      return Promise.resolve(result);
+    }),
+    set: vi.fn((data) => {
+      Object.assign(targetStorage, data);
+      return Promise.resolve();
+    }),
+  });
 
   return {
     alarms: {
@@ -14,22 +31,8 @@ export function createChromeMock() {
       },
     },
     storage: {
-      local: {
-        get: vi.fn((keys) => {
-          if (typeof keys === 'string') {
-            return Promise.resolve({ [keys]: storage[keys] });
-          }
-          const result = {};
-          for (const key of keys) {
-            result[key] = storage[key];
-          }
-          return Promise.resolve(result);
-        }),
-        set: vi.fn((data) => {
-          Object.assign(storage, data);
-          return Promise.resolve();
-        }),
-      },
+      local: createStorageArea(storage),
+      session: createStorageArea(sessionStorage),
       onChanged: {
         addListener: vi.fn(),
       },
@@ -47,7 +50,11 @@ export function createChromeMock() {
       update: vi.fn(),
       remove: vi.fn().mockResolvedValue(undefined),
       get: vi.fn(),
+      sendMessage: vi.fn().mockResolvedValue(undefined),
       onActivated: {
+        addListener: vi.fn(),
+      },
+      onRemoved: {
         addListener: vi.fn(),
       },
     },
@@ -89,6 +96,7 @@ export function createChromeMock() {
       }),
     },
     _storage: storage,
+    _sessionStorage: sessionStorage,
   };
 }
 

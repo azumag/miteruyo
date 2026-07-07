@@ -354,7 +354,7 @@ export async function checkStreams() {
     const isOpenMultiTwitch = data.isOpenMultiTwitch;
     if (data.isEnabled) {
       if (isOpenMultiTwitch) {
-        channelQueuedStreamsInMultiTwitch();
+        await channelQueuedStreamsInMultiTwitch();
       } else {
         // 優先チャンネルのためにスロットを確保
         await displaceNonPriorityTabs(activeChannels);
@@ -516,7 +516,7 @@ export async function channelQueuedStreamsInMultiTwitch() {
 
   // すでに開いているウィンドウか新しいウィンドウで開く
   const windowId = (await chrome.storage.local.get('lastOpenWindowId')).lastOpenWindowId;
-  openTabIfNotExists({ url: multiTwitchUrl }, windowId);
+  await openTabIfNotExists({ url: multiTwitchUrl }, windowId);
 }
 
 // チャンネルを開くべきかどうかをチェック

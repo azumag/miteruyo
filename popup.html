@@ -13,6 +13,78 @@
       overflow-x: hidden;
     }
 
+    #channelTable {
+      font-size: 0.875rem;
+    }
+
+    #channelTable td,
+    #channelTable th {
+      padding-left: 0.25rem;
+      padding-right: 0.25rem;
+    }
+
+    .channel-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      max-width: 100%;
+      white-space: nowrap;
+    }
+
+    .channel-status-btn {
+      min-width: 48px;
+      height: 30px;
+      padding: 0 0.45rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      line-height: 1;
+      white-space: nowrap;
+      border-radius: 6px;
+    }
+
+    .channel-icon-btn {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+    }
+
+    .channel-row-actions {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.35rem;
+    }
+
+    .channel-row-action {
+      width: 28px;
+      height: 30px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: #495057;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 5px;
+    }
+
+    .channel-row-action:hover,
+    .channel-row-action:focus-visible {
+      color: #0d6efd;
+      background: #e9ecef;
+      outline: 2px solid #86b7fe;
+      outline-offset: 1px;
+    }
+
+    .channel-row-action.text-danger:hover,
+    .channel-row-action.text-danger:focus-visible {
+      color: #dc3545 !important;
+    }
+
     /* Force volume slider track visibility */
     input[type=range]::-webkit-slider-runnable-track {
       background: #dee2e6;
@@ -52,14 +124,14 @@
         </div>
         <table id="channelTable" class="table table-striped" style="min-width: 300px; table-layout: fixed;">
           <colgroup>
-            <col style="width: 155px;">
+            <col style="width: 154px;">
             <col style="width: auto;">
-            <col style="width: 60px;">
+            <col style="width: 64px;">
           </colgroup>
           <thead>
             <tr>
-              <th scope="col"><span class="visually-hidden">Channel</span></th>
               <th scope="col"><span class="visually-hidden">Status</span></th>
+              <th scope="col"><span class="visually-hidden">Channel</span></th>
               <th scope="col"><span class="visually-hidden">Actions</span></th>
             </tr>
           </thead>
@@ -223,11 +295,22 @@
               <i class="bi bi-github"></i> GitHub Repository
             </a>
           </div>
-          <div class="bg-light p-2 rounded">
+          <div class="bg-light p-2 rounded mb-3">
             <p class="mb-1" id="supportMessageLabel">If you like this extension, please consider supporting me!</p>
             <a href="https://ofuse.me/8fe1bedb" target="_blank" class="btn btn-danger btn-sm w-100">
               <i class="bi bi-heart-fill"></i> OFUSE
             </a>
+          </div>
+          <div class="border-top pt-2">
+            <p class="mb-1 fw-bold" id="mutedHelpTitle">Stream opens muted?</p>
+            <p class="mb-2 text-muted" id="mutedHelpBody">
+              Twitch always starts muted for tabs opened without a direct click, and Chrome only lets scripts
+              unmute it if this browser profile is allowed to autoplay sound on twitch.tv. If a stream Miteruyo
+              opens automatically is muted, open Twitch's sound setting and set it to Allow, then try again.
+            </p>
+            <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="openTwitchSoundSettingsButton">
+              <i class="bi bi-volume-up"></i> <span id="openTwitchSoundSettingsLabel">Open Twitch sound setting</span>
+            </button>
           </div>
         </div>
       </div>

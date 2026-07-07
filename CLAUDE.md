@@ -7,7 +7,6 @@ research the industry-standard approach to this problem use it to guide yours"
 
 作業内容は厳しくレビューを受けること。
 - 自己レビュー
-- gemini-cli レビュー
 - codex レビュー
 
 コードの重複や簡潔性、無駄なファイルを作っていないかどうか、使いやすさ、
@@ -91,4 +90,3 @@ Puppeteerを使用してChrome拡張機能のポップアップUIをスクリー
 ## Implementation Notes
 
 実装おわりにREADMEとテストをアップデートし、テストを実行すること
-

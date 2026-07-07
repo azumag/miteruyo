@@ -157,6 +157,18 @@
 		"message": "GitHub Repository",
 		"description": "GitHub link text"
 	},
+	"mutedHelpTitle": {
+		"message": "Stream opens muted?",
+		"description": "Heading for the auto-mute troubleshooting help"
+	},
+	"mutedHelpBody": {
+		"message": "Twitch always starts muted for tabs opened without a direct click, and Chrome only lets scripts unmute it if this browser profile is allowed to autoplay sound on twitch.tv. If a stream Miteruyo opens automatically is muted, open Twitch's sound setting and set it to Allow, then try again.",
+		"description": "Body text for the auto-mute troubleshooting help"
+	},
+	"openTwitchSoundSettingsLabel": {
+		"message": "Open Twitch sound setting",
+		"description": "Label for the button that opens Twitch's Chrome sound setting"
+	},
 	"categorySearchDefaultPlaceholder": {
 		"message": "Search categories...",
 		"description": "Default placeholder for category search"
@@ -234,6 +246,10 @@
 		"message": "Snoozed",
 		"description": "Status display when channel is snoozed"
 	},
+	"openChannel": {
+		"message": "Open channel",
+		"description": "Accessibility label for the live status button"
+	},
 	"autoOpenStateNormal": {
 		"message": "Auto-open enabled (click to snooze)",
 		"description": "Tooltip for the auto-open toggle button: normal state"
@@ -253,6 +269,22 @@
 	"priorityHelp": {
 		"message": "When the tab limit is reached, priority channels are opened first, closing other channels' tabs automatically if needed.",
 		"description": "Explanation for the priority channel setting"
+	},
+	"priority": {
+		"message": "Priority channel",
+		"description": "Accessibility label for the priority channel toggle"
+	},
+	"channelActions": {
+		"message": "Channel actions",
+		"description": "Accessibility label for the channel row action group"
+	},
+	"channelSettings": {
+		"message": "Channel settings",
+		"description": "Accessibility label for the per-channel settings button"
+	},
+	"deleteChannel": {
+		"message": "Delete channel",
+		"description": "Accessibility label for the delete channel button"
 	},
 	"dynamicRotation": {
 		"message": "Divide by tab count",

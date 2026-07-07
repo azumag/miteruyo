@@ -157,6 +157,18 @@
 		"message": "GitHubリポジトリ",
 		"description": "GitHubリンクのテキスト"
 	},
+	"mutedHelpTitle": {
+		"message": "配信が自動で開いた時にミュートになる場合",
+		"description": "自動ミュート問題のヘルプ見出し"
+	},
+	"mutedHelpBody": {
+		"message": "Twitchは、クリック等の操作なしで開かれたタブでは常にミュートで再生を開始します。そしてChromeは、このブラウザのプロファイルでtwitch.tvへの音声つき自動再生が許可されている場合にのみ、スクリプトによるミュート解除を許可します。Miteruyoが自動で開いた配信がミュートになる場合は、Twitchの音声設定を開いて「許可」に変更してから、もう一度お試しください。",
+		"description": "自動ミュート問題のヘルプ本文"
+	},
+	"openTwitchSoundSettingsLabel": {
+		"message": "Twitchの音声設定を開く",
+		"description": "Twitchの音声設定を開くボタンのラベル"
+	},
 	"categorySearchDefaultPlaceholder": {
 		"message": "カテゴリを検索...",
 		"description": "カテゴリ検索のデフォルトプレースホルダー"
@@ -234,6 +246,10 @@
 		"message": "スヌーズ中",
 		"description": "スヌーズ中のステータス表示"
 	},
+	"openChannel": {
+		"message": "チャンネルを開く",
+		"description": "ライブ中ステータスボタンのアクセシビリティラベル"
+	},
 	"autoOpenStateNormal": {
 		"message": "自動オープン中（クリックでスヌーズ）",
 		"description": "自動オープン切り替えボタンのツールチップ：通常状態"
@@ -253,6 +269,22 @@
 	"priorityHelp": {
 		"message": "開くタブ数の上限に達した場合、優先チャンネルを優先的に開き、必要に応じて他のチャンネルのタブを自動的に閉じます。",
 		"description": "優先チャンネル設定の説明"
+	},
+	"priority": {
+		"message": "優先チャンネル",
+		"description": "優先チャンネルトグルのアクセシビリティラベル"
+	},
+	"channelActions": {
+		"message": "チャンネル操作",
+		"description": "チャンネル行の操作ボタングループのアクセシビリティラベル"
+	},
+	"channelSettings": {
+		"message": "個別設定",
+		"description": "チャンネル個別設定ボタンのアクセシビリティラベル"
+	},
+	"deleteChannel": {
+		"message": "チャンネルを削除",
+		"description": "チャンネル削除ボタンのアクセシビリティラベル"
 	},
 	"dynamicRotation": {
 		"message": "タブ数で分割",
