@@ -91,6 +91,7 @@ jobs:
             -x "eslint.config.js" \
             -x ".gitignore" \
             -x ".DS_Store" \
+            -x "*/.DS_Store" \
             -x "._*" \
             -x "coverage/*" \
             -x "*.zip"
