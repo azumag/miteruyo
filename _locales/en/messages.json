@@ -230,21 +230,29 @@
 		"message": "Open each stream only once",
 		"description": "Option to prevent auto-reopening a stream tab after it has been opened once during a live session"
 	},
-	"snooze": {
-		"message": "Snooze until next stream",
-		"description": "Button label to suppress auto-open until next stream"
-	},
 	"snoozed": {
 		"message": "Snoozed",
 		"description": "Status display when channel is snoozed"
 	},
-	"priorityOn": {
-		"message": "Priority channel",
-		"description": "Tooltip when priority is ON"
+	"autoOpenStateNormal": {
+		"message": "Auto-open enabled (click to snooze)",
+		"description": "Tooltip for the auto-open toggle button: normal state"
 	},
-	"priorityOff": {
-		"message": "Set as priority channel",
-		"description": "Tooltip when priority is OFF"
+	"autoOpenStateSnoozed": {
+		"message": "Snoozed: auto-open suppressed for this stream only (click to pause)",
+		"description": "Tooltip for the auto-open toggle button: snoozed state"
+	},
+	"autoOpenStatePaused": {
+		"message": "Paused: auto-open disabled (click to reset)",
+		"description": "Tooltip for the auto-open toggle button: paused state"
+	},
+	"priorityLabel": {
+		"message": "Priority channel",
+		"description": "Label for the priority channel setting"
+	},
+	"priorityHelp": {
+		"message": "When the tab limit is reached, priority channels are opened first, closing other channels' tabs automatically if needed.",
+		"description": "Explanation for the priority channel setting"
 	},
 	"dynamicRotation": {
 		"message": "Divide by tab count",
