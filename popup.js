@@ -53,6 +53,17 @@ function canRenderChannelSettings(channel) {
   return getValidTwitchChannelName(channel) !== '';
 }
 
+// 自動オープンの状態を循環させる: 通常 → スヌーズ → 停止 → 通常
+function getNextAutoOpenState(channel) {
+  if (channel.onLiveOpen && channel.snoozed) {
+    return { onLiveOpen: false, snoozed: false }; // スヌーズ → 停止
+  }
+  if (channel.onLiveOpen) {
+    return { onLiveOpen: true, snoozed: true }; // 通常 → スヌーズ
+  }
+  return { onLiveOpen: true, snoozed: false }; // 停止 → 通常
+}
+
 function isSameChannel(channel, otherChannel) {
   const channelName = normalizeChannelName(channel);
   const otherChannelName = normalizeChannelName(otherChannel);
@@ -668,112 +679,68 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
   const openButton = document.createElement('button');
   statusContainer.appendChild(openButton);
 
-  if (channel.onLive) {
-    openButton.textContent = channel.onLiveOpen ? chrome.i18n.getMessage('statusLive') : pauseMsg;
-    openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
-    openButton.style.width = '72px';
-    if (rendersChannelSettings) {
-      openButton.addEventListener('click', () => {
-        openInManagedWindow(validChannelName);
-      });
-    }
-  } else {
-    openButton.textContent = channel.onLiveOpen ? chrome.i18n.getMessage('statusOffline') : pauseMsg;
-    openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
-    openButton.style.width = '72px';
-  }
-
-  if (channel.status === 'error' || !rendersChannelSettings) {
-    openButton.textContent = chrome.i18n.getMessage('statusNotFound');
-    openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
-    openButton.style.width = '72px';
-  }
-
-  // On/Off Switch
-  const onLiveOpenSwitch = document.createElement('button');
-  const pauseIcon = document.createElement('i');
-  onLiveOpenSwitch.setAttribute('class', channel.onLiveOpen ? 'btn btn-outline-primary btn-sm' : 'btn btn-outline-danger btn-sm');
-  pauseIcon.setAttribute('class', channel.onLiveOpen ? 'bi bi-pause' : 'bi bi-play');
-  onLiveOpenSwitch.appendChild(pauseIcon);
-
-  onLiveOpenSwitch.addEventListener('click', () => {
-    channel.onLiveOpen = !channel.onLiveOpen;
-    pauseIcon.setAttribute('class', channel.onLiveOpen ? 'bi bi-pause' : 'bi bi-play');
-    onLiveOpenSwitch.setAttribute('class', channel.onLiveOpen ? 'btn btn-outline-primary btn-sm' : 'btn btn-outline-danger btn-sm');
-    saveChannelToList(channel);
-
-    if (channel.snoozed) return; // スヌーズ中はopenButtonを変更しない
-
-    if (channel.onLive) {
-      openButton.textContent = channel.onLiveOpen ? chrome.i18n.getMessage('statusLive') : pauseMsg;
-      openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
-      openButton.style.width = '72px';
-      openButton.addEventListener('click', () => {
-        openInManagedWindow(validChannelName);
-      });
-    } else {
-      openButton.textContent = channel.onLiveOpen ? chrome.i18n.getMessage('statusOffline') : pauseMsg;
-      openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
-      openButton.style.width = '72px';
+  // ライブ中タブを開く（通常状態でライブ中のときのみ有効）
+  openButton.addEventListener('click', () => {
+    if (channel.onLive && rendersChannelSettings) {
+      openInManagedWindow(validChannelName);
     }
   });
 
+  const updateOpenButtonDisplay = () => {
+    openButton.style.width = '72px';
+
+    if (channel.status === 'error' || !rendersChannelSettings) {
+      openButton.textContent = chrome.i18n.getMessage('statusNotFound');
+      openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
+    } else if (channel.snoozed && channel.onLive) {
+      openButton.textContent = chrome.i18n.getMessage('snoozed');
+      openButton.setAttribute('class', 'btn btn-outline-warning btn-sm');
+    } else if (!channel.onLiveOpen) {
+      openButton.textContent = pauseMsg;
+      openButton.setAttribute('class', channel.onLive ? 'btn btn-outline-success btn-sm' : 'btn btn-outline-danger btn-sm');
+    } else if (channel.onLive) {
+      openButton.textContent = chrome.i18n.getMessage('statusLive');
+      openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
+    } else {
+      openButton.textContent = chrome.i18n.getMessage('statusOffline');
+      openButton.setAttribute('class', 'btn btn-outline-danger btn-sm');
+    }
+  };
+  updateOpenButtonDisplay();
+
+  // Auto-Open Toggle Button: 通常 → スヌーズ → 停止 → 通常 の3状態を1つのボタンで循環
+  const autoOpenToggleBtn = document.createElement('button');
+  const autoOpenToggleIcon = document.createElement('i');
+  autoOpenToggleBtn.appendChild(autoOpenToggleIcon);
+
+  const updateAutoOpenToggleUI = () => {
+    if (channel.snoozed) {
+      autoOpenToggleBtn.setAttribute('class', 'btn btn-warning btn-sm');
+      autoOpenToggleIcon.setAttribute('class', 'bi bi-moon-fill');
+      autoOpenToggleBtn.title = chrome.i18n.getMessage('autoOpenStateSnoozed');
+    } else if (!channel.onLiveOpen) {
+      autoOpenToggleBtn.setAttribute('class', 'btn btn-outline-danger btn-sm');
+      autoOpenToggleIcon.setAttribute('class', 'bi bi-pause-fill');
+      autoOpenToggleBtn.title = chrome.i18n.getMessage('autoOpenStatePaused');
+    } else {
+      autoOpenToggleBtn.setAttribute('class', 'btn btn-outline-secondary btn-sm');
+      autoOpenToggleIcon.setAttribute('class', 'bi bi-play-fill');
+      autoOpenToggleBtn.title = chrome.i18n.getMessage('autoOpenStateNormal');
+    }
+  };
+  updateAutoOpenToggleUI();
+
+  autoOpenToggleBtn.addEventListener('click', () => {
+    const nextState = getNextAutoOpenState(channel);
+    channel.onLiveOpen = nextState.onLiveOpen;
+    channel.snoozed = nextState.snoozed;
+    updateAutoOpenToggleUI();
+    updateOpenButtonDisplay();
+    saveChannelToList(channel);
+  });
+
   if (channel.status !== 'error' && rendersChannelSettings) {
-    statusContainer.appendChild(onLiveOpenSwitch);
-  }
-
-  // Snooze Button (ライブ中かつエラーでない場合のみ表示)
-  if (channel.onLive && channel.status !== 'error' && rendersChannelSettings) {
-    const snoozeBtn = document.createElement('button');
-    const snoozeIcon = document.createElement('i');
-    const updateSnoozeUI = () => {
-      snoozeBtn.setAttribute('class', channel.snoozed ? 'btn btn-warning btn-sm' : 'btn btn-outline-secondary btn-sm');
-      snoozeIcon.setAttribute('class', channel.snoozed ? 'bi bi-moon-fill' : 'bi bi-moon');
-      snoozeBtn.title = channel.snoozed ? chrome.i18n.getMessage('snoozed') : chrome.i18n.getMessage('snooze');
-      if (channel.snoozed) {
-        openButton.textContent = chrome.i18n.getMessage('snoozed');
-        openButton.setAttribute('class', 'btn btn-outline-warning btn-sm');
-        openButton.style.width = '72px';
-      }
-    };
-    snoozeBtn.appendChild(snoozeIcon);
-    updateSnoozeUI();
-
-    snoozeBtn.addEventListener('click', () => {
-      channel.snoozed = !channel.snoozed;
-      updateSnoozeUI();
-      if (!channel.snoozed && channel.onLive) {
-        openButton.textContent = channel.onLiveOpen ? chrome.i18n.getMessage('statusLive') : pauseMsg;
-        openButton.setAttribute('class', 'btn btn-outline-success btn-sm');
-        openButton.style.width = '72px';
-      }
-      saveChannelToList(channel);
-    });
-
-    statusContainer.appendChild(snoozeBtn);
-  }
-
-  // Priority Toggle Button (エラーでない場合のみ表示)
-  if (channel.status !== 'error' && rendersChannelSettings) {
-    const priorityBtn = document.createElement('button');
-    const priorityIcon = document.createElement('i');
-    const updatePriorityUI = () => {
-      priorityBtn.setAttribute('class', channel.isPriority ? 'btn btn-warning btn-sm' : 'btn btn-outline-secondary btn-sm');
-      priorityIcon.setAttribute('class', channel.isPriority ? 'bi bi-star-fill' : 'bi bi-star');
-      const priorityTooltip = channel.isPriority ? chrome.i18n.getMessage('priorityOn') : chrome.i18n.getMessage('priorityOff');
-      priorityBtn.title = priorityTooltip;
-      priorityBtn.setAttribute('aria-label', priorityTooltip);
-    };
-    priorityBtn.appendChild(priorityIcon);
-    updatePriorityUI();
-
-    priorityBtn.addEventListener('click', () => {
-      channel.isPriority = !channel.isPriority;
-      updatePriorityUI();
-      saveChannelToList(channel);
-    });
-
-    statusContainer.appendChild(priorityBtn);
+    statusContainer.appendChild(autoOpenToggleBtn);
   }
 
   // 3. Channel Name
@@ -784,6 +751,17 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
   cntd.style.whiteSpace = 'nowrap';
   cntd.style.overflow = 'hidden';
   cntd.style.textOverflow = 'ellipsis';
+
+  // 優先チャンネルの表示用インジケーター（設定パネル内のトグルと連動、読み取り専用）
+  const priorityIndicator = document.createElement('i');
+  priorityIndicator.className = 'bi bi-star-fill text-warning me-1';
+  priorityIndicator.title = chrome.i18n.getMessage('priorityLabel');
+  priorityIndicator.hidden = !channel.isPriority;
+  cntd.appendChild(priorityIndicator);
+
+  const updatePriorityIndicator = () => {
+    priorityIndicator.hidden = !channel.isPriority;
+  };
 
   const channelNameTag = document.createElement('span');
   channelNameTag.textContent = channel.name;
@@ -854,6 +832,46 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
       el.style.opacity = isEnabled ? '1' : '0.5';
     });
   };
+
+  // --- Priority Channel Setting ---
+  const priorityContainer = document.createElement('div');
+  priorityContainer.className = 'd-flex align-items-center mb-2';
+
+  const priorityCheck = document.createElement('input');
+  priorityCheck.type = 'checkbox';
+  priorityCheck.className = 'form-check-input me-2 flex-shrink-0';
+  priorityCheck.style.width = '1.2em';
+  priorityCheck.style.height = '1.2em';
+  priorityCheck.id = `priority-check-${channel.name}`;
+  priorityCheck.checked = !!channel.isPriority;
+
+  const priorityCheckLabel = document.createElement('label');
+  priorityCheckLabel.className = 'form-check-label small me-2 flex-shrink-0';
+  priorityCheckLabel.htmlFor = priorityCheck.id;
+  priorityCheckLabel.textContent = chrome.i18n.getMessage('priorityLabel');
+
+  const priorityHelpIcon = document.createElement('i');
+  priorityHelpIcon.className = 'bi bi-question-circle-fill text-muted';
+  priorityHelpIcon.style.cursor = 'help';
+  priorityHelpIcon.setAttribute('data-bs-toggle', 'tooltip');
+  priorityHelpIcon.setAttribute('data-bs-title', chrome.i18n.getMessage('priorityHelp'));
+  new bootstrap.Tooltip(priorityHelpIcon, { trigger: 'hover click' });
+
+  priorityContainer.appendChild(priorityCheck);
+  priorityContainer.appendChild(priorityCheckLabel);
+  priorityContainer.appendChild(priorityHelpIcon);
+
+  priorityCheck.addEventListener('change', () => {
+    channel.isPriority = priorityCheck.checked;
+    updatePriorityIndicator();
+    saveChannelToList(channel);
+  });
+
+  settingsTd.appendChild(priorityContainer);
+
+  const prioritySeparator = document.createElement('hr');
+  prioritySeparator.className = 'my-2';
+  settingsTd.appendChild(prioritySeparator);
 
   // Custom Volume Control
   const volContainer = document.createElement('div');

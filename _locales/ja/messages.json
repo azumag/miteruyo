@@ -230,21 +230,29 @@
 		"message": "一度開いたら再度開かない",
 		"description": "ライブ配信セッション中に一度タブを開いたら、再度自動で開かないオプション"
 	},
-	"snooze": {
-		"message": "スヌーズ",
-		"description": "次の配信まで自動オープンを抑制するボタンのラベル"
-	},
 	"snoozed": {
 		"message": "スヌーズ中",
 		"description": "スヌーズ中のステータス表示"
 	},
-	"priorityOn": {
-		"message": "優先チャンネル",
-		"description": "優先設定ON時のツールチップ"
+	"autoOpenStateNormal": {
+		"message": "自動オープン中（クリックでスヌーズ）",
+		"description": "自動オープン切り替えボタンのツールチップ：通常状態"
 	},
-	"priorityOff": {
-		"message": "優先チャンネルに設定",
-		"description": "優先設定OFF時のツールチップ"
+	"autoOpenStateSnoozed": {
+		"message": "スヌーズ中：今回の配信のみ自動オープンを止めます（クリックで停止に切り替え）",
+		"description": "自動オープン切り替えボタンのツールチップ：スヌーズ状態"
+	},
+	"autoOpenStatePaused": {
+		"message": "停止中：自動オープンしません（クリックで通常状態に戻す）",
+		"description": "自動オープン切り替えボタンのツールチップ：停止状態"
+	},
+	"priorityLabel": {
+		"message": "優先チャンネル",
+		"description": "優先チャンネル設定のラベル"
+	},
+	"priorityHelp": {
+		"message": "開くタブ数の上限に達した場合、優先チャンネルを優先的に開き、必要に応じて他のチャンネルのタブを自動的に閉じます。",
+		"description": "優先チャンネル設定の説明"
 	},
 	"dynamicRotation": {
 		"message": "タブ数で分割",

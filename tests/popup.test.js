@@ -22,7 +22,7 @@ describe('Popup Script', () => {
 
     vm.createContext(sandbox);
     vm.runInContext(
-      `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, normalizeChannelName, getValidTwitchChannelName, canRenderChannelSettings, isSameChannel, normalizeCategoryList, migrateBlockedCategories, migrateAllowedOnlyCategories, parseCategoryOptionValue, isSameCategory, includesCategory, getCategoriesNotAlreadyIncluded, addCategoryIfMissing, removeMatchingCategories };`,
+      `${helperSource}\n${migrationSource}\nglobalThis.__testExports = { normalizeStoredChannels, normalizeChannelName, getValidTwitchChannelName, canRenderChannelSettings, getNextAutoOpenState, isSameChannel, normalizeCategoryList, migrateBlockedCategories, migrateAllowedOnlyCategories, parseCategoryOptionValue, isSameCategory, includesCategory, getCategoriesNotAlreadyIncluded, addCategoryIfMissing, removeMatchingCategories };`,
       sandbox,
       { filename: 'popup.js' }
     );
@@ -177,6 +177,26 @@ describe('Popup Script', () => {
     expect(__testExports.normalizeStoredChannels(null)).toEqual([]);
     expect(__testExports.normalizeStoredChannels('broken')).toEqual([]);
     expect(__testExports.normalizeStoredChannels({ 0: { name: 'broken' } })).toEqual([]);
+  });
+
+  it('cycles the auto-open toggle through normal -> snoozed -> paused -> normal', async () => {
+    const { __testExports } = await loadPopupTestExports();
+
+    const normal = { onLiveOpen: true, snoozed: false };
+    expect(__testExports.getNextAutoOpenState(normal)).toEqual({ onLiveOpen: true, snoozed: true });
+
+    const snoozed = { onLiveOpen: true, snoozed: true };
+    expect(__testExports.getNextAutoOpenState(snoozed)).toEqual({ onLiveOpen: false, snoozed: false });
+
+    const paused = { onLiveOpen: false, snoozed: false };
+    expect(__testExports.getNextAutoOpenState(paused)).toEqual({ onLiveOpen: true, snoozed: false });
+  });
+
+  it('recovers to normal from an invalid onLiveOpen/snoozed combination', async () => {
+    const { __testExports } = await loadPopupTestExports();
+
+    expect(__testExports.getNextAutoOpenState({ onLiveOpen: false, snoozed: true }))
+      .toEqual({ onLiveOpen: true, snoozed: false });
   });
 
   it('matches channel names case-insensitively for popup duplicate checks', async () => {
