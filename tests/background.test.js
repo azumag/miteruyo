@@ -96,6 +96,7 @@ describe('Background Script', () => {
     it('should return online status when stream is live', async () => {
       const mockStreamData = {
         data: [{
+          id: 'stream-1',
           game_name: 'Test Game',
           game_id: '123',
           title: 'Test Stream',
@@ -139,6 +140,7 @@ describe('Background Script', () => {
       expect(setCall).toBeDefined();
       const updatedChannels = setCall[0].channels;
       expect(updatedChannels[0].onLive).toBe(true);
+      expect(updatedChannels[0].streamId).toBe('stream-1');
       expect(updatedChannels[0].status).toBe('online');
       expect(updatedChannels[0].game_name).toBe('Test Game');
       expect(updatedChannels[0].game_id).toBe('123');
@@ -195,6 +197,101 @@ describe('Background Script', () => {
       const updatedChannels = setCall[0].channels;
       expect(updatedChannels[0].onLive).toBe(true);
       expect(updatedChannels[0].snoozed).toBe(false);
+    });
+
+    it('should reset current-stream suppression when the stream ID changes without an observed offline poll', async () => {
+      const mockStreamData = {
+        data: [{
+          id: 'stream-new',
+          game_name: 'Test Game',
+          game_id: '123',
+          title: 'Next Stream',
+          viewer_count: 100,
+          tags: [],
+          user_id: '12345',
+        }],
+      };
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockStreamData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ is_branded_content: false }] }),
+        });
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [{
+          name: 'testchannel',
+          onLiveOpen: true,
+          onLive: true,
+          streamId: 'stream-old',
+          hasBeenOpened: true,
+          snoozed: true,
+        }],
+        oauth_token: 'test_token',
+        isAutoOpenOnce: true,
+        isEnabledAutoClose: false,
+      });
+
+      await checkStreams();
+
+      const setCall = chromeMock.storage.local.set.mock.calls.find(call => call[0].channels);
+      expect(setCall[0].channels[0]).toMatchObject({
+        streamId: 'stream-new',
+        hasBeenOpened: true,
+        snoozed: false,
+      });
+      expect(chromeMock.tabs.create).toHaveBeenCalledWith(
+        expect.objectContaining({ url: 'https://www.twitch.tv/testchannel' })
+      );
+    });
+
+    it('should keep suppression for repeated polls of the same stream ID', async () => {
+      const mockStreamData = {
+        data: [{
+          id: 'stream-current',
+          game_name: 'Test Game',
+          game_id: '123',
+          title: 'Current Stream',
+          viewer_count: 100,
+          tags: [],
+          user_id: '12345',
+        }],
+      };
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockStreamData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ is_branded_content: false }] }),
+        });
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [{
+          name: 'testchannel',
+          onLiveOpen: true,
+          onLive: true,
+          streamId: 'stream-current',
+          hasBeenOpened: true,
+        }],
+        oauth_token: 'test_token',
+        isAutoOpenOnce: true,
+        isEnabledAutoClose: false,
+      });
+
+      await checkStreams();
+
+      const setCall = chromeMock.storage.local.set.mock.calls.find(call => call[0].channels);
+      expect(setCall[0].channels[0].hasBeenOpened).toBe(true);
+      expect(chromeMock.tabs.create).not.toHaveBeenCalled();
     });
 
     it('should return offline status when stream is not live', async () => {

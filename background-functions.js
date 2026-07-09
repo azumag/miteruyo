@@ -308,11 +308,16 @@ export async function checkStreams() {
       )
     );
 
-    // オフライン→オンライン遷移時に hasBeenOpened / snoozed をリセット
+    // 新しい配信セッションでは「今回の配信だけ」の抑止状態をリセットする。
+    // streamId も比較することで、短いオフラインをポーリングが見逃した場合にも対応する。
     for (let i = 0; i < updatedChannels.length; i++) {
       const newStatus = updatedChannels[i];
       const oldStatus = channels[i];
-      if (newStatus && newStatus.onLive && (!oldStatus || !oldStatus.onLive)) {
+      const startedNewStream = newStatus?.onLive && (
+        !oldStatus?.onLive ||
+        (oldStatus.streamId && newStatus.streamId && oldStatus.streamId !== newStatus.streamId)
+      );
+      if (startedNewStream) {
         newStatus.hasBeenOpened = false;
         newStatus.snoozed = false;
       }
@@ -1108,6 +1113,7 @@ async function checkStream(channel, oauth_token) {
       return {
         ...channel,
         onLive: true,
+        streamId: stream.id,
         game_name: stream.game_name,
         game_id: stream.game_id,
         tags: stream.tags,

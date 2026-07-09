@@ -247,8 +247,8 @@
 		"description": "Label for stream check interval setting"
 	},
 	"autoOpenOnce": {
-		"message": "Open each stream only once",
-		"description": "Option to prevent auto-reopening a stream tab after it has been opened once during a live session"
+		"message": "Closing an auto-opened tab snoozes until the next stream",
+		"description": "Option to prevent reopening a closed tab during the current stream while allowing it to open normally next stream"
 	},
 	"snoozed": {
 		"message": "Snoozed",

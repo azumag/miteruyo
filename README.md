@@ -16,6 +16,7 @@ A Chrome extension that monitors Twitch channels and automatically opens streams
 - **Per-channel Volume Control**: Set custom volume for each channel
 - **Category Filtering**: Only auto-open streams from specific categories
 - **Auto-Open Toggle (Snooze / Pause)**: A single per-channel button cycles through Normal → Snoozed (suppress auto-open for the current stream only) → Paused (suppress auto-open until manually reset) → Normal
+- **Close-to-Snooze**: Optionally, closing an automatically opened tab suppresses reopening for the rest of the current stream; the channel opens normally when its next stream starts
 - **Priority Channels**: Mark a channel as priority (in its settings panel) to ensure it gets tab slots first when max tabs is enabled
 - **Dynamic Tab Rotation**: Automatically adjust rotation interval based on tab count (e.g., 10min / 5 tabs = 2min per tab)
 
