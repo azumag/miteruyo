@@ -15,9 +15,9 @@ describe('Popup updateList persistence', () => {
       addChannelToList: vi.fn(),
       chrome: {
         storage: {
-local: {
-  set: vi.fn(),
-},
+          local: {
+            set: vi.fn(),
+          },
         },
       },
       console: {
