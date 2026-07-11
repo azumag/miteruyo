@@ -250,6 +250,108 @@ describe('Background Script', () => {
       );
     });
 
+    it('should clear stale suppression when migrating stored live channels without a stream ID', async () => {
+      const mockStreamData = {
+        data: [{
+          id: 'stream-current',
+          game_name: 'Test Game',
+          game_id: '123',
+          title: 'Current Stream',
+          viewer_count: 100,
+          tags: [],
+          user_id: '12345',
+        }],
+      };
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockStreamData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ is_branded_content: false }] }),
+        });
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [{
+          name: 'testchannel',
+          onLiveOpen: true,
+          onLive: true,
+          hasBeenOpened: true,
+          snoozed: true,
+        }],
+        oauth_token: 'test_token',
+        isAutoOpenOnce: true,
+        isEnabledAutoClose: false,
+      });
+
+      await checkStreams();
+
+      const setCall = chromeMock.storage.local.set.mock.calls.find(call => call[0].channels);
+      expect(setCall[0].channels[0]).toMatchObject({
+        streamId: 'stream-current',
+        hasBeenOpened: true,
+        snoozed: false,
+      });
+      expect(chromeMock.tabs.create).toHaveBeenCalledWith(
+        expect.objectContaining({ url: 'https://www.twitch.tv/testchannel' })
+      );
+    });
+
+    it('should preserve suppression when migrating without a stream ID if its tab is already open', async () => {
+      const mockStreamData = {
+        data: [{
+          id: 'stream-current',
+          game_name: 'Test Game',
+          game_id: '123',
+          title: 'Current Stream',
+          viewer_count: 100,
+          tags: [],
+          user_id: '12345',
+        }],
+      };
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockStreamData),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ is_branded_content: false }] }),
+        });
+      chromeMock.tabs.query.mockResolvedValue([{
+        id: 10,
+        url: 'https://www.twitch.tv/testchannel',
+      }]);
+      chromeMock.storage.local.get.mockResolvedValue({
+        isEnabled: true,
+        isEnabledNotifications: false,
+        isOpenMultiTwitch: false,
+        channels: [{
+          name: 'testchannel',
+          onLiveOpen: true,
+          onLive: true,
+          hasBeenOpened: true,
+          snoozed: true,
+        }],
+        oauth_token: 'test_token',
+        isAutoOpenOnce: true,
+        isEnabledAutoClose: false,
+      });
+
+      await checkStreams();
+
+      const setCall = chromeMock.storage.local.set.mock.calls.find(call => call[0].channels);
+      expect(setCall[0].channels[0]).toMatchObject({
+        streamId: 'stream-current',
+        hasBeenOpened: true,
+        snoozed: true,
+      });
+      expect(chromeMock.tabs.create).not.toHaveBeenCalled();
+    });
+
     it('should keep suppression for repeated polls of the same stream ID', async () => {
       const mockStreamData = {
         data: [{

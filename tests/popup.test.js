@@ -726,6 +726,65 @@ describe('Popup Script', () => {
     expect(popupMatch[1]).toBe(backgroundMatch[1]);
   });
 
+  it('shows the development-support terms in a native disclosure above the OFUSE link', async () => {
+    const html = await loadPopupHtml();
+
+    expect(html).toContain('<details class="mb-2">');
+    expect(html).toContain('<summary class="text-muted" id="supportDetailsSummary">');
+    expect(html).toContain('class="modal-dialog modal-dialog-centered modal-dialog-scrollable"');
+    expect(html).toContain('href="https://ofuse.me/8fe1bedb"');
+    expect(html).toContain('rel="noopener noreferrer"');
+    [
+      'supportDetailsIntro',
+      'supportDetailsRequests',
+      'supportDetailsDisclaimer',
+      'supportDetailsRights',
+      'supportDetailsPrivacy',
+    ].forEach((id) => expect(html).toContain(`id="${id}"`));
+  });
+
+  it('provides complete localized development-support terms', async () => {
+    const [jaSource, enSource] = await Promise.all([
+      readFile(new URL('../_locales/ja/messages.json', import.meta.url), 'utf8'),
+      readFile(new URL('../_locales/en/messages.json', import.meta.url), 'utf8'),
+    ]);
+    const ja = JSON.parse(jaSource);
+    const en = JSON.parse(enSource);
+    const keys = [
+      'supportDetailsSummary',
+      'supportDetailsIntro',
+      'supportDetailsRequests',
+      'supportDetailsDisclaimer',
+      'supportDetailsRights',
+      'supportDetailsPrivacy',
+    ];
+
+    keys.forEach((key) => {
+      expect(ja[key].message).toBeTruthy();
+      expect(en[key].message).toBeTruthy();
+    });
+    expect(keys.map((key) => ja[key].message)).toEqual([
+      '開発支援について',
+      'このソフトは、もともと作者自身の利用のために開発しているものを、希望があったため無料で公開しているものです。',
+      '開発継続の支援として、OFUSEの支援付きレターで不具合報告・改善案・機能要望を受け付けています。',
+      'いただいた内容は今後の開発の参考にしますが、採用・実装・返信・調査・修正・公開時期を保証するものではありません。個別の開発依頼、請負契約、有償サポートとしてお受けするものではありません。',
+      '採用した内容は、作者の判断で無料公開版や今後の関連ソフトに反映する場合があります。その場合でも、投稿者への個別報酬、権利付与、クレジット表記等は発生しません。',
+      '個人情報、秘密情報、業務上の機密、第三者の著作物・コードなどは送信しないでください。',
+    ]);
+  });
+
+  it('describes auto-open-once as a current-stream snooze in both locales', async () => {
+    const [jaSource, enSource] = await Promise.all([
+      readFile(new URL('../_locales/ja/messages.json', import.meta.url), 'utf8'),
+      readFile(new URL('../_locales/en/messages.json', import.meta.url), 'utf8'),
+    ]);
+    const ja = JSON.parse(jaSource);
+    const en = JSON.parse(enSource);
+
+    expect(ja.autoOpenOnce.message).toBe('自動で開いたタブを閉じたら次の配信まで開かない');
+    expect(en.autoOpenOnce.message).toBe('Closing an auto-opened tab snoozes until the next stream');
+  });
+
   it.each([
     ['non-string name', { name: 123 }],
     ['missing name', { onLiveOpen: true }],

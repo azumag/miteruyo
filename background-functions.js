@@ -310,11 +310,21 @@ export async function checkStreams() {
 
     // 新しい配信セッションでは「今回の配信だけ」の抑止状態をリセットする。
     // streamId も比較することで、短いオフラインをポーリングが見逃した場合にも対応する。
+    let openTabsForMigration;
     for (let i = 0; i < updatedChannels.length; i++) {
       const newStatus = updatedChannels[i];
       const oldStatus = channels[i];
+      const isMissingStreamId = newStatus?.onLive && !oldStatus?.streamId && newStatus.streamId;
+      let shouldResetMissingStreamId = false;
+      if (isMissingStreamId) {
+        openTabsForMigration ??= await chrome.tabs.query({});
+        const targetURL = channelURL(newStatus);
+        shouldResetMissingStreamId = !targetURL ||
+          !openTabsForMigration.some(tab => isMatchingChannelTabUrl(tab.url, targetURL));
+      }
       const startedNewStream = newStatus?.onLive && (
         !oldStatus?.onLive ||
+        shouldResetMissingStreamId ||
         (oldStatus.streamId && newStatus.streamId && oldStatus.streamId !== newStatus.streamId)
       );
       if (startedNewStream) {

@@ -157,9 +157,29 @@
 		"message": "Support",
 		"description": "Support link label"
 	},
-	"supportMessage": {
-		"message": "If you like this extension, please consider supporting me! I also accept bug reports and feature requests here.",
-		"description": "Support request message"
+	"supportDetailsSummary": {
+		"message": "About development support",
+		"description": "Summary that toggles the development support note"
+	},
+	"supportDetailsIntro": {
+		"message": "This software was originally developed for the author's own use and is available free of charge in response to requests from others.",
+		"description": "Background on why the software is available for free"
+	},
+	"supportDetailsRequests": {
+		"message": "To support continued development, bug reports, improvement ideas, and feature requests are accepted through OFUSE support letters.",
+		"description": "Types of feedback accepted through OFUSE"
+	},
+	"supportDetailsDisclaimer": {
+		"message": "Submissions may inform future development, but adoption, implementation, replies, investigation, fixes, and release dates are not guaranteed. They are not accepted as individual development commissions, work-for-hire contracts, or paid support.",
+		"description": "Disclaimer for support-letter submissions"
+	},
+	"supportDetailsRights": {
+		"message": "Accepted ideas may be incorporated, at the author's discretion, into the free public version or future related software. This does not entitle the submitter to individual compensation, rights, or credit.",
+		"description": "How accepted ideas may be used and associated rights"
+	},
+	"supportDetailsPrivacy": {
+		"message": "Do not submit personal information, confidential information, business secrets, or third-party copyrighted works or code.",
+		"description": "Warning about information that must not be submitted"
 	},
 	"githubLink": {
 		"message": "GitHub Repository",

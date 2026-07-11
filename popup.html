@@ -342,7 +342,7 @@
   </div>
   <!-- About Modal -->
   <div class="modal fade" id="aboutModal" tabindex="-1" aria-labelledby="aboutModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header py-2">
           <h5 class="modal-title fs-6" id="aboutModalLabel">Miteruyo</h5>
@@ -359,8 +359,18 @@
             </a>
           </div>
           <div class="bg-light p-2 rounded mb-3">
-            <p class="mb-1" id="supportMessageLabel">If you like this extension, please consider supporting me! I also accept bug reports and feature requests here.</p>
-            <a href="https://ofuse.me/8fe1bedb" target="_blank" class="btn btn-danger btn-sm w-100">
+            <details class="mb-2">
+              <summary class="text-muted" id="supportDetailsSummary">About development support</summary>
+              <div class="mt-2">
+                <p id="supportDetailsIntro"></p>
+                <p id="supportDetailsRequests"></p>
+                <p id="supportDetailsDisclaimer"></p>
+                <p id="supportDetailsRights"></p>
+                <p class="mb-0" id="supportDetailsPrivacy"></p>
+              </div>
+            </details>
+            <a href="https://ofuse.me/8fe1bedb" target="_blank" rel="noopener noreferrer"
+              class="btn btn-danger btn-sm w-100">
               <i class="bi bi-heart-fill"></i> OFUSE
             </a>
           </div>

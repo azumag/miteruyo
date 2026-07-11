@@ -157,9 +157,29 @@
 		"message": "ご支援",
 		"description": "支援リンク用ラベル"
 	},
-	"supportMessage": {
-		"message": "気に入ったらご支援頂けますと幸いです。修正/要望もこちらで承ります",
-		"description": "支援のお願いメッセージ"
+	"supportDetailsSummary": {
+		"message": "開発支援について",
+		"description": "開発支援についての注釈を開閉する見出し"
+	},
+	"supportDetailsIntro": {
+		"message": "このソフトは、もともと作者自身の利用のために開発しているものを、希望があったため無料で公開しているものです。",
+		"description": "ソフトを無料公開している背景"
+	},
+	"supportDetailsRequests": {
+		"message": "開発継続の支援として、OFUSEの支援付きレターで不具合報告・改善案・機能要望を受け付けています。",
+		"description": "OFUSEで受け付ける内容"
+	},
+	"supportDetailsDisclaimer": {
+		"message": "いただいた内容は今後の開発の参考にしますが、採用・実装・返信・調査・修正・公開時期を保証するものではありません。個別の開発依頼、請負契約、有償サポートとしてお受けするものではありません。",
+		"description": "支援付きレターに関する免責事項"
+	},
+	"supportDetailsRights": {
+		"message": "採用した内容は、作者の判断で無料公開版や今後の関連ソフトに反映する場合があります。その場合でも、投稿者への個別報酬、権利付与、クレジット表記等は発生しません。",
+		"description": "採用内容の反映と権利に関する説明"
+	},
+	"supportDetailsPrivacy": {
+		"message": "個人情報、秘密情報、業務上の機密、第三者の著作物・コードなどは送信しないでください。",
+		"description": "送信してはいけない情報についての注意"
 	},
 	"githubLink": {
 		"message": "GitHubリポジトリ",

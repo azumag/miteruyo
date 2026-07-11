@@ -365,8 +365,18 @@ document.addEventListener('DOMContentLoaded', function () {
     githubLinkLabel.appendChild(document.createTextNode(' ' + chrome.i18n.getMessage('githubLink')));
   }
 
-  const supportMessageLabel = document.getElementById('supportMessageLabel');
-  if (supportMessageLabel) supportMessageLabel.textContent = chrome.i18n.getMessage('supportMessage');
+  const supportDetailLabels = {
+    supportDetailsSummary: 'supportDetailsSummary',
+    supportDetailsIntro: 'supportDetailsIntro',
+    supportDetailsRequests: 'supportDetailsRequests',
+    supportDetailsDisclaimer: 'supportDetailsDisclaimer',
+    supportDetailsRights: 'supportDetailsRights',
+    supportDetailsPrivacy: 'supportDetailsPrivacy',
+  };
+  Object.entries(supportDetailLabels).forEach(([elementId, messageKey]) => {
+    const element = document.getElementById(elementId);
+    if (element) element.textContent = chrome.i18n.getMessage(messageKey);
+  });
 
   const mutedHelpTitle = document.getElementById('mutedHelpTitle');
   if (mutedHelpTitle) mutedHelpTitle.textContent = chrome.i18n.getMessage('mutedHelpTitle');
