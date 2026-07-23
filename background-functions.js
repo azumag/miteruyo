@@ -196,21 +196,6 @@ export async function checkTabRotate() {
   if (tabsToRemove.length > 0) {
     chrome.tabs.remove(tabsToRemove);
   }
-
-  // 動的ローテーション: タブ数に応じてアラーム間隔を再計算
-  if (twitchTabs.length > 1) {
-    const { isDynamicRotation, tabRotationInterval } = await chrome.storage.local.get(['isDynamicRotation', 'tabRotationInterval']);
-    if (isDynamicRotation) {
-      const baseInterval = parseInt(tabRotationInterval, 10) || DEFAULT_ROTATION_INTERVAL_MINUTES;
-      const newInterval = Math.max(MIN_ROTATION_INTERVAL_MINUTES, Math.round(baseInterval / twitchTabs.length));
-      const currentAlarm = await chrome.alarms.get('tabRotationAlarm');
-      if (currentAlarm && currentAlarm.periodInMinutes !== newInterval) {
-        await chrome.alarms.clear('tabRotationAlarm');
-        chrome.alarms.create('tabRotationAlarm', { periodInMinutes: newInterval });
-        console.log('Dynamic rotation: adjusted interval to', newInterval, 'min for', twitchTabs.length, 'tabs');
-      }
-    }
-  }
 }
 
 // Migrate old nested token format { oauth_token: "token" } (object) to flat string "token"
