@@ -162,7 +162,7 @@ chrome.tabs.onActivated.addListener(async activeInfo => {
       console.log('activated', activeInfo, enableTabMute, enableAutoClose);
       if (enableTabMute) {
         const tabs = await chrome.tabs.query({ windowId: targetWindowId });
-        await Promise.all(tabs.map(tab =>
+        await Promise.all(tabs.filter(tab => isTwitchChannelPage(tab.url)).map(tab =>
           chrome.tabs.update(tab.id, { muted: tab.id !== activeInfo.tabId })
         ));
       }

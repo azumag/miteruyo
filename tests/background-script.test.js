@@ -24,7 +24,7 @@ const backgroundFunctionsMock = vi.hoisted(() => ({
 
 vi.mock('../background-functions.js', () => backgroundFunctionsMock);
 
-describe('background.js context menu channel add', () => {
+describe('background.js event handlers', () => {
   let chromeMock;
   let originalChrome;
 
@@ -32,6 +32,12 @@ describe('background.js context menu channel add', () => {
     vi.resetModules();
     await import('../background.js');
     return chromeMock.contextMenus.onClicked.addListener.mock.calls[0][0];
+  }
+
+  async function loadTabActivatedHandler() {
+    vi.resetModules();
+    await import('../background.js');
+    return chromeMock.tabs.onActivated.addListener.mock.calls[0][0];
   }
 
   beforeEach(() => {
@@ -137,5 +143,45 @@ describe('background.js context menu channel add', () => {
     await handler(42);
 
     expect(backgroundFunctionsMock.onWindowRemoved).toHaveBeenCalledWith(42);
+  });
+
+  it('mutes only Twitch channel tabs when a Twitch tab is activated', async () => {
+    chromeMock.storage.local.get.mockResolvedValue({
+      lastOpenWindowId: 42,
+      isEnabledTabMute: true,
+      isEnabledAutoClose: false,
+    });
+    chromeMock.tabs.query.mockResolvedValue([
+      { id: 10, url: 'https://www.twitch.tv/active_channel' },
+      { id: 11, url: 'https://www.twitch.tv/inactive_channel' },
+      { id: 12, url: 'https://example.com/' },
+    ]);
+    const handler = await loadTabActivatedHandler();
+
+    await handler({ windowId: 42, tabId: 10 });
+
+    expect(chromeMock.tabs.update).toHaveBeenCalledTimes(2);
+    expect(chromeMock.tabs.update).toHaveBeenNthCalledWith(1, 10, { muted: false });
+    expect(chromeMock.tabs.update).toHaveBeenNthCalledWith(2, 11, { muted: true });
+  });
+
+  it('leaves an active non-Twitch tab unchanged while muting Twitch channel tabs', async () => {
+    chromeMock.storage.local.get.mockResolvedValue({
+      lastOpenWindowId: 42,
+      isEnabledTabMute: true,
+      isEnabledAutoClose: false,
+    });
+    chromeMock.tabs.query.mockResolvedValue([
+      { id: 10, url: 'https://www.twitch.tv/channel_one' },
+      { id: 11, url: 'https://www.twitch.tv/channel_two' },
+      { id: 12, url: 'https://example.com/' },
+    ]);
+    const handler = await loadTabActivatedHandler();
+
+    await handler({ windowId: 42, tabId: 12 });
+
+    expect(chromeMock.tabs.update).toHaveBeenCalledTimes(2);
+    expect(chromeMock.tabs.update).toHaveBeenNthCalledWith(1, 10, { muted: true });
+    expect(chromeMock.tabs.update).toHaveBeenNthCalledWith(2, 11, { muted: true });
   });
 });
