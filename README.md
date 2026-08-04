@@ -33,7 +33,7 @@ Each channel row keeps status and actions compact for the Chrome popup:
 - Gear icon: opens per-channel settings.
 - Trash icon: removes the channel after confirmation.
 
-Tabs opened by Miteruyo are explicitly unmuted when they open. If auto-mute is enabled, inactive managed tabs can still be muted until activation or tab rotation brings them forward.
+Tabs opened by Miteruyo are explicitly unmuted when they open. If auto-mute is enabled, inactive managed Twitch tabs can still be muted until activation or tab rotation brings them forward. Non-Twitch tabs are excluded from rotation and auto-mute.
 
 Twitch's in-player "Click to unmute" state is separate from Chrome's tab mute state, and Miteruyo does not attempt to clear it automatically. Chrome's autoplay policy blocks scripted attempts to unmute or raise the volume on a page that has never received a real user gesture, and forcing it anyway causes Chrome to pause the video outright ("Unmuting failed and the element was paused instead because the user didn't interact with the document before"). A manual click on Twitch's own unmute control is required once per stream; see [known issues](../../issues) for background on why this can't be automated from a content script.
 
@@ -148,7 +148,7 @@ npm run lint:fix
 
 ### Tab Management
 - **Rotation**: Cycles through open stream tabs at set interval
-- **Muting**: Automatically mutes all tabs except the active one
+- **Muting**: Automatically mutes inactive Twitch channel tabs
 - **Auto-close**: Closes tabs when their streams go offline
 - **URL Safety**: Treats only `twitch.tv` and `www.twitch.tv` channel URLs as managed Twitch tabs
 

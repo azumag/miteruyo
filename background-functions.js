@@ -166,35 +166,55 @@ export async function checkTabRotate() {
   // If the window exists, switch tabs
   const tabs = await chrome.tabs.query({ windowId: targetWindowId });
 
-  // Filter tabs to only Twitch channel pages for tab rotation
+  // Only Twitch channel pages are managed by rotation.
   const twitchTabs = tabs.filter(tab => isTwitchChannelPage(tab.url));
 
-  // If no Twitch tabs or only one Twitch tab, nothing to rotate
-  if (twitchTabs.length <= 1) return;
-
-  // Use filtered tabs for rotation logic
-  let currentTabIndex = twitchTabs.findIndex((tab) => tab.active);
-  let nextTabIndex = (currentTabIndex + 1) % twitchTabs.length;
-
-  chrome.tabs.update(twitchTabs[currentTabIndex].id, { muted: enableTabMute });
-  chrome.tabs.update(twitchTabs[nextTabIndex].id, { active: true, muted: false });
-
-  // Close duplicate tabs. Twitch channel pages use channel identity;
-  // other URLs keep the existing URL-without-query behavior.
-  const seenUrls = new Set();
+  // Resolve duplicates before choosing the next tab. Prefer the active tab so
+  // rotation never removes the tab the user is currently viewing.
+  const survivingTabByChannel = new Map();
   const tabsToRemove = [];
   for (const tab of twitchTabs) {
-    if (!tab.url || !tab.url.startsWith('http')) continue;
     const channelName = parseTwitchChannelUrl(tab.url);
-    const dedupKey = channelName || tab.url.split('?')[0];
-    if (seenUrls.has(dedupKey)) {
-      tabsToRemove.push(tab.id);
+    const existingTab = survivingTabByChannel.get(channelName);
+    if (!existingTab) {
+      survivingTabByChannel.set(channelName, tab);
+    } else if (tab.active && !existingTab.active) {
+      tabsToRemove.push(existingTab.id);
+      survivingTabByChannel.set(channelName, tab);
     } else {
-      seenUrls.add(dedupKey);
+      tabsToRemove.push(tab.id);
     }
   }
   if (tabsToRemove.length > 0) {
-    chrome.tabs.remove(tabsToRemove);
+    await chrome.tabs.remove(tabsToRemove);
+  }
+
+  const survivingTabIds = new Set(
+    [...survivingTabByChannel.values()].map(tab => tab.id)
+  );
+  const rotationTabs = twitchTabs.filter(tab => survivingTabIds.has(tab.id));
+
+  // 動的ローテーション: Twitchタブ数に応じてアラーム間隔を再計算
+  const { isDynamicRotation, tabRotationInterval } = await chrome.storage.local.get(['isDynamicRotation', 'tabRotationInterval']);
+  if (isDynamicRotation) {
+    const baseInterval = parseInt(tabRotationInterval, 10) || DEFAULT_ROTATION_INTERVAL_MINUTES;
+    const rotationTabCount = Math.max(1, rotationTabs.length);
+    const newInterval = Math.max(MIN_ROTATION_INTERVAL_MINUTES, Math.round(baseInterval / rotationTabCount));
+    const currentAlarm = await chrome.alarms.get('tabRotationAlarm');
+    if (currentAlarm && currentAlarm.periodInMinutes !== newInterval) {
+      await chrome.alarms.clear('tabRotationAlarm');
+      await chrome.alarms.create('tabRotationAlarm', { periodInMinutes: newInterval });
+      console.log('Dynamic rotation: adjusted interval to', newInterval, 'min for', rotationTabs.length, 'Twitch tabs');
+    }
+  }
+
+  if (rotationTabs.length <= 1) return;
+
+  const currentTabIndex = rotationTabs.findIndex((tab) => tab.active);
+  if (currentTabIndex >= 0) {
+    const nextTabIndex = (currentTabIndex + 1) % rotationTabs.length;
+    await chrome.tabs.update(rotationTabs[currentTabIndex].id, { muted: enableTabMute });
+    await chrome.tabs.update(rotationTabs[nextTabIndex].id, { active: true, muted: false });
   }
 }
 
