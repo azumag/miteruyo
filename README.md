@@ -9,7 +9,7 @@ A Chrome extension that monitors Twitch channels and automatically opens streams
 - **Tab Management**:
   - Auto-rotate between open streams at configurable intervals
   - Auto-mute inactive tabs
-  - Auto-close tabs when streams go offline
+  - Auto-close tabs when streams go offline (only after a valid current status response; API failures or malformed responses do not close tabs)
 - **Multiple Window Support**: Open streams in specific windows or across multiple windows
 - **Multi-Twitch Integration**: Support for watching multiple streams simultaneously
 - **Desktop Notifications**: Get notified when monitored channels go live
