@@ -317,5 +317,41 @@
 	"dynamicRotation": {
 		"message": "Divide by tab count",
 		"description": "Dynamically adjust rotation interval based on number of open tabs"
+	},
+	"sortChannels": {
+		"message": "Sort by"
+	},
+	"sort_registered": {
+		"message": "Registered order"
+	},
+	"sort_name": {
+		"message": "Name"
+	},
+	"sort_started_newest": {
+		"message": "Recently started"
+	},
+	"sort_started_oldest": {
+		"message": "Oldest start first"
+	},
+	"streamDetails": {
+		"message": "Stream details"
+	},
+	"notAvailable": {
+		"message": "Not available"
+	},
+	"streamDetailsUnavailable": {
+		"message": "Stream information unavailable"
+	},
+	"streamTitle": {
+		"message": "Title"
+	},
+	"streamCategory": {
+		"message": "Category"
+	},
+	"streamStarted": {
+		"message": "Started"
+	},
+	"closeDetails": {
+		"message": "Close"
 	}
 }

@@ -24,6 +24,8 @@ const enableNotifications = document.getElementById('enableNotifications');
 const aboutBtn = document.getElementById('aboutBtn');
 
 const liveFilterSwitch = document.getElementById('liveFilterSwitch');
+const channelSort = document.getElementById('channelSort');
+const channelRows = new WeakMap();
 
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
 const CHANNEL_NAME_REGEX = /^[a-z0-9_]{3,25}$/i;
@@ -282,6 +284,7 @@ function createCategorySearchInput(options) {
 
 // i18n
 document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-i18n-detail]').forEach(el => { el.textContent = chrome.i18n.getMessage(el.dataset.i18nDetail); });
   const enableOpenMessage = chrome.i18n.getMessage('enableOpen');
   const channelPlaceholderMessage = chrome.i18n.getMessage('channelAddPlaceholder');
   const addChannelBtnMessage = chrome.i18n.getMessage('channelAddBtn');
@@ -574,6 +577,7 @@ chrome.storage.local.get(
     isOpenNewWindow: false,
     isOpenMultiTwitch: false,
     isLiveFilter: false,
+    channelSort: 'registered',
     oauth_token: null,
     tabRotationInterval: 5,
     checkInterval: 1,
@@ -593,6 +597,7 @@ chrome.storage.local.get(
     enableSwitch.checked = data.isEnabled;
     openNewWindow.checked = data.isOpenNewWindow;
     liveFilterSwitch.checked = data.isLiveFilter;
+    channelSort.value = ['registered', 'name', 'started_newest', 'started_oldest'].includes(data.channelSort) ? data.channelSort : 'registered';
     tabRotationInterval.value = data.tabRotationInterval;
     checkInterval.value = data.checkInterval;
     enableTabMute.checked = data.isEnabledTabMute;
@@ -665,6 +670,46 @@ chrome.storage.local.get(
   }
 );
 
+function showStreamDetails(channel) {
+  const dialog = document.getElementById('streamDetailsDialog');
+  document.getElementById('streamDetailsName').textContent = String(channel.name ?? '');
+  const online = channel.status === 'online' && channel.onLive;
+  const text = value => typeof value === 'string' && value.trim() ? value : chrome.i18n.getMessage('notAvailable');
+  document.getElementById('streamDetailsTitle').textContent = online ? text(channel.title) : chrome.i18n.getMessage(channel.status === 'error' ? 'streamDetailsUnavailable' : 'statusOffline');
+  document.getElementById('streamDetailsCategory').textContent = online ? text(channel.game_name) : '—';
+  const started = online && typeof channel.started_at === 'string' ? Date.parse(channel.started_at) : NaN;
+  document.getElementById('streamDetailsStarted').textContent = Number.isFinite(started) ? new Date(started).toLocaleString() : '—';
+  if (!dialog.open) dialog.showModal();
+}
+
+// Sort only rendered row pairs; never reorder saved channels (their indices
+// are also used to remove malformed legacy entries).
+function compareChannelRows(a, b, mode) {
+  if (mode === 'name') {
+    const byName = String(a.channel.name ?? '').localeCompare(String(b.channel.name ?? ''), undefined, { numeric: true, sensitivity: 'base' });
+    if (byName) return byName;
+  }
+  if (mode === 'started_newest' || mode === 'started_oldest') {
+    const time = item => item.channel.status === 'online' && item.channel.onLive && typeof item.channel.started_at === 'string' ? Date.parse(item.channel.started_at) : NaN;
+    const ta = time(a), tb = time(b);
+    if (Number.isFinite(ta) !== Number.isFinite(tb)) return Number.isFinite(ta) ? -1 : 1;
+    if (Number.isFinite(ta) && ta !== tb) return mode === 'started_newest' ? tb - ta : ta - tb;
+  }
+  return a.order - b.order;
+}
+
+function sortChannelRows() {
+  const pairs = Array.from(channelTable.querySelectorAll('.channel-tr')).map((row, index) => {
+    const next = row.nextElementSibling;
+    return { row, settings: next?.classList.contains('settings-tr') ? next : null, ...channelRows.get(row), index };
+  });
+  pairs.sort((a, b) => compareChannelRows(a, b, channelSort.value) || a.index - b.index);
+  for (const pair of pairs) {
+    channelTable.appendChild(pair.row);
+    if (pair.settings) channelTable.appendChild(pair.settings);
+  }
+}
+
 async function updateList(dchannels) {
   const checkStreams = [];
   for (const [_index, _channel] of normalizeStoredChannels(dchannels).entries()) {
@@ -703,6 +748,7 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
   const tr = document.createElement('tr');
   tr.className = 'align-middle'; // Ensure vertical centering
   tr.classList.add('channel-tr');
+  channelRows.set(tr, { channel, order: storageIndex >= 0 ? storageIndex : Number.MAX_SAFE_INTEGER });
 
   // 1. Live Status & On/Off Switch
   const statusTd = document.createElement('td');
@@ -806,7 +852,11 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
     priorityIndicator.hidden = !channel.isPriority;
   };
 
-  const channelNameTag = document.createElement('span');
+  const channelNameTag = document.createElement('button');
+  channelNameTag.type = 'button';
+  channelNameTag.className = 'channel-detail-trigger';
+  channelNameTag.setAttribute('aria-label', chrome.i18n.getMessage('streamDetails') + ': ' + channel.name);
+  channelNameTag.addEventListener('click', () => showStreamDetails(channel));
   channelNameTag.textContent = channel.name;
   channelNameTag.title = channel.name; // Tooltip
   cntd.appendChild(channelNameTag);
@@ -870,7 +920,7 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
 
   channelTable.appendChild(tr);
 
-  if (!rendersChannelSettings) return;
+  if (!rendersChannelSettings) { sortChannelRows(); return; }
 
   // --- Settings Row ---
   const settingsTr = document.createElement('tr');
@@ -1487,6 +1537,7 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
   settingsTr.appendChild(settingsTd);
 
   channelTable.appendChild(settingsTr);
+  sortChannelRows();
 }
 
 function removeChannel(channel, storageIndex = -1) {
@@ -1607,6 +1658,11 @@ dynamicRotation.addEventListener('change', () => {
   chrome.storage.local.set({ isDynamicRotation: dynamicRotation.checked });
 });
 
+
+channelSort.addEventListener('change', () => {
+  chrome.storage.local.set({ channelSort: channelSort.value });
+  sortChannelRows();
+});
 
 liveFilterSwitch.addEventListener('change', async () => {
   await chrome.storage.local.set({ isLiveFilter: liveFilterSwitch.checked });
@@ -1800,7 +1856,7 @@ async function checkStream(channel) {
 
     const data = await response.json();
 
-    if (data.data === undefined) {
+    if (!Array.isArray(data?.data)) {
       channel.status = 'error';
       return channel;
     }
@@ -1810,6 +1866,7 @@ async function checkStream(channel) {
       const stream = data.data[0];
       channel.onLive = true;
       channel.game_name = stream.game_name;
+      channel.started_at = stream.started_at;
       channel.tags = stream.tags;
       channel.title = stream.title;
       channel.viewer_count = stream.viewer_count;

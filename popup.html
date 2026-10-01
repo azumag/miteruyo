@@ -8,6 +8,12 @@
   <link rel="stylesheet" href="bootstrap/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <style>
+    .channel-detail-trigger { border:0; background:none; padding:0; color:inherit; text-align:left; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .channel-detail-trigger:hover { text-decoration:underline; }
+    #streamDetailsDialog { width:300px; max-width:calc(100% - 24px); max-height:calc(100% - 24px); overflow:auto; border:1px solid #ccd5df; border-radius:10px; padding:16px; overflow-wrap:anywhere; }
+    #streamDetailsDialog::backdrop { background:#10203066; }
+    #streamDetailsDialog dt { font-size:12px; color:#667; }
+    #streamDetailsDialog dd { font-size:14px; margin-bottom:12px; }
     body {
       width: 330px;
       max-width: 100%;
@@ -180,6 +186,12 @@
             <label class="form-check-label" for="liveFilterSwitch">配信中のみ表示</label>
           </div>
         </div>
+        <label class="d-flex align-items-center gap-2 mt-2 small" for="channelSort"><span data-i18n-detail="sortChannels">並び順</span>
+          <select id="channelSort" class="form-select form-select-sm" style="width:auto;flex:1">
+            <option value="registered" data-i18n-detail="sort_registered">登録順</option><option value="name" data-i18n-detail="sort_name">名前順</option>
+            <option value="started_newest" data-i18n-detail="sort_started_newest">配信開始が新しい順</option><option value="started_oldest" data-i18n-detail="sort_started_oldest">配信開始が古い順</option>
+          </select>
+        </label>
         <div class="d-flex justify-content-center">
           <div class="spinner-border text-info mt-3" role="status" id="loading">
             <span class="visually-hidden">Loading...</span>
@@ -390,6 +402,13 @@
     </div>
   </div>
 
+  <dialog id="streamDetailsDialog" aria-labelledby="streamDetailsName">
+    <h2 id="streamDetailsName" class="h6"></h2>
+    <dl><dt data-i18n-detail="streamTitle">タイトル</dt><dd id="streamDetailsTitle"></dd>
+    <dt data-i18n-detail="streamCategory">カテゴリ</dt><dd id="streamDetailsCategory"></dd>
+    <dt data-i18n-detail="streamStarted">配信開始</dt><dd id="streamDetailsStarted"></dd></dl>
+    <form method="dialog"><button autofocus class="btn btn-secondary btn-sm" data-i18n-detail="closeDetails">閉じる</button></form>
+  </dialog>
   <script src="bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="popup.js"></script>
 </body>

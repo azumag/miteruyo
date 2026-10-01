@@ -317,5 +317,41 @@
 	"dynamicRotation": {
 		"message": "タブ数で分割",
 		"description": "タブ数に応じてローテーション間隔を動的に変化させるオプション"
+	},
+	"sortChannels": {
+		"message": "並び順"
+	},
+	"sort_registered": {
+		"message": "登録順"
+	},
+	"sort_name": {
+		"message": "名前順"
+	},
+	"sort_started_newest": {
+		"message": "配信開始が新しい順"
+	},
+	"sort_started_oldest": {
+		"message": "配信開始が古い順"
+	},
+	"streamDetails": {
+		"message": "配信の詳細"
+	},
+	"notAvailable": {
+		"message": "未取得"
+	},
+	"streamDetailsUnavailable": {
+		"message": "配信情報を取得できませんでした"
+	},
+	"streamTitle": {
+		"message": "タイトル"
+	},
+	"streamCategory": {
+		"message": "カテゴリ"
+	},
+	"streamStarted": {
+		"message": "配信開始"
+	},
+	"closeDetails": {
+		"message": "閉じる"
 	}
 }

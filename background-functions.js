@@ -1139,6 +1139,7 @@ async function checkStream(channel, oauth_token) {
         ...channel,
         onLive: true,
         streamId: stream.id,
+        started_at: stream.started_at,
         game_name: stream.game_name,
         game_id: stream.game_id,
         tags: stream.tags,
