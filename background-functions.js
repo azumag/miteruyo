@@ -472,6 +472,8 @@ async function closeUnwantedTabs(updatedChannels) {
 
     const channel = updatedChannels.find(c => normalizeChannelName(c?.name) === channelName);
     if (!channel) continue;
+    // A failed poll preserves cached fields for display, not for closing tabs.
+    if (channel.status !== 'online' && channel.status !== 'offline') continue;
 
     // オフラインのチャンネルは閉じる
     if (!channel.onLive) {
@@ -857,7 +859,9 @@ export async function checkOfflineWithTab(tabId) {
     return false;
   }
 
-  if (data.data && data.data.length > 0) {
+  if (!Array.isArray(data?.data)) return false;
+
+  if (data.data.length > 0) {
     // online
     return false;
   } else {
@@ -1097,7 +1101,7 @@ async function checkStream(channel, oauth_token) {
       return { ...channel, status: 'error', lastError: 'JSON parse error' };
     }
 
-    if (data.data === undefined) {
+    if (!Array.isArray(data?.data)) {
       console.error(`checkStream: Invalid response for ${channelName}`, data);
       return { ...channel, status: 'error', lastError: 'Invalid response' };
     }
