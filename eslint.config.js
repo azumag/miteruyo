@@ -25,6 +25,13 @@ export default [
     },
   },
   {
+    files: ['scripts/build-preview-zip.js'],
+    languageOptions: {
+      sourceType: 'module',
+      globals: { ...globals.node },
+    },
+  },
+  {
     files: ['tests/**/*.js', 'vitest.config.js', 'eslint.config.js'],
     languageOptions: {
       sourceType: 'module',

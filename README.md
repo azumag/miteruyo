@@ -84,6 +84,16 @@ Configure via the extension popup:
 ### Context Menu
 Right-click on any Twitch channel link to "Open with Miteruyo" - the tab will be managed (rotation, mute, auto-close).
 
+## Preview test artifacts
+
+Pushing to the `preview` branch runs lint and unit tests, then creates a GitHub Actions artifact named `miteruyo-preview-<full commit SHA>`. The artifact contains `miteruyo-preview-<full commit SHA>.zip` and is retained for 14 days. Pull requests targeting `preview` run validation only; they do not create artifacts. Production `v*` tag releases remain separate.
+
+The preview ZIP uses the development Client ID already present in the checked-in source. Its manifest name includes `Preview` and the source commit prefix. It is for unpacked testing only and must not be submitted to the Chrome Web Store.
+
+The current manifest has no public `key`, so the preview does not promise a shared, fixed extension ID. After loading the extracted folder from `chrome://extensions`, copy its displayed extension ID and open its service worker inspector. Run `chrome.identity.getRedirectURL()` in that console and compare the result exactly with the redirect URI already registered in the existing Twitch development application. Until that match is confirmed, Twitch OAuth is unverified; successful ZIP generation does not confirm login works. Chrome documents the redirect format in its [identity API](https://developer.chrome.com/docs/extensions/reference/api/identity), and Twitch requires the app's registered redirect URI in its [OAuth flow](https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/). No key is generated and no Twitch app settings are changed by this workflow.
+
+Download the artifact from the successful preview push's Actions run, extract it, and choose **Load unpacked** in Chrome's extensions page. Use the preview ZIP only for testing; use a tagged GitHub Release for production distribution.
+
 ## Development
 
 ### Setup
