@@ -53,8 +53,8 @@ it('keeps the live status button width fixed while swapping its visible label', 
   const html = readFileSync(new URL('../popup.html', import.meta.url), 'utf8');
   const statusButtonRule = html.match(/\.channel-status-btn\s*\{([^}]+)\}/)?.[1];
 
-  expect(statusButtonRule).toMatch(/width:\s*80px/);
-  expect(statusButtonRule).toMatch(/flex:\s*0 0 80px/);
+  expect(statusButtonRule).toMatch(/width:\s*72px/);
+  expect(statusButtonRule).toMatch(/flex:\s*0 0 72px/);
   expect(html).toContain('content: attr(data-open-action);');
   expect(html).toContain('data-open-action]:focus-visible::after');
 });

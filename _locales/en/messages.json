@@ -337,6 +337,30 @@
 	"sort_started_oldest": {
 		"message": "Oldest start first"
 	},
+	"sort_registered_short": {
+		"message": "Added"
+	},
+	"sort_name_short": {
+		"message": "Name"
+	},
+	"sort_started_newest_short": {
+		"message": "Start: newest"
+	},
+	"sort_started_oldest_short": {
+		"message": "Start: oldest"
+	},
+	"sort_registered_accessible": {
+		"message": "Sort by registered order"
+	},
+	"sort_name_accessible": {
+		"message": "Sort by channel name"
+	},
+	"sort_started_newest_accessible": {
+		"message": "Sort by newest stream start time"
+	},
+	"sort_started_oldest_accessible": {
+		"message": "Sort by oldest stream start time"
+	},
 	"streamDetails": {
 		"message": "Stream details"
 	},

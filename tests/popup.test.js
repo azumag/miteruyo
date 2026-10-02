@@ -213,9 +213,9 @@ describe('Popup Script', () => {
     const popupSource = await readFile(new URL('../popup.js', import.meta.url), 'utf8');
 
     expect(html).toContain('table-layout: fixed;');
-    expect(html).toContain('flex: 0 0 80px;');
-    expect(html).toContain('<col style="width: 124px;">');
-    expect(html).toContain('<col style="width: 60px;">');
+    expect(html).toContain('flex: 0 0 72px;');
+    expect(html).toContain('<col style="width: 116px;">');
+    expect(html).toContain('<col style="width: 64px;">');
     expect(html).toContain('.channel-name-cell');
     expect(html).toContain('text-overflow: ellipsis;');
     expect(popupSource).toContain("cntd.className = 'channel-name-cell';");

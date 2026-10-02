@@ -337,6 +337,30 @@
 	"sort_started_oldest": {
 		"message": "配信開始が古い順"
 	},
+	"sort_registered_short": {
+		"message": "登録順"
+	},
+	"sort_name_short": {
+		"message": "名前順"
+	},
+	"sort_started_newest_short": {
+		"message": "開始・新しい順"
+	},
+	"sort_started_oldest_short": {
+		"message": "開始・古い順"
+	},
+	"sort_registered_accessible": {
+		"message": "登録順で並べ替え"
+	},
+	"sort_name_accessible": {
+		"message": "チャンネル名で並べ替え"
+	},
+	"sort_started_newest_accessible": {
+		"message": "配信開始日時が新しい順に並べ替え"
+	},
+	"sort_started_oldest_accessible": {
+		"message": "配信開始日時が古い順に並べ替え"
+	},
 	"streamDetails": {
 		"message": "配信の詳細"
 	},

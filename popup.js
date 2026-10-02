@@ -25,6 +25,8 @@ const aboutBtn = document.getElementById('aboutBtn');
 
 const liveFilterSwitch = document.getElementById('liveFilterSwitch');
 const channelSort = document.getElementById('channelSort');
+const channelSortControls = document.getElementById('channelSortControls');
+const channelSortButtons = Array.from(channelSortControls.querySelectorAll('[data-sort-value]'));
 const channelRows = new WeakMap();
 
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
@@ -285,6 +287,11 @@ function createCategorySearchInput(options) {
 // i18n
 document.addEventListener('DOMContentLoaded', function () {
   document.querySelectorAll('[data-i18n-detail]').forEach(el => { el.textContent = chrome.i18n.getMessage(el.dataset.i18nDetail); });
+  channelSortControls.querySelectorAll('[data-sort-aria-key]').forEach(button => {
+    const label = chrome.i18n.getMessage(button.dataset.sortAriaKey);
+    button.title = label;
+    button.setAttribute('aria-label', label);
+  });
   const enableOpenMessage = chrome.i18n.getMessage('enableOpen');
   const channelPlaceholderMessage = chrome.i18n.getMessage('channelAddPlaceholder');
   const addChannelBtnMessage = chrome.i18n.getMessage('channelAddBtn');
@@ -597,7 +604,7 @@ chrome.storage.local.get(
     enableSwitch.checked = data.isEnabled;
     openNewWindow.checked = data.isOpenNewWindow;
     liveFilterSwitch.checked = data.isLiveFilter;
-    channelSort.value = ['registered', 'name', 'started_newest', 'started_oldest'].includes(data.channelSort) ? data.channelSort : 'registered';
+    syncChannelSortControls(data.channelSort);
     tabRotationInterval.value = data.tabRotationInterval;
     checkInterval.value = data.checkInterval;
     enableTabMute.checked = data.isEnabledTabMute;
@@ -684,6 +691,37 @@ function showStreamDetails(channel) {
 
 // Sort only rendered row pairs; never reorder saved channels (their indices
 // are also used to remove malformed legacy entries).
+function normalizeChannelSort(value) {
+  return ['registered', 'name', 'started_newest', 'started_oldest'].includes(value) ? value : 'registered';
+}
+
+function syncChannelSortControls(value) {
+  channelSort.value = normalizeChannelSort(value);
+  channelSortButtons.forEach(button => {
+    const selected = button.dataset.sortValue === channelSort.value;
+    button.setAttribute('aria-pressed', String(selected));
+  });
+  return channelSort.value;
+}
+
+function selectChannelSort(value, persist = false) {
+  const nextSort = normalizeChannelSort(value);
+  const changed = channelSort.value !== nextSort;
+  syncChannelSortControls(nextSort);
+  if (persist && changed) chrome.storage.local.set({ channelSort: nextSort });
+  if (changed) sortChannelRows();
+  return nextSort;
+}
+
+function handleChannelSortButtonClick(event) {
+  selectChannelSort(event.currentTarget.dataset.sortValue, true);
+}
+
+function handleChannelSortStorageChange(changes, areaName) {
+  if (areaName !== 'local' || !changes.channelSort) return;
+  selectChannelSort(changes.channelSort.newValue);
+}
+
 function compareChannelRows(a, b, mode) {
   if (mode === 'name') {
     const byName = String(a.channel.name ?? '').localeCompare(String(b.channel.name ?? ''), undefined, { numeric: true, sensitivity: 'base' });
@@ -785,7 +823,6 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
   const statusContainer = document.createElement('div');
   statusContainer.className = 'channel-controls';
   statusTd.appendChild(statusContainer);
-  tr.appendChild(statusTd);
 
   const openButton = document.createElement('button');
   openButton.type = 'button';
@@ -877,6 +914,7 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
   channelNameTag.title = channel.name; // Tooltip
   cntd.appendChild(channelNameTag);
   tr.appendChild(cntd);
+  tr.appendChild(statusTd);
 
   // 4. Actions (Settings & Delete)
   const removetd = document.createElement('td');
@@ -1675,10 +1713,8 @@ dynamicRotation.addEventListener('change', () => {
 });
 
 
-channelSort.addEventListener('change', () => {
-  chrome.storage.local.set({ channelSort: channelSort.value });
-  sortChannelRows();
-});
+channelSortButtons.forEach(button => button.addEventListener('click', handleChannelSortButtonClick));
+chrome.storage.onChanged.addListener(handleChannelSortStorageChange);
 
 liveFilterSwitch.addEventListener('change', async () => {
   await chrome.storage.local.set({ isLiveFilter: liveFilterSwitch.checked });
