@@ -94,6 +94,7 @@ describe('Popup sort controls', () => {
     const controlsMarkup = html.slice(controlsStart, controlsEnd);
     const toolbarStyle = html.match(/\.channel-list-toolbar\s*\{([^}]+)\}/)?.[1];
     const sortButtonStyle = html.match(/\.channel-sort-button\s*\{([^}]+)\}/)?.[1];
+    const sortFocusStyle = html.match(/\.channel-sort-button:focus-visible\s*\{([^}]+)\}/)?.[1];
 
     expect(html).not.toMatch(/<select[^>]*id="channelSort"/);
     expect(html).toContain('<input type="hidden" id="channelSort" value="registered">');
@@ -104,6 +105,8 @@ describe('Popup sort controls', () => {
     expect(controlsMarkup.match(/<button type="button"/g)).toHaveLength(4);
     expect(controlsMarkup).not.toContain('tabindex="-1"');
     expect(html).toContain('.channel-sort-button:focus-visible');
+    expect(html).toContain('--popup-focus: #0d6efd;');
+    expect(html).toContain('--bs-table-border-color: #e9ecef;');
     expect(html).toContain('grid-template-columns: repeat(4, minmax(0, 1fr));');
     expect(html).toContain('min-height: 26px;');
     expect(html).not.toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
@@ -111,6 +114,7 @@ describe('Popup sort controls', () => {
     expect(toolbarStyle).toContain('min-height: 30px;');
     expect(toolbarStyle).toContain('min-width: 0;');
     expect(sortButtonStyle).toContain('white-space: nowrap;');
+    expect(sortFocusStyle).toContain('outline-offset: 1px;');
 
     for (const value of sortValues) {
       expect(controlsMarkup).toContain(`data-sort-value="${value}"`);
