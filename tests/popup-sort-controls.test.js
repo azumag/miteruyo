@@ -92,13 +92,25 @@ describe('Popup sort controls', () => {
     const controlsStart = html.indexOf('id="channelSortControls"');
     const controlsEnd = html.indexOf('</div>', controlsStart);
     const controlsMarkup = html.slice(controlsStart, controlsEnd);
+    const toolbarStyle = html.match(/\.channel-list-toolbar\s*\{([^}]+)\}/)?.[1];
+    const sortButtonStyle = html.match(/\.channel-sort-button\s*\{([^}]+)\}/)?.[1];
 
     expect(html).not.toMatch(/<select[^>]*id="channelSort"/);
     expect(html).toContain('<input type="hidden" id="channelSort" value="registered">');
+    expect(html).toContain('width: 330px;');
+    expect(html).toContain('overflow-x: hidden;');
+    expect(html).toContain('class="channel-list-toolbar mt-2"');
     expect(html).toContain('role="group" aria-labelledby="channelSortLabel"');
     expect(controlsMarkup.match(/<button type="button"/g)).toHaveLength(4);
     expect(controlsMarkup).not.toContain('tabindex="-1"');
     expect(html).toContain('.channel-sort-button:focus-visible');
+    expect(html).toContain('grid-template-columns: repeat(4, minmax(0, 1fr));');
+    expect(html).toContain('min-height: 26px;');
+    expect(html).not.toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
+    expect(toolbarStyle).toContain('width: 100%;');
+    expect(toolbarStyle).toContain('min-height: 30px;');
+    expect(toolbarStyle).toContain('min-width: 0;');
+    expect(sortButtonStyle).toContain('white-space: nowrap;');
 
     for (const value of sortValues) {
       expect(controlsMarkup).toContain(`data-sort-value="${value}"`);
@@ -107,8 +119,11 @@ describe('Popup sort controls', () => {
 
     expect(controlsMarkup).toContain('aria-pressed="true"');
     expect(controlsMarkup.match(/aria-pressed="true"/g)).toHaveLength(1);
-    expect(ja.sort_started_newest_short.message).toContain('新しい');
+    expect(ja.sort_started_newest_short.message).toBe('開始・新');
+    expect(ja.sort_started_oldest_short.message).toBe('開始・古');
     expect(ja.sort_started_oldest_accessible.message).toContain('古い順');
+    expect(en.sort_started_newest_short.message).toBe('Start new');
+    expect(en.sort_started_oldest_short.message).toBe('Start old');
     expect(en.sort_started_newest_accessible.message).toContain('newest');
     expect(en.sort_started_oldest_accessible.message).toContain('oldest');
     expect(html).not.toMatch(/id="channelTable" class="[^"]*table-striped/);

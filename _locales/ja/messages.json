@@ -344,10 +344,10 @@
 		"message": "名前順"
 	},
 	"sort_started_newest_short": {
-		"message": "開始・新しい順"
+		"message": "開始・新"
 	},
 	"sort_started_oldest_short": {
-		"message": "開始・古い順"
+		"message": "開始・古"
 	},
 	"sort_registered_accessible": {
 		"message": "登録順で並べ替え"

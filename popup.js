@@ -823,6 +823,7 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
   const statusContainer = document.createElement('div');
   statusContainer.className = 'channel-controls';
   statusTd.appendChild(statusContainer);
+  tr.appendChild(statusTd);
 
   const openButton = document.createElement('button');
   openButton.type = 'button';
@@ -914,7 +915,6 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
   channelNameTag.title = channel.name; // Tooltip
   cntd.appendChild(channelNameTag);
   tr.appendChild(cntd);
-  tr.appendChild(statusTd);
 
   // 4. Actions (Settings & Delete)
   const removetd = document.createElement('td');

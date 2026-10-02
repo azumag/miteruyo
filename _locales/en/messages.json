@@ -344,10 +344,10 @@
 		"message": "Name"
 	},
 	"sort_started_newest_short": {
-		"message": "Start: newest"
+		"message": "Start new"
 	},
 	"sort_started_oldest_short": {
-		"message": "Start: oldest"
+		"message": "Start old"
 	},
 	"sort_registered_accessible": {
 		"message": "Sort by registered order"
