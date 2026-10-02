@@ -325,6 +325,12 @@
 	"sortChannels": {
 		"message": "Sort by"
 	},
+	"sortOptionsShow": {
+		"message": "Show sort options"
+	},
+	"sortOptionsHide": {
+		"message": "Hide sort options"
+	},
 	"sort_registered": {
 		"message": "Registered order"
 	},

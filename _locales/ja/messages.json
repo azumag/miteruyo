@@ -325,6 +325,12 @@
 	"sortChannels": {
 		"message": "並び順"
 	},
+	"sortOptionsShow": {
+		"message": "並び順を展開"
+	},
+	"sortOptionsHide": {
+		"message": "並び順を閉じる"
+	},
 	"sort_registered": {
 		"message": "登録順"
 	},

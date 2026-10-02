@@ -27,6 +27,9 @@ const liveFilterSwitch = document.getElementById('liveFilterSwitch');
 const channelSort = document.getElementById('channelSort');
 const channelSortControls = document.getElementById('channelSortControls');
 const channelSortButtons = Array.from(channelSortControls.querySelectorAll('[data-sort-value]'));
+const channelSortCurrent = document.getElementById('channelSortCurrent');
+const channelSortToggle = document.getElementById('channelSortToggle');
+const channelSortToggleIcon = document.getElementById('channelSortToggleIcon');
 const channelRows = new WeakMap();
 
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
@@ -292,6 +295,8 @@ document.addEventListener('DOMContentLoaded', function () {
     button.title = label;
     button.setAttribute('aria-label', label);
   });
+  setChannelSortExpanded(false);
+  syncChannelSortControls(channelSort.value);
   const enableOpenMessage = chrome.i18n.getMessage('enableOpen');
   const channelPlaceholderMessage = chrome.i18n.getMessage('channelAddPlaceholder');
   const addChannelBtnMessage = chrome.i18n.getMessage('channelAddBtn');
@@ -701,7 +706,32 @@ function syncChannelSortControls(value) {
     const selected = button.dataset.sortValue === channelSort.value;
     button.setAttribute('aria-pressed', String(selected));
   });
+  const selectedButton = channelSortButtons.find(button => button.dataset.sortValue === channelSort.value);
+  const selectedLabel = selectedButton?.querySelector('[data-i18n-detail]');
+  if (selectedLabel) channelSortCurrent.textContent = selectedLabel.textContent.trim();
   return channelSort.value;
+}
+
+function setChannelSortExpanded(expanded) {
+  const isExpanded = Boolean(expanded);
+  channelSortControls.hidden = !isExpanded;
+  channelSortCurrent.hidden = isExpanded;
+  channelSortToggle.setAttribute('aria-expanded', String(isExpanded));
+  channelSortToggleIcon.className = 'bi bi-chevron-' + (isExpanded ? 'up' : 'down');
+  const label = chrome.i18n.getMessage(isExpanded ? 'sortOptionsHide' : 'sortOptionsShow');
+  channelSortToggle.title = label;
+  channelSortToggle.setAttribute('aria-label', label);
+}
+
+function handleChannelSortToggleClick() {
+  setChannelSortExpanded(channelSortControls.hidden);
+}
+
+function handleChannelSortKeydown(event) {
+  if (event.key !== 'Escape' || channelSortControls.hidden) return;
+  event.preventDefault();
+  setChannelSortExpanded(false);
+  channelSortToggle.focus();
 }
 
 function selectChannelSort(value, persist = false) {
@@ -715,6 +745,8 @@ function selectChannelSort(value, persist = false) {
 
 function handleChannelSortButtonClick(event) {
   selectChannelSort(event.currentTarget.dataset.sortValue, true);
+  setChannelSortExpanded(false);
+  channelSortToggle.focus();
 }
 
 function handleChannelSortStorageChange(changes, areaName) {
@@ -1713,6 +1745,8 @@ dynamicRotation.addEventListener('change', () => {
 });
 
 
+channelSortToggle.addEventListener('click', handleChannelSortToggleClick);
+document.addEventListener('keydown', handleChannelSortKeydown);
 channelSortButtons.forEach(button => button.addEventListener('click', handleChannelSortButtonClick));
 chrome.storage.onChanged.addListener(handleChannelSortStorageChange);
 
