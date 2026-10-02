@@ -274,6 +274,10 @@
 		"message": "Snoozed",
 		"description": "Status display when channel is snoozed"
 	},
+	"openChannelButton": {
+		"message": "Open",
+		"description": "Short action label shown on a live button while hovered or keyboard focused"
+	},
 	"openChannel": {
 		"message": "Open channel",
 		"description": "Accessibility label for the live status button"
@@ -321,6 +325,12 @@
 	"sortChannels": {
 		"message": "Sort by"
 	},
+	"sortOptionsShow": {
+		"message": "Show sort options"
+	},
+	"sortOptionsHide": {
+		"message": "Hide sort options"
+	},
 	"sort_registered": {
 		"message": "Registered order"
 	},
@@ -332,6 +342,30 @@
 	},
 	"sort_started_oldest": {
 		"message": "Oldest start first"
+	},
+	"sort_registered_short": {
+		"message": "Added"
+	},
+	"sort_name_short": {
+		"message": "Name"
+	},
+	"sort_started_newest_short": {
+		"message": "Start new"
+	},
+	"sort_started_oldest_short": {
+		"message": "Start old"
+	},
+	"sort_registered_accessible": {
+		"message": "Sort by registered order"
+	},
+	"sort_name_accessible": {
+		"message": "Sort by channel name"
+	},
+	"sort_started_newest_accessible": {
+		"message": "Sort by newest stream start time"
+	},
+	"sort_started_oldest_accessible": {
+		"message": "Sort by oldest stream start time"
 	},
 	"streamDetails": {
 		"message": "Stream details"

@@ -216,9 +216,13 @@ describe('Popup Script', () => {
     expect(html).toContain('flex: 0 0 80px;');
     expect(html).toContain('<col style="width: 124px;">');
     expect(html).toContain('<col style="width: 60px;">');
+    expect(html).toContain('<th scope="col"><span class="visually-hidden">Status</span></th>\n              <th scope="col"><span class="visually-hidden">Channel</span></th>');
     expect(html).toContain('.channel-name-cell');
     expect(html).toContain('text-overflow: ellipsis;');
     expect(popupSource).toContain("cntd.className = 'channel-name-cell';");
+    expect(popupSource.indexOf('tr.appendChild(statusTd);')).toBeLessThan(popupSource.indexOf('tr.appendChild(cntd);'));
+    expect(popupSource).toContain("settingsIcon.className = 'bi bi-gear';");
+    expect(popupSource).toContain("removeIcon.className = 'bi bi-trash';");
   });
 
   it('parses valid category option values', async () => {

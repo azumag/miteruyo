@@ -25,6 +25,11 @@ const aboutBtn = document.getElementById('aboutBtn');
 
 const liveFilterSwitch = document.getElementById('liveFilterSwitch');
 const channelSort = document.getElementById('channelSort');
+const channelSortControls = document.getElementById('channelSortControls');
+const channelSortButtons = Array.from(channelSortControls.querySelectorAll('[data-sort-value]'));
+const channelSortCurrent = document.getElementById('channelSortCurrent');
+const channelSortToggle = document.getElementById('channelSortToggle');
+const channelSortToggleIcon = document.getElementById('channelSortToggleIcon');
 const channelRows = new WeakMap();
 
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
@@ -285,6 +290,13 @@ function createCategorySearchInput(options) {
 // i18n
 document.addEventListener('DOMContentLoaded', function () {
   document.querySelectorAll('[data-i18n-detail]').forEach(el => { el.textContent = chrome.i18n.getMessage(el.dataset.i18nDetail); });
+  channelSortControls.querySelectorAll('[data-sort-aria-key]').forEach(button => {
+    const label = chrome.i18n.getMessage(button.dataset.sortAriaKey);
+    button.title = label;
+    button.setAttribute('aria-label', label);
+  });
+  setChannelSortExpanded(false);
+  syncChannelSortControls(channelSort.value);
   const enableOpenMessage = chrome.i18n.getMessage('enableOpen');
   const channelPlaceholderMessage = chrome.i18n.getMessage('channelAddPlaceholder');
   const addChannelBtnMessage = chrome.i18n.getMessage('channelAddBtn');
@@ -597,7 +609,7 @@ chrome.storage.local.get(
     enableSwitch.checked = data.isEnabled;
     openNewWindow.checked = data.isOpenNewWindow;
     liveFilterSwitch.checked = data.isLiveFilter;
-    channelSort.value = ['registered', 'name', 'started_newest', 'started_oldest'].includes(data.channelSort) ? data.channelSort : 'registered';
+    syncChannelSortControls(data.channelSort);
     tabRotationInterval.value = data.tabRotationInterval;
     checkInterval.value = data.checkInterval;
     enableTabMute.checked = data.isEnabledTabMute;
@@ -684,6 +696,64 @@ function showStreamDetails(channel) {
 
 // Sort only rendered row pairs; never reorder saved channels (their indices
 // are also used to remove malformed legacy entries).
+function normalizeChannelSort(value) {
+  return ['registered', 'name', 'started_newest', 'started_oldest'].includes(value) ? value : 'registered';
+}
+
+function syncChannelSortControls(value) {
+  channelSort.value = normalizeChannelSort(value);
+  channelSortButtons.forEach(button => {
+    const selected = button.dataset.sortValue === channelSort.value;
+    button.setAttribute('aria-pressed', String(selected));
+  });
+  const selectedButton = channelSortButtons.find(button => button.dataset.sortValue === channelSort.value);
+  const selectedLabel = selectedButton?.querySelector('[data-i18n-detail]');
+  if (selectedLabel) channelSortCurrent.textContent = selectedLabel.textContent.trim();
+  return channelSort.value;
+}
+
+function setChannelSortExpanded(expanded) {
+  const isExpanded = Boolean(expanded);
+  channelSortControls.hidden = !isExpanded;
+  channelSortCurrent.hidden = isExpanded;
+  channelSortToggle.setAttribute('aria-expanded', String(isExpanded));
+  channelSortToggleIcon.className = 'bi bi-chevron-' + (isExpanded ? 'up' : 'down');
+  const label = chrome.i18n.getMessage(isExpanded ? 'sortOptionsHide' : 'sortOptionsShow');
+  channelSortToggle.title = label;
+  channelSortToggle.setAttribute('aria-label', label);
+}
+
+function handleChannelSortToggleClick() {
+  setChannelSortExpanded(channelSortControls.hidden);
+}
+
+function handleChannelSortKeydown(event) {
+  if (event.key !== 'Escape' || channelSortControls.hidden) return;
+  event.preventDefault();
+  setChannelSortExpanded(false);
+  channelSortToggle.focus();
+}
+
+function selectChannelSort(value, persist = false) {
+  const nextSort = normalizeChannelSort(value);
+  const changed = channelSort.value !== nextSort;
+  syncChannelSortControls(nextSort);
+  if (persist && changed) chrome.storage.local.set({ channelSort: nextSort });
+  if (changed) sortChannelRows();
+  return nextSort;
+}
+
+function handleChannelSortButtonClick(event) {
+  selectChannelSort(event.currentTarget.dataset.sortValue, true);
+  setChannelSortExpanded(false);
+  channelSortToggle.focus();
+}
+
+function handleChannelSortStorageChange(changes, areaName) {
+  if (areaName !== 'local' || !changes.channelSort) return;
+  selectChannelSort(changes.channelSort.newValue);
+}
+
 function compareChannelRows(a, b, mode) {
   if (mode === 'name') {
     const byName = String(a.channel.name ?? '').localeCompare(String(b.channel.name ?? ''), undefined, { numeric: true, sensitivity: 'base' });
@@ -732,6 +802,36 @@ async function updateList(dchannels) {
   }
 }
 
+function getChannelStatusButtonDisplay(channel, rendersChannelSettings) {
+  let label;
+  let buttonClass;
+  let hasOpenAction = false;
+  if (channel.status === 'error' || !rendersChannelSettings) {
+    label = chrome.i18n.getMessage('statusNotFound');
+    buttonClass = 'btn btn-outline-danger btn-sm channel-status-btn';
+  } else if (channel.snoozed && channel.onLive) {
+    label = chrome.i18n.getMessage('snoozed');
+    buttonClass = 'btn btn-outline-warning btn-sm channel-status-btn';
+  } else if (!channel.onLiveOpen) {
+    label = chrome.i18n.getMessage('pause');
+    buttonClass = channel.onLive ? 'btn btn-outline-success btn-sm channel-status-btn' : 'btn btn-outline-danger btn-sm channel-status-btn';
+  } else if (channel.onLive) {
+    label = chrome.i18n.getMessage('statusLive');
+    buttonClass = 'btn btn-outline-success btn-sm channel-status-btn';
+    hasOpenAction = true;
+  } else {
+    label = chrome.i18n.getMessage('statusOffline');
+    buttonClass = 'btn btn-outline-danger btn-sm channel-status-btn';
+  }
+
+  return {
+    label,
+    buttonClass,
+    accessibleLabel: channel.onLive && rendersChannelSettings ? chrome.i18n.getMessage('openChannel') : label,
+    openActionLabel: hasOpenAction ? chrome.i18n.getMessage('openChannelButton') : null,
+  };
+}
+
 async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
   if (!newAdded && channel.status !== 'error' && liveFilterSwitch.checked && !channel.onLive) return;
 
@@ -769,29 +869,15 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
   });
 
   const updateOpenButtonDisplay = () => {
-    let label;
-    let buttonClass;
-    if (channel.status === 'error' || !rendersChannelSettings) {
-      label = chrome.i18n.getMessage('statusNotFound');
-      buttonClass = 'btn btn-outline-danger btn-sm channel-status-btn';
-    } else if (channel.snoozed && channel.onLive) {
-      label = chrome.i18n.getMessage('snoozed');
-      buttonClass = 'btn btn-outline-warning btn-sm channel-status-btn';
-    } else if (!channel.onLiveOpen) {
-      label = chrome.i18n.getMessage('pause');
-      buttonClass = channel.onLive ? 'btn btn-outline-success btn-sm channel-status-btn' : 'btn btn-outline-danger btn-sm channel-status-btn';
-    } else if (channel.onLive) {
-      label = chrome.i18n.getMessage('statusLive');
-      buttonClass = 'btn btn-outline-success btn-sm channel-status-btn';
+    const display = getChannelStatusButtonDisplay(channel, rendersChannelSettings);
+    openButton.textContent = display.label;
+    openButton.className = display.buttonClass;
+    if (display.openActionLabel) {
+      openButton.dataset.openAction = display.openActionLabel;
     } else {
-      label = chrome.i18n.getMessage('statusOffline');
-      buttonClass = 'btn btn-outline-danger btn-sm channel-status-btn';
+      delete openButton.dataset.openAction;
     }
-
-    openButton.textContent = label;
-    openButton.className = buttonClass;
-    const openLabel = channel.onLive && rendersChannelSettings ? chrome.i18n.getMessage('openChannel') : label;
-    setButtonLabel(openButton, channelLabel(openLabel), channelLabel(label));
+    setButtonLabel(openButton, channelLabel(display.accessibleLabel), channelLabel(display.label));
   };
   updateOpenButtonDisplay();
 
@@ -1659,10 +1745,10 @@ dynamicRotation.addEventListener('change', () => {
 });
 
 
-channelSort.addEventListener('change', () => {
-  chrome.storage.local.set({ channelSort: channelSort.value });
-  sortChannelRows();
-});
+channelSortToggle.addEventListener('click', handleChannelSortToggleClick);
+document.addEventListener('keydown', handleChannelSortKeydown);
+channelSortButtons.forEach(button => button.addEventListener('click', handleChannelSortButtonClick));
+chrome.storage.onChanged.addListener(handleChannelSortStorageChange);
 
 liveFilterSwitch.addEventListener('change', async () => {
   await chrome.storage.local.set({ isLiveFilter: liveFilterSwitch.checked });
