@@ -274,6 +274,10 @@
 		"message": "Snoozed",
 		"description": "Status display when channel is snoozed"
 	},
+	"openChannelButton": {
+		"message": "Open",
+		"description": "Short action label shown on a live button while hovered or keyboard focused"
+	},
 	"openChannel": {
 		"message": "Open channel",
 		"description": "Accessibility label for the live status button"

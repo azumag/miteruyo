@@ -732,6 +732,36 @@ async function updateList(dchannels) {
   }
 }
 
+function getChannelStatusButtonDisplay(channel, rendersChannelSettings) {
+  let label;
+  let buttonClass;
+  let hasOpenAction = false;
+  if (channel.status === 'error' || !rendersChannelSettings) {
+    label = chrome.i18n.getMessage('statusNotFound');
+    buttonClass = 'btn btn-outline-danger btn-sm channel-status-btn';
+  } else if (channel.snoozed && channel.onLive) {
+    label = chrome.i18n.getMessage('snoozed');
+    buttonClass = 'btn btn-outline-warning btn-sm channel-status-btn';
+  } else if (!channel.onLiveOpen) {
+    label = chrome.i18n.getMessage('pause');
+    buttonClass = channel.onLive ? 'btn btn-outline-success btn-sm channel-status-btn' : 'btn btn-outline-danger btn-sm channel-status-btn';
+  } else if (channel.onLive) {
+    label = chrome.i18n.getMessage('statusLive');
+    buttonClass = 'btn btn-outline-success btn-sm channel-status-btn';
+    hasOpenAction = true;
+  } else {
+    label = chrome.i18n.getMessage('statusOffline');
+    buttonClass = 'btn btn-outline-danger btn-sm channel-status-btn';
+  }
+
+  return {
+    label,
+    buttonClass,
+    accessibleLabel: channel.onLive && rendersChannelSettings ? chrome.i18n.getMessage('openChannel') : label,
+    openActionLabel: hasOpenAction ? chrome.i18n.getMessage('openChannelButton') : null,
+  };
+}
+
 async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
   if (!newAdded && channel.status !== 'error' && liveFilterSwitch.checked && !channel.onLive) return;
 
@@ -769,29 +799,15 @@ async function addChannelToList(channel, newAdded = false, storageIndex = -1) {
   });
 
   const updateOpenButtonDisplay = () => {
-    let label;
-    let buttonClass;
-    if (channel.status === 'error' || !rendersChannelSettings) {
-      label = chrome.i18n.getMessage('statusNotFound');
-      buttonClass = 'btn btn-outline-danger btn-sm channel-status-btn';
-    } else if (channel.snoozed && channel.onLive) {
-      label = chrome.i18n.getMessage('snoozed');
-      buttonClass = 'btn btn-outline-warning btn-sm channel-status-btn';
-    } else if (!channel.onLiveOpen) {
-      label = chrome.i18n.getMessage('pause');
-      buttonClass = channel.onLive ? 'btn btn-outline-success btn-sm channel-status-btn' : 'btn btn-outline-danger btn-sm channel-status-btn';
-    } else if (channel.onLive) {
-      label = chrome.i18n.getMessage('statusLive');
-      buttonClass = 'btn btn-outline-success btn-sm channel-status-btn';
+    const display = getChannelStatusButtonDisplay(channel, rendersChannelSettings);
+    openButton.textContent = display.label;
+    openButton.className = display.buttonClass;
+    if (display.openActionLabel) {
+      openButton.dataset.openAction = display.openActionLabel;
     } else {
-      label = chrome.i18n.getMessage('statusOffline');
-      buttonClass = 'btn btn-outline-danger btn-sm channel-status-btn';
+      delete openButton.dataset.openAction;
     }
-
-    openButton.textContent = label;
-    openButton.className = buttonClass;
-    const openLabel = channel.onLive && rendersChannelSettings ? chrome.i18n.getMessage('openChannel') : label;
-    setButtonLabel(openButton, channelLabel(openLabel), channelLabel(label));
+    setButtonLabel(openButton, channelLabel(display.accessibleLabel), channelLabel(display.label));
   };
   updateOpenButtonDisplay();
 

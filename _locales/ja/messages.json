@@ -274,6 +274,10 @@
 		"message": "スヌーズ中",
 		"description": "スヌーズ中のステータス表示"
 	},
+	"openChannelButton": {
+		"message": "開く",
+		"description": "ライブ中ボタンをホバーまたはキーボードフォーカスしたときの短い操作ラベル"
+	},
 	"openChannel": {
 		"message": "チャンネルを開く",
 		"description": "ライブ中ステータスボタンのアクセシビリティラベル"

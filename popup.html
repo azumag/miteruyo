@@ -146,6 +146,17 @@
       border-radius: 6px;
     }
 
+    .channel-status-btn[data-open-action]:hover,
+    .channel-status-btn[data-open-action]:focus-visible {
+      font-size: 0;
+    }
+
+    .channel-status-btn[data-open-action]:hover::after,
+    .channel-status-btn[data-open-action]:focus-visible::after {
+      content: attr(data-open-action);
+      font-size: 0.75rem;
+    }
+
     .channel-icon-btn {
       width: 28px;
       height: 32px;
