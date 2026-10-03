@@ -325,6 +325,9 @@
 	"sortChannels": {
 		"message": "Sort by"
 	},
+	"sortOptionsButton": {
+		"message": "Sort"
+	},
 	"sortOptionsShow": {
 		"message": "Show sort options"
 	},

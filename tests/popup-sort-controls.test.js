@@ -16,12 +16,8 @@ async function loadSortControls(initialValue = 'registered') {
     setAttribute(name, value) {
       this.attributes[name] = value;
     },
-    querySelector() {
-      return { textContent: value };
-    },
   }));
-  const channelSortControls = { hidden: true };
-  const channelSortCurrent = { textContent: 'registered', hidden: false };
+  const channelSortPanel = { hidden: true };
   const channelSortToggle = {
     attributes: { 'aria-expanded': 'false' },
     setAttribute(name, value) {
@@ -29,14 +25,11 @@ async function loadSortControls(initialValue = 'registered') {
     },
     focus: vi.fn(),
   };
-  const channelSortToggleIcon = { className: 'bi bi-chevron-down' };
   const sandbox = {
     channelSort: { value: initialValue },
-    channelSortControls,
+    channelSortPanel,
     channelSortButtons: buttons,
-    channelSortCurrent,
     channelSortToggle,
-    channelSortToggleIcon,
     chrome: {
       storage: { local: { set: vi.fn() } },
       i18n: { getMessage: vi.fn(key => key) },
@@ -74,7 +67,6 @@ describe('Popup sort controls', () => {
       expect(controls.channelSort.value).toBe(value);
       expect(controls.channelSortButtons.map(button => button.attributes['aria-pressed']))
         .toEqual(sortValues.map(candidate => String(candidate === value)));
-      expect(controls.channelSortCurrent.textContent).toBe(value);
     }
   });
 
@@ -89,10 +81,8 @@ describe('Popup sort controls', () => {
     expect(controls.sortChannelRows).toHaveBeenCalledTimes(1);
     expect(controls.channelSortButtons.map(button => button.attributes['aria-pressed']))
       .toEqual(['false', 'true', 'false', 'false']);
-    expect(controls.channelSortControls.hidden).toBe(true);
-    expect(controls.channelSortCurrent.hidden).toBe(false);
+    expect(controls.channelSortPanel.hidden).toBe(true);
     expect(controls.channelSortToggle.attributes['aria-expanded']).toBe('false');
-    expect(controls.channelSortToggleIcon.className).toBe('bi bi-chevron-down');
     expect(controls.channelSortToggle.focus).toHaveBeenCalledTimes(1);
   });
 
@@ -106,31 +96,31 @@ describe('Popup sort controls', () => {
       .toEqual(['false', 'false', 'false', 'true']);
     expect(controls.sortChannelRows).toHaveBeenCalledTimes(1);
     expect(controls.chrome.storage.local.set).not.toHaveBeenCalled();
-    expect(controls.channelSortCurrent.textContent).toBe('started_oldest');
 
     controls.handleChannelSortStorageChange({ channelSort: { newValue: 'name' } }, 'sync');
     expect(controls.channelSort.value).toBe('started_oldest');
   });
 
   it('toggles the options repeatedly and updates disclosure accessibility state', async () => {
-    const controls = await loadSortControls();
+    const controls = await loadSortControls('started_newest');
+    controls.syncChannelSortControls('started_newest');
+    expect(controls.channelSortPanel.hidden).toBe(true);
+    expect(controls.channelSortToggle.attributes['aria-expanded']).toBe('false');
 
     controls.handleChannelSortToggleClick();
-    expect(controls.channelSortControls.hidden).toBe(false);
-    expect(controls.channelSortCurrent.hidden).toBe(true);
+    expect(controls.channelSortPanel.hidden).toBe(false);
     expect(controls.channelSortToggle.attributes['aria-expanded']).toBe('true');
     expect(controls.channelSortToggle.attributes['aria-label']).toBe('sortOptionsHide');
-    expect(controls.channelSortToggleIcon.className).toBe('bi bi-chevron-up');
 
     controls.handleChannelSortToggleClick();
-    expect(controls.channelSortControls.hidden).toBe(true);
-    expect(controls.channelSortCurrent.hidden).toBe(false);
+    expect(controls.channelSortPanel.hidden).toBe(true);
     expect(controls.channelSortToggle.attributes['aria-expanded']).toBe('false');
     expect(controls.channelSortToggle.attributes['aria-label']).toBe('sortOptionsShow');
-    expect(controls.channelSortToggleIcon.className).toBe('bi bi-chevron-down');
+    expect(controls.channelSort.value).toBe('started_newest');
+    expect(controls.chrome.storage.local.set).not.toHaveBeenCalled();
 
     controls.handleChannelSortToggleClick();
-    expect(controls.channelSortControls.hidden).toBe(false);
+    expect(controls.channelSortPanel.hidden).toBe(false);
   });
 
   it('closes on Escape and returns focus to the disclosure button', async () => {
@@ -141,14 +131,13 @@ describe('Popup sort controls', () => {
     controls.handleChannelSortKeydown({ key: 'Escape', preventDefault });
 
     expect(preventDefault).toHaveBeenCalledTimes(1);
-    expect(controls.channelSortControls.hidden).toBe(true);
-    expect(controls.channelSortCurrent.hidden).toBe(false);
+    expect(controls.channelSortPanel.hidden).toBe(true);
     expect(controls.channelSortToggle.attributes['aria-expanded']).toBe('false');
     expect(controls.channelSortToggle.focus).toHaveBeenCalledTimes(1);
 
     controls.handleChannelSortToggleClick();
     controls.handleChannelSortKeydown({ key: 'Enter', preventDefault });
-    expect(controls.channelSortControls.hidden).toBe(false);
+    expect(controls.channelSortPanel.hidden).toBe(false);
     expect(preventDefault).toHaveBeenCalledTimes(1);
   });
 
@@ -171,16 +160,18 @@ describe('Popup sort controls', () => {
     expect(html).toContain('class="channel-list-toolbar mt-2"');
     expect(html.indexOf('id="channelSortToggle"')).toBeGreaterThan(html.indexOf('id="liveFilterSwitch"'));
     expect(html.indexOf('id="channelSortToggle"')).toBeLessThan(html.indexOf('class="channel-list-toolbar mt-2"'));
-    expect(html).toContain('role="group" aria-labelledby="channelSortLabel" hidden>');
-    expect(html).toContain('<span id="channelSortCurrent" class="channel-sort-current" aria-live="polite">');
+    expect(html).toContain('<div id="channelSortPanel" class="channel-list-toolbar mt-2" hidden>');
+    expect(html).toContain('role="group" aria-labelledby="channelSortLabel"');
+    expect(html).not.toContain('channelSortCurrent');
     expect(toggleMarkup).toContain('type="button"');
-    expect(toggleMarkup).toContain('aria-controls="channelSortControls"');
+    expect(toggleMarkup).toContain('aria-controls="channelSortPanel"');
     expect(toggleMarkup).toContain('aria-expanded="false"');
-    expect(toggleMarkup).toContain('id="channelSortToggleIcon"');
-    expect(toggleMarkup).toContain('bi bi-chevron-down');
+    expect(toggleMarkup).toContain('<span data-i18n-detail="sortOptionsButton">並び順</span>');
+    expect(ja.sortOptionsButton.message).toBe('並び順');
+    expect(en.sortOptionsButton.message).toBe('Sort');
     expect(controlsMarkup.match(/<button type="button"/g)).toHaveLength(4);
     expect(controlsMarkup).not.toContain('tabindex="-1"');
-    expect(html).toContain('.channel-sort-options[hidden]');
+    expect(html.match(/\.channel-list-toolbar\[hidden\]\s*\{([^}]+)\}/)?.[1]).toContain('display: none;');
     expect(html).toContain('.channel-sort-toggle:focus-visible');
     expect(html).toContain('.channel-sort-button:focus-visible');
     expect(html).toContain('--popup-focus: #0d6efd;');

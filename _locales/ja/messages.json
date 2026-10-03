@@ -325,6 +325,9 @@
 	"sortChannels": {
 		"message": "並び順"
 	},
+	"sortOptionsButton": {
+		"message": "並び順"
+	},
 	"sortOptionsShow": {
 		"message": "並び順を展開"
 	},
