@@ -27,9 +27,8 @@ const liveFilterSwitch = document.getElementById('liveFilterSwitch');
 const channelSort = document.getElementById('channelSort');
 const channelSortControls = document.getElementById('channelSortControls');
 const channelSortButtons = Array.from(channelSortControls.querySelectorAll('[data-sort-value]'));
-const channelSortCurrent = document.getElementById('channelSortCurrent');
+const channelSortPanel = document.getElementById('channelSortPanel');
 const channelSortToggle = document.getElementById('channelSortToggle');
-const channelSortToggleIcon = document.getElementById('channelSortToggleIcon');
 const channelRows = new WeakMap();
 
 const clientId = 'lt060jwpltwp3weqdk53dx450aj99p';
@@ -706,29 +705,24 @@ function syncChannelSortControls(value) {
     const selected = button.dataset.sortValue === channelSort.value;
     button.setAttribute('aria-pressed', String(selected));
   });
-  const selectedButton = channelSortButtons.find(button => button.dataset.sortValue === channelSort.value);
-  const selectedLabel = selectedButton?.querySelector('[data-i18n-detail]');
-  if (selectedLabel) channelSortCurrent.textContent = selectedLabel.textContent.trim();
   return channelSort.value;
 }
 
 function setChannelSortExpanded(expanded) {
   const isExpanded = Boolean(expanded);
-  channelSortControls.hidden = !isExpanded;
-  channelSortCurrent.hidden = isExpanded;
+  channelSortPanel.hidden = !isExpanded;
   channelSortToggle.setAttribute('aria-expanded', String(isExpanded));
-  channelSortToggleIcon.className = 'bi bi-chevron-' + (isExpanded ? 'up' : 'down');
   const label = chrome.i18n.getMessage(isExpanded ? 'sortOptionsHide' : 'sortOptionsShow');
   channelSortToggle.title = label;
   channelSortToggle.setAttribute('aria-label', label);
 }
 
 function handleChannelSortToggleClick() {
-  setChannelSortExpanded(channelSortControls.hidden);
+  setChannelSortExpanded(channelSortPanel.hidden);
 }
 
 function handleChannelSortKeydown(event) {
-  if (event.key !== 'Escape' || channelSortControls.hidden) return;
+  if (event.key !== 'Escape' || channelSortPanel.hidden) return;
   event.preventDefault();
   setChannelSortExpanded(false);
   channelSortToggle.focus();

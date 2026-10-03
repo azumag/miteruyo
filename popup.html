@@ -48,17 +48,17 @@
       display: flex;
       align-items: center;
       justify-content: flex-start;
-      gap: 1.5rem;
+      gap: 0.25rem;
       margin: 0.75rem 0 0.25rem;
     }
 
     .popup-switch {
       display: flex;
       align-items: center;
-      gap: 0.35rem;
+      gap: 0.25rem;
       min-width: 0;
       margin-bottom: 0;
-      font-size: 0.875rem;
+      font-size: 0.75rem;
       white-space: nowrap;
     }
 
@@ -77,17 +77,16 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      flex: 0 0 28px;
-      width: 28px;
+      flex: 0 0 auto;
       height: 26px;
-      margin-left: -1rem;
-      padding: 0;
-      border: 1px solid transparent;
+      padding: 0.2rem 0.25rem;
+      border: 1px solid #ced4da;
       border-radius: 3px;
       background: transparent;
       color: #6c757d;
       font-size: 0.75rem;
       line-height: 1;
+      white-space: nowrap;
     }
 
     .channel-sort-toggle:hover {
@@ -100,13 +99,6 @@
       outline-offset: 1px;
       position: relative;
       z-index: 1;
-    }
-
-    .channel-sort-current {
-      flex: 0 0 auto;
-      color: #6c757d;
-      font-size: 0.68rem;
-      white-space: nowrap;
     }
 
     .channel-list-toolbar {
@@ -135,7 +127,7 @@
       gap: 2px;
     }
 
-    .channel-sort-options[hidden] {
+    .channel-list-toolbar[hidden] {
       display: none;
     }
 
@@ -332,14 +324,13 @@
             <label class="form-check-label" for="liveFilterSwitch">配信中のみ表示</label>
           </div>
           <button id="channelSortToggle" class="channel-sort-toggle" type="button"
-            aria-controls="channelSortControls" aria-expanded="false" aria-label="並び順を展開" title="並び順を展開">
-            <i id="channelSortToggleIcon" class="bi bi-chevron-down" aria-hidden="true"></i>
+            aria-controls="channelSortPanel" aria-expanded="false" aria-label="並び順を展開" title="並び順を展開">
+            <span data-i18n-detail="sortOptionsButton">並び順</span>
           </button>
         </div>
-        <div class="channel-list-toolbar mt-2">
+        <div id="channelSortPanel" class="channel-list-toolbar mt-2" hidden>
           <span id="channelSortLabel" class="channel-sort-label" data-i18n-detail="sortChannels">並び順</span>
-          <span id="channelSortCurrent" class="channel-sort-current" aria-live="polite">登録順</span>
-          <div id="channelSortControls" class="channel-sort-options" role="group" aria-labelledby="channelSortLabel" hidden>
+          <div id="channelSortControls" class="channel-sort-options" role="group" aria-labelledby="channelSortLabel">
             <input type="hidden" id="channelSort" value="registered">
             <button type="button" class="channel-sort-button" data-sort-value="registered" data-sort-aria-key="sort_registered_accessible" aria-label="登録順で並べ替え" title="登録順で並べ替え" aria-pressed="true"><span data-i18n-detail="sort_registered_short">登録順</span></button>
             <button type="button" class="channel-sort-button" data-sort-value="name" data-sort-aria-key="sort_name_accessible" aria-label="チャンネル名で並べ替え" title="チャンネル名で並べ替え" aria-pressed="false"><span data-i18n-detail="sort_name_short">名前順</span></button>
