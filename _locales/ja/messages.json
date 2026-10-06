@@ -39,6 +39,10 @@
 		"message": "オフラインチャネル自動閉じ",
 		"description": "オフラインのチャネルを自動的に閉じるオプションのラベル"
 	},
+	"closeUnregisteredId": {
+		"message": "登録外のIDを閉じる",
+		"description": "フォーカス時に登録外の配信タブを閉じるオプションのラベル"
+	},
 	"pause": {
 		"message": "停止",
 		"description": "停止ボタンのラベル"

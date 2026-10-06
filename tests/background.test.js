@@ -17,6 +17,7 @@ import {
   onNotificationClicked,
   openInManagedWindow,
   checkOfflineWithTab,
+  checkLiveUnregisteredWithTab,
   countTwitchChannelTabs,
   displaceNonPriorityTabs,
   restoreAuthExpiredBadge,
@@ -3721,6 +3722,144 @@ describe('Background Script', () => {
       expect(result).toBe(false);
       // Should not attempt any API calls
       expect(globalThis.fetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('checkLiveUnregisteredWithTab', () => {
+    beforeEach(() => {
+      chromeMock.tabs.get.mockResolvedValue({ url: 'https://www.twitch.tv/NewChannel' });
+      chromeMock.storage.local.get.mockImplementation((keys) => {
+        if (Array.isArray(keys) && keys.includes('channels')) {
+          return Promise.resolve({ channels: [], oauth_token: 'valid_token' });
+        }
+        return Promise.resolve({});
+      });
+    });
+
+    it('returns true only when an unregistered Twitch channel is positively confirmed live', async () => {
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: 'user-12345' }] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: 'stream-1', user_id: 'user-12345' }] }),
+        });
+
+      await expect(checkLiveUnregisteredWithTab(1)).resolves.toBe(true);
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('fails closed when the tab navigates or the channel is registered during the API check', async () => {
+      chromeMock.tabs.get
+        .mockResolvedValueOnce({ id: 1, windowId: 10, active: true, url: 'https://www.twitch.tv/NewChannel' })
+        .mockResolvedValueOnce({ id: 1, windowId: 10, active: true, url: 'https://www.twitch.tv/anotherChannel' });
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: 'user-12345' }] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: 'stream-1', user_id: 'user-12345' }] }),
+        });
+
+      await expect(checkLiveUnregisteredWithTab(1, 10)).resolves.toBe(false);
+      expect(chromeMock.tabs.get).toHaveBeenCalledTimes(2);
+
+      chromeMock.tabs.get.mockResolvedValue({
+        id: 1, windowId: 10, active: true, url: 'https://www.twitch.tv/NewChannel',
+      });
+      chromeMock.storage.local.get
+        .mockResolvedValueOnce({ channels: [], oauth_token: 'valid_token' })
+        .mockResolvedValueOnce({ channels: [{ name: 'newchannel' }] });
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: 'user-12345' }] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: 'stream-1', user_id: 'user-12345' }] }),
+        });
+
+      await expect(checkLiveUnregisteredWithTab(1, 10)).resolves.toBe(false);
+    });
+
+    it('does not query or close a registered channel (case-insensitive)', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({
+        channels: [{ name: 'newchannel' }],
+        oauth_token: 'valid_token',
+      });
+      globalThis.fetch = vi.fn();
+
+      await expect(checkLiveUnregisteredWithTab(1)).resolves.toBe(false);
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+    });
+
+    it('keeps non-channel, unknown-ID, and offline tabs open', async () => {
+      chromeMock.tabs.get.mockResolvedValueOnce({ url: 'https://www.twitch.tv/directory' });
+      globalThis.fetch = vi.fn();
+      await expect(checkLiveUnregisteredWithTab(1)).resolves.toBe(false);
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+
+      globalThis.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+      });
+      await expect(checkLiveUnregisteredWithTab(1)).resolves.toBe(false);
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: 'user-12345' }] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [] }),
+        });
+      await expect(checkLiveUnregisteredWithTab(1)).resolves.toBe(false);
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: 'user-12345' }] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{}] }),
+        });
+      await expect(checkLiveUnregisteredWithTab(1)).resolves.toBe(false);
+    });
+
+    it('keeps the tab open when there is no valid token or Twitch cannot confirm its status', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({ channels: [], oauth_token: null });
+      globalThis.fetch = vi.fn();
+      await expect(checkLiveUnregisteredWithTab(1)).resolves.toBe(false);
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+
+      chromeMock.storage.local.get.mockResolvedValue({ channels: [], oauth_token: 'valid_token' });
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error('network unavailable'));
+      await expect(checkLiveUnregisteredWithTab(1)).resolves.toBe(false);
+    });
+
+    it('keeps the tab open when the channel registry is malformed or the stream request fails', async () => {
+      chromeMock.storage.local.get.mockResolvedValue({ channels: [null], oauth_token: 'valid_token' });
+      globalThis.fetch = vi.fn();
+      await expect(checkLiveUnregisteredWithTab(1)).resolves.toBe(false);
+      expect(globalThis.fetch).not.toHaveBeenCalled();
+
+      chromeMock.storage.local.get.mockResolvedValue({ channels: [], oauth_token: 'valid_token' });
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: 'user-12345' }] }),
+        })
+        .mockResolvedValueOnce({ ok: false, status: 500 });
+      await expect(checkLiveUnregisteredWithTab(1)).resolves.toBe(false);
     });
   });
 });

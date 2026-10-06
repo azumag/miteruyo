@@ -15,6 +15,7 @@ const backgroundFunctionsMock = vi.hoisted(() => ({
   openInManagedWindow: vi.fn().mockResolvedValue(undefined),
   showNotification: vi.fn(),
   checkOfflineWithTab: vi.fn().mockResolvedValue(false),
+  checkLiveUnregisteredWithTab: vi.fn().mockResolvedValue(false),
   onWindowRemoved: vi.fn().mockResolvedValue(undefined),
   onStorageChangedForTabRotation: vi.fn().mockResolvedValue(undefined),
   onStorageChangedForCheckInterval: vi.fn().mockResolvedValue(undefined),
@@ -183,5 +184,61 @@ describe('background.js event handlers', () => {
     expect(chromeMock.tabs.update).toHaveBeenCalledTimes(2);
     expect(chromeMock.tabs.update).toHaveBeenNthCalledWith(1, 10, { muted: true });
     expect(chromeMock.tabs.update).toHaveBeenNthCalledWith(2, 11, { muted: true });
+  });
+
+  it('closes a positively live unregistered channel only when its managed-window tab is activated', async () => {
+    chromeMock.storage.local.get.mockResolvedValue({
+      lastOpenWindowId: 42,
+      isEnabledTabMute: false,
+      isEnabledAutoClose: false,
+      isEnabledCloseUnregisteredId: true,
+    });
+    backgroundFunctionsMock.checkLiveUnregisteredWithTab.mockResolvedValue(true);
+    const handler = await loadTabActivatedHandler();
+
+    await handler({ windowId: 42, tabId: 10 });
+
+    expect(backgroundFunctionsMock.checkLiveUnregisteredWithTab).toHaveBeenCalledWith(10, 42);
+    expect(chromeMock.tabs.remove).toHaveBeenCalledWith(10);
+  });
+
+  it('keeps the tab open when the new check cannot positively confirm an unregistered stream as live', async () => {
+    chromeMock.storage.local.get.mockResolvedValue({
+      lastOpenWindowId: 42,
+      isEnabledTabMute: false,
+      isEnabledAutoClose: false,
+      isEnabledCloseUnregisteredId: true,
+    });
+    backgroundFunctionsMock.checkLiveUnregisteredWithTab.mockResolvedValue(false);
+    const handler = await loadTabActivatedHandler();
+
+    await handler({ windowId: 42, tabId: 10 });
+
+    expect(backgroundFunctionsMock.checkLiveUnregisteredWithTab).toHaveBeenCalledWith(10, 42);
+    expect(chromeMock.tabs.remove).not.toHaveBeenCalled();
+  });
+
+  it('does not check or close unregistered streams when the option is disabled or the tab is outside the managed window', async () => {
+    chromeMock.storage.local.get.mockResolvedValue({
+      lastOpenWindowId: 42,
+      isEnabledTabMute: false,
+      isEnabledAutoClose: false,
+      isEnabledCloseUnregisteredId: false,
+    });
+    const handler = await loadTabActivatedHandler();
+
+    await handler({ windowId: 42, tabId: 10 });
+    expect(backgroundFunctionsMock.checkLiveUnregisteredWithTab).not.toHaveBeenCalled();
+
+    chromeMock.storage.local.get.mockResolvedValue({
+      lastOpenWindowId: 42,
+      isEnabledTabMute: false,
+      isEnabledAutoClose: false,
+      isEnabledCloseUnregisteredId: true,
+    });
+    await handler({ windowId: 99, tabId: 11 });
+
+    expect(backgroundFunctionsMock.checkLiveUnregisteredWithTab).not.toHaveBeenCalled();
+    expect(chromeMock.tabs.remove).not.toHaveBeenCalled();
   });
 });

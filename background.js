@@ -6,6 +6,7 @@ import {
   openInManagedWindow,
   showNotification,
   checkOfflineWithTab,
+  checkLiveUnregisteredWithTab,
   onWindowRemoved,
   onStorageChangedForTabRotation,
   onStorageChangedForCheckInterval,
@@ -156,7 +157,17 @@ chrome.windows.onRemoved.addListener(async (windowId) => {
 
 chrome.tabs.onActivated.addListener(async activeInfo => {
   try {
-    const { lastOpenWindowId: targetWindowId, isEnabledTabMute: enableTabMute, isEnabledAutoClose: enableAutoClose } = await chrome.storage.local.get(['lastOpenWindowId', 'isEnabledTabMute', 'isEnabledAutoClose']);
+    const {
+      lastOpenWindowId: targetWindowId,
+      isEnabledTabMute: enableTabMute,
+      isEnabledAutoClose: enableAutoClose,
+      isEnabledCloseUnregisteredId: enableCloseUnregisteredId,
+    } = await chrome.storage.local.get([
+      'lastOpenWindowId',
+      'isEnabledTabMute',
+      'isEnabledAutoClose',
+      'isEnabledCloseUnregisteredId',
+    ]);
 
     if (activeInfo.windowId === targetWindowId) {
       console.log('activated', activeInfo, enableTabMute, enableAutoClose);
@@ -170,7 +181,12 @@ chrome.tabs.onActivated.addListener(async activeInfo => {
         if (await checkOfflineWithTab(activeInfo.tabId)) {
           console.log('close tab', activeInfo.tabId);
           await chrome.tabs.remove(activeInfo.tabId);
+          return;
         }
+      }
+      if (enableCloseUnregisteredId && await checkLiveUnregisteredWithTab(activeInfo.tabId, targetWindowId)) {
+        console.log('close unregistered live tab', activeInfo.tabId);
+        await chrome.tabs.remove(activeInfo.tabId);
       }
     }
   } catch (e) {
