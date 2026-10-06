@@ -16,6 +16,7 @@ const backgroundFunctionsMock = vi.hoisted(() => ({
   showNotification: vi.fn(),
   checkOfflineWithTab: vi.fn().mockResolvedValue(false),
   checkLiveUnregisteredWithTab: vi.fn().mockResolvedValue(false),
+  isActiveManagedTwitchChannel: vi.fn().mockResolvedValue(false),
   onWindowRemoved: vi.fn().mockResolvedValue(undefined),
   onStorageChangedForTabRotation: vi.fn().mockResolvedValue(undefined),
   onStorageChangedForCheckInterval: vi.fn().mockResolvedValue(undefined),
@@ -193,12 +194,14 @@ describe('background.js event handlers', () => {
       isEnabledAutoClose: false,
       isEnabledCloseUnregisteredId: true,
     });
-    backgroundFunctionsMock.checkLiveUnregisteredWithTab.mockResolvedValue(true);
+    backgroundFunctionsMock.checkLiveUnregisteredWithTab.mockResolvedValue('newchannel');
+    backgroundFunctionsMock.isActiveManagedTwitchChannel.mockResolvedValue(true);
     const handler = await loadTabActivatedHandler();
 
     await handler({ windowId: 42, tabId: 10 });
 
     expect(backgroundFunctionsMock.checkLiveUnregisteredWithTab).toHaveBeenCalledWith(10, 42);
+    expect(backgroundFunctionsMock.isActiveManagedTwitchChannel).toHaveBeenCalledWith(10, 42, 'newchannel');
     expect(chromeMock.tabs.remove).toHaveBeenCalledWith(10);
   });
 
@@ -215,6 +218,64 @@ describe('background.js event handlers', () => {
     await handler({ windowId: 42, tabId: 10 });
 
     expect(backgroundFunctionsMock.checkLiveUnregisteredWithTab).toHaveBeenCalledWith(10, 42);
+    expect(chromeMock.tabs.remove).not.toHaveBeenCalled();
+  });
+
+  it('does not close if the option is disabled or the managed window changes during API checks', async () => {
+    let resolveCheck;
+    let markCheckStarted;
+    const checkStarted = new Promise(resolve => { markCheckStarted = resolve; });
+    backgroundFunctionsMock.checkLiveUnregisteredWithTab.mockImplementation(() => {
+      markCheckStarted();
+      return new Promise(resolve => { resolveCheck = resolve; });
+    });
+    chromeMock.storage.local.get
+      .mockResolvedValueOnce({
+        lastOpenWindowId: 42,
+        isEnabledTabMute: false,
+        isEnabledAutoClose: false,
+        isEnabledCloseUnregisteredId: true,
+      })
+      .mockResolvedValueOnce({ lastOpenWindowId: 42, isEnabledCloseUnregisteredId: false });
+    const handler = await loadTabActivatedHandler();
+    const handling = handler({ windowId: 42, tabId: 10 });
+    await checkStarted;
+    resolveCheck('newchannel');
+    await handling;
+
+    expect(chromeMock.storage.local.get).toHaveBeenCalledTimes(2);
+    expect(backgroundFunctionsMock.isActiveManagedTwitchChannel).not.toHaveBeenCalled();
+    expect(chromeMock.tabs.remove).not.toHaveBeenCalled();
+
+    chromeMock.storage.local.get
+      .mockResolvedValueOnce({
+        lastOpenWindowId: 42,
+        isEnabledTabMute: false,
+        isEnabledAutoClose: false,
+        isEnabledCloseUnregisteredId: true,
+      })
+      .mockResolvedValueOnce({ lastOpenWindowId: 99, isEnabledCloseUnregisteredId: true });
+    backgroundFunctionsMock.checkLiveUnregisteredWithTab.mockResolvedValue('newchannel');
+    await handler({ windowId: 42, tabId: 10 });
+
+    expect(backgroundFunctionsMock.isActiveManagedTwitchChannel).not.toHaveBeenCalled();
+    expect(chromeMock.tabs.remove).not.toHaveBeenCalled();
+  });
+
+  it('keeps the tab open if it navigates or loses focus after stream confirmation', async () => {
+    chromeMock.storage.local.get.mockResolvedValue({
+      lastOpenWindowId: 42,
+      isEnabledTabMute: false,
+      isEnabledAutoClose: false,
+      isEnabledCloseUnregisteredId: true,
+    });
+    backgroundFunctionsMock.checkLiveUnregisteredWithTab.mockResolvedValue('newchannel');
+    backgroundFunctionsMock.isActiveManagedTwitchChannel.mockResolvedValue(false);
+    const handler = await loadTabActivatedHandler();
+
+    await handler({ windowId: 42, tabId: 10 });
+
+    expect(backgroundFunctionsMock.isActiveManagedTwitchChannel).toHaveBeenCalledWith(10, 42, 'newchannel');
     expect(chromeMock.tabs.remove).not.toHaveBeenCalled();
   });
 

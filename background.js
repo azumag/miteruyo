@@ -7,6 +7,7 @@ import {
   showNotification,
   checkOfflineWithTab,
   checkLiveUnregisteredWithTab,
+  isActiveManagedTwitchChannel,
   onWindowRemoved,
   onStorageChangedForTabRotation,
   onStorageChangedForCheckInterval,
@@ -184,9 +185,19 @@ chrome.tabs.onActivated.addListener(async activeInfo => {
           return;
         }
       }
-      if (enableCloseUnregisteredId && await checkLiveUnregisteredWithTab(activeInfo.tabId, targetWindowId)) {
-        console.log('close unregistered live tab', activeInfo.tabId);
-        await chrome.tabs.remove(activeInfo.tabId);
+      const confirmedChannel = enableCloseUnregisteredId
+        && await checkLiveUnregisteredWithTab(activeInfo.tabId, targetWindowId);
+      if (confirmedChannel) {
+        const latestSettings = await chrome.storage.local.get([
+          'lastOpenWindowId',
+          'isEnabledCloseUnregisteredId',
+        ]);
+        if (latestSettings.isEnabledCloseUnregisteredId
+          && latestSettings.lastOpenWindowId === targetWindowId
+          && await isActiveManagedTwitchChannel(activeInfo.tabId, targetWindowId, confirmedChannel)) {
+          console.log('close unregistered live tab', activeInfo.tabId);
+          await chrome.tabs.remove(activeInfo.tabId);
+        }
       }
     }
   } catch (e) {

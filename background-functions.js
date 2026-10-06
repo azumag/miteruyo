@@ -870,8 +870,8 @@ export async function checkOfflineWithTab(tabId) {
   }
 }
 
-// Close only when an unregistered Twitch channel is positively confirmed live.
-// Unknown IDs, offline results, and API failures are all safe no-close outcomes.
+// Return the normalized channel name only after positive live proof for an
+// unregistered Twitch channel; unknown IDs, offline results, and API failures return false.
 export async function checkLiveUnregisteredWithTab(tabId, expectedWindowId) {
   const initialTab = await chrome.tabs.get(tabId);
   const tabUrl = initialTab?.url;
@@ -911,24 +911,35 @@ export async function checkLiveUnregisteredWithTab(tabId, expectedWindowId) {
     );
     if (!positivelyConfirmedLive) return false;
 
-    // Helix calls are asynchronous; fail closed if the same tab navigated,
-    // left the managed window, or stopped being the active tab meanwhile.
-    const currentTab = await chrome.tabs.get(tabId);
-    if (!isTwitchChannelPage(currentTab?.url)
-      || normalizeChannelName(parseTwitchChannelUrl(currentTab.url)) !== normalizedName
-      || (expectedWindowId !== undefined
-        && (currentTab.windowId !== expectedWindowId || currentTab.active !== true))) return false;
-
+    // Re-read the registry after the API calls; do not close a channel added
+    // while stream status was being checked.
     const currentRegistry = await chrome.storage.local.get(['channels']);
     const currentChannels = currentRegistry?.channels;
     if (!Array.isArray(currentChannels) || currentChannels.some(channel =>
       typeof channel?.name !== 'string' || !/^[a-z0-9_]{3,25}$/i.test(channel.name)
     )) return false;
-    return !currentChannels.some(channel => normalizeChannelName(channel.name) === normalizedName);
+    if (currentChannels.some(channel => normalizeChannelName(channel.name) === normalizedName)) return false;
+
+    // This is deliberately the last async check: Helix and storage reads can
+    // take long enough for a user to navigate or switch tabs/windows.
+    const currentTab = await chrome.tabs.get(tabId);
+    return isTwitchChannelPage(currentTab?.url)
+      && normalizeChannelName(parseTwitchChannelUrl(currentTab.url)) === normalizedName
+      && (expectedWindowId === undefined
+        || (currentTab.windowId === expectedWindowId && currentTab.active === true))
+      ? normalizedName : false;
   } catch (error) {
     console.error('Error checking unregistered channel stream:', error);
     return false;
   }
+}
+
+export async function isActiveManagedTwitchChannel(tabId, expectedWindowId, expectedChannelName) {
+  const tab = await chrome.tabs.get(tabId);
+  return isTwitchChannelPage(tab?.url)
+    && normalizeChannelName(parseTwitchChannelUrl(tab.url)) === normalizeChannelName(expectedChannelName)
+    && tab.windowId === expectedWindowId
+    && tab.active === true;
 }
 
 // tab Rotation の設定が変更されたときにアラームを更新

@@ -3747,7 +3747,7 @@ describe('Background Script', () => {
           json: () => Promise.resolve({ data: [{ id: 'stream-1', user_id: 'user-12345' }] }),
         });
 
-      await expect(checkLiveUnregisteredWithTab(1)).resolves.toBe(true);
+      await expect(checkLiveUnregisteredWithTab(1)).resolves.toBe('newchannel');
       expect(globalThis.fetch).toHaveBeenCalledTimes(2);
     });
 
@@ -3774,6 +3774,52 @@ describe('Background Script', () => {
       chromeMock.storage.local.get
         .mockResolvedValueOnce({ channels: [], oauth_token: 'valid_token' })
         .mockResolvedValueOnce({ channels: [{ name: 'newchannel' }] });
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: 'user-12345' }] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: 'stream-1', user_id: 'user-12345' }] }),
+        });
+
+      await expect(checkLiveUnregisteredWithTab(1, 10)).resolves.toBe(false);
+    });
+
+    it('rechecks the tab after waiting for the current registry', async () => {
+      let finishRegistryRead;
+      chromeMock.tabs.get
+        .mockResolvedValueOnce({ id: 1, windowId: 10, active: true, url: 'https://www.twitch.tv/NewChannel' })
+        .mockResolvedValueOnce({ id: 1, windowId: 10, active: true, url: 'https://www.twitch.tv/anotherChannel' });
+      chromeMock.storage.local.get
+        .mockResolvedValueOnce({ channels: [], oauth_token: 'valid_token' })
+        .mockImplementationOnce(() => new Promise(resolve => { finishRegistryRead = resolve; }));
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: 'user-12345' }] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ data: [{ id: 'stream-1', user_id: 'user-12345' }] }),
+        });
+
+      const check = checkLiveUnregisteredWithTab(1, 10);
+      await vi.waitFor(() => expect(chromeMock.storage.local.get).toHaveBeenCalledTimes(2));
+      finishRegistryRead({ channels: [] });
+
+      await expect(check).resolves.toBe(false);
+      expect(chromeMock.tabs.get).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+      ['moves to another window', { id: 1, windowId: 99, active: true, url: 'https://www.twitch.tv/NewChannel' }],
+      ['is no longer active', { id: 1, windowId: 10, active: false, url: 'https://www.twitch.tv/NewChannel' }],
+    ])('does not confirm when the tab %s during API checks', async (_change, finalTab) => {
+      chromeMock.tabs.get
+        .mockResolvedValueOnce({ id: 1, windowId: 10, active: true, url: 'https://www.twitch.tv/NewChannel' })
+        .mockResolvedValueOnce(finalTab);
       globalThis.fetch = vi.fn()
         .mockResolvedValueOnce({
           ok: true,
