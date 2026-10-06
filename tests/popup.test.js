@@ -3,6 +3,40 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 
 describe('Popup Script', () => {
+  it('shows the close-unregistered option default OFF and loads/saves its checked state', async () => {
+    const source = await readFile(new URL('../popup.js', import.meta.url), 'utf8');
+    const html = await loadPopupHtml();
+    const defaultStart = source.indexOf('chrome.storage.local.get(\n  {') + 'chrome.storage.local.get(\n  '.length;
+    const defaultEnd = source.indexOf('\n  },\n  async (data) =>', defaultStart) + 4;
+    const defaults = vm.runInNewContext(`(${source.slice(defaultStart, defaultEnd)})`);
+    const checkbox = { checked: true, addEventListener: vi.fn() };
+    const storage = { set: vi.fn() };
+    const sandbox = { enableCloseUnregisteredId: checkbox, chrome: { storage: { local: storage } } };
+    vm.createContext(sandbox);
+    const settingSource = source.slice(
+      source.indexOf('function loadCloseUnregisteredIdSetting'),
+      source.indexOf('// 自動オープンの状態を循環させる')
+    );
+    vm.runInContext(settingSource, sandbox);
+
+    expect(defaults.isEnabledCloseUnregisteredId).toBe(false);
+    expect(html).toContain('id="enableCloseUnregisteredId"');
+    expect(html).toContain('for="enableCloseUnregisteredId"');
+    expect(source).toContain("chrome.i18n.getMessage('closeUnregisteredId')");
+
+    sandbox.loadCloseUnregisteredIdSetting({ isEnabledCloseUnregisteredId: true });
+    expect(checkbox.checked).toBe(true);
+    sandbox.loadCloseUnregisteredIdSetting({ isEnabledCloseUnregisteredId: false });
+    expect(checkbox.checked).toBe(false);
+
+    checkbox.checked = true;
+    sandbox.saveCloseUnregisteredIdSetting();
+    expect(storage.set).toHaveBeenCalledWith({ isEnabledCloseUnregisteredId: true });
+    checkbox.checked = false;
+    sandbox.saveCloseUnregisteredIdSetting();
+    expect(storage.set).toHaveBeenLastCalledWith({ isEnabledCloseUnregisteredId: false });
+  });
+
   async function loadPopupHtml() {
     return readFile(new URL('../popup.html', import.meta.url), 'utf8');
   }

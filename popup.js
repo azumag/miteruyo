@@ -64,6 +64,14 @@ function canRenderChannelSettings(channel) {
   return getValidTwitchChannelName(channel) !== '';
 }
 
+function loadCloseUnregisteredIdSetting(data) {
+  enableCloseUnregisteredId.checked = data.isEnabledCloseUnregisteredId;
+}
+
+function saveCloseUnregisteredIdSetting() {
+  chrome.storage.local.set({ isEnabledCloseUnregisteredId: enableCloseUnregisteredId.checked });
+}
+
 // 自動オープンの状態を循環させる: 通常 → スヌーズ → 停止 → 通常
 function getNextAutoOpenState(channel) {
   if (channel.onLiveOpen && channel.snoozed) {
@@ -620,7 +628,7 @@ chrome.storage.local.get(
     enableMaxTabs.checked = data.isEnabledMaxTabs;
     maxTabCount.value = data.maxTabCount;
     enableAutoClose.checked = data.isEnabledAutoClose;
-    enableCloseUnregisteredId.checked = data.isEnabledCloseUnregisteredId;
+    loadCloseUnregisteredIdSetting(data);
     autoOpenOnce.checked = data.isAutoOpenOnce;
     skipBrandedContent.checked = data.isSkipBrandedContent;
     dynamicRotation.checked = data.isDynamicRotation;
@@ -1731,9 +1739,7 @@ enableAutoClose.addEventListener('change', () => {
   chrome.storage.local.set({ isEnabledAutoClose: enableAutoClose.checked });
 });
 
-enableCloseUnregisteredId.addEventListener('change', () => {
-  chrome.storage.local.set({ isEnabledCloseUnregisteredId: enableCloseUnregisteredId.checked });
-});
+enableCloseUnregisteredId.addEventListener('change', saveCloseUnregisteredIdSetting);
 
 autoOpenOnce.addEventListener('change', () => {
   chrome.storage.local.set({ isAutoOpenOnce: autoOpenOnce.checked });
