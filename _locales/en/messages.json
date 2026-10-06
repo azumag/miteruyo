@@ -39,6 +39,10 @@
 		"message": "Auto-close offline channels",
 		"description": "Label for the option to automatically close offline channels."
 	},
+	"closeUnregisteredId": {
+		"message": "Close unregistered streams on focus",
+		"description": "Label for closing an unregistered live Twitch channel tab when focused."
+	},
 	"pause": {
 		"message": "Pause",
 		"description": "Label for pause button."

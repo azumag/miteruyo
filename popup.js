@@ -7,6 +7,7 @@ const openNewWindow = document.getElementById('openNewWindow');
 const enableTabRotation = document.getElementById('enableTabRotation');
 const enableTabMute = document.getElementById('enableTabMute');
 const enableAutoClose = document.getElementById('enableAutoClose');
+const enableCloseUnregisteredId = document.getElementById('enableCloseUnregisteredId');
 const autoOpenOnce = document.getElementById('autoOpenOnce');
 const tabRotationInterval = document.getElementById('tabRotationInterval');
 const checkInterval = document.getElementById('checkInterval');
@@ -61,6 +62,14 @@ function getValidTwitchChannelName(channel) {
 
 function canRenderChannelSettings(channel) {
   return getValidTwitchChannelName(channel) !== '';
+}
+
+function loadCloseUnregisteredIdSetting(data) {
+  enableCloseUnregisteredId.checked = data.isEnabledCloseUnregisteredId;
+}
+
+function saveCloseUnregisteredIdSetting() {
+  chrome.storage.local.set({ isEnabledCloseUnregisteredId: enableCloseUnregisteredId.checked });
 }
 
 // 自動オープンの状態を循環させる: 通常 → スヌーズ → 停止 → 通常
@@ -343,6 +352,8 @@ document.addEventListener('DOMContentLoaded', function () {
   // オフラインチャネル自動閉じ
   const enableAutoCloseMessage = chrome.i18n.getMessage('enableAutoClose');
   document.querySelector('label[for="enableAutoClose"]').textContent = enableAutoCloseMessage;
+  const closeUnregisteredIdMessage = chrome.i18n.getMessage('closeUnregisteredId');
+  document.querySelector('label[for="enableCloseUnregisteredId"]').textContent = closeUnregisteredIdMessage;
   // 一度開いたら再度開かない
   const autoOpenOnceMessage = chrome.i18n.getMessage('autoOpenOnce');
   document.querySelector('label[for="autoOpenOnce"]').textContent = autoOpenOnceMessage;
@@ -597,6 +608,7 @@ chrome.storage.local.get(
     maxTabCount: 5,
     isEnabledTabMute: false,
     isEnabledAutoClose: false,
+    isEnabledCloseUnregisteredId: false,
     isAutoOpenOnce: false,
     isSkipBrandedContent: false,
     isDynamicRotation: false,
@@ -616,6 +628,7 @@ chrome.storage.local.get(
     enableMaxTabs.checked = data.isEnabledMaxTabs;
     maxTabCount.value = data.maxTabCount;
     enableAutoClose.checked = data.isEnabledAutoClose;
+    loadCloseUnregisteredIdSetting(data);
     autoOpenOnce.checked = data.isAutoOpenOnce;
     skipBrandedContent.checked = data.isSkipBrandedContent;
     dynamicRotation.checked = data.isDynamicRotation;
@@ -1725,6 +1738,8 @@ checkInterval.addEventListener('change', () => {
 enableAutoClose.addEventListener('change', () => {
   chrome.storage.local.set({ isEnabledAutoClose: enableAutoClose.checked });
 });
+
+enableCloseUnregisteredId.addEventListener('change', saveCloseUnregisteredIdSetting);
 
 autoOpenOnce.addEventListener('change', () => {
   chrome.storage.local.set({ isAutoOpenOnce: autoOpenOnce.checked });
