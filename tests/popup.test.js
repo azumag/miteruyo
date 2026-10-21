@@ -247,8 +247,8 @@ describe('Popup Script', () => {
     const popupSource = await readFile(new URL('../popup.js', import.meta.url), 'utf8');
 
     expect(html).toContain('table-layout: fixed;');
-    expect(html).toContain('flex: 0 0 80px;');
-    expect(html).toContain('<col style="width: 124px;">');
+    expect(html).toContain('flex: 0 0 92px;');
+    expect(html).toContain('<col style="width: 136px;">');
     expect(html).toContain('<col style="width: 60px;">');
     expect(html).toContain('<th scope="col"><span class="visually-hidden">Status</span></th>\n              <th scope="col"><span class="visually-hidden">Channel</span></th>');
     expect(html).toContain('.channel-name-cell');

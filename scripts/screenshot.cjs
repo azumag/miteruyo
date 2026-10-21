@@ -6,7 +6,7 @@ const EXTENSION_PATH = path.resolve(__dirname, '..');
 const SCREENSHOT_DIR = path.join(__dirname, '../screenshots');
 
 async function takeScreenshot(options = {}) {
-  const { openSettings = true, openChannelSettings = false } = options;
+  const { openSettings = true, openChannelSettings = false, headless = false } = options;
 
   // Create screenshots directory if not exists
   if (!fs.existsSync(SCREENSHOT_DIR)) {
@@ -14,27 +14,19 @@ async function takeScreenshot(options = {}) {
   }
 
   const browser = await puppeteer.launch({
-    headless: false,
+    headless,
+    enableExtensions: [EXTENSION_PATH],
     args: [
-      `--disable-extensions-except=${EXTENSION_PATH}`,
-      `--load-extension=${EXTENSION_PATH}`,
       '--no-sandbox',
     ],
   });
 
   try {
-    // Wait for extension to load
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Get the extension ID
-    const targets = await browser.targets();
-    const extensionTarget = targets.find(
-      target => target.type() === 'service_worker' && target.url().includes('chrome-extension://')
+    // Wait for the extension's service worker before opening the popup.
+    const extensionTarget = await browser.waitForTarget(
+      target => target.type() === 'service_worker' &&
+        target.url().startsWith('chrome-extension://') && target.url().endsWith('/background.js')
     );
-
-    if (!extensionTarget) {
-      throw new Error('Extension not found');
-    }
 
     const extensionUrl = extensionTarget.url();
     const extensionId = extensionUrl.split('/')[2];
@@ -98,7 +90,7 @@ async function takeScreenshot(options = {}) {
 
       // Create mock channel rows using the same layout classes as popup.js.
       const rows = [
-        { channelName: 'icarus0219', statusLabel: chrome.i18n.getMessage('statusLive') || 'LIVE', statusClass: 'success', showToggle: true, showSettings: true },
+        { channelName: 'long_channel_name_for_popup_layout_validation', statusLabel: chrome.i18n.getMessage('statusLive') || 'LIVE', statusClass: 'success', showToggle: true, showSettings: true },
         { channelName: 'snoozed_user', statusLabel: chrome.i18n.getMessage('snoozed') || 'Snoozed', statusClass: 'warning', showToggle: true, showSettings: true },
         { channelName: 'byodoji', statusLabel: chrome.i18n.getMessage('statusOffline') || 'OFFLINE', statusClass: 'danger', showToggle: true, showSettings: true },
         { channelName: 'missing_channel', statusLabel: chrome.i18n.getMessage('statusNotFound') || 'NOT FOUND', statusClass: 'danger', showToggle: false, showSettings: false },
@@ -274,8 +266,9 @@ async function takeScreenshot(options = {}) {
 if (require.main === module) {
   const args = process.argv.slice(2);
   const openChannelSettings = args.includes('--channel');
+  const headless = args.includes('--headless');
 
-  takeScreenshot({ openChannelSettings })
+  takeScreenshot({ openChannelSettings, headless })
     .then(path => {
       console.log('Done!');
       process.exit(0);
