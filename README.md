@@ -99,9 +99,27 @@ Download the artifact from the successful preview push's Actions run, extract it
 ## Development
 
 ### Setup
+
+Use the Node.js version pinned in `.nvmrc` (currently 22.23.4, with npm 10.9.9). The test, preview, and release workflows use the same file. With nvm installed:
+
 ```bash
-npm install
+nvm install
+nvm use
+npm ci --ignore-scripts
 ```
+
+Unit tests, lint, and ZIP packaging do not need dependency lifecycle scripts or a downloaded browser. CI installs with `--ignore-scripts` and fails on moderate-or-higher npm audit findings, including development dependencies. After changing dependencies, run `npm audit`, `npm test`, `npm run test:coverage`, and `npm run lint` before committing the lockfile.
+
+For the optional popup screenshot tool, install Puppeteer's matching test browser explicitly before running it:
+
+```bash
+npm exec -- puppeteer browsers install chrome
+npm run screenshot
+```
+
+Use `npm run screenshot -- --headless` on a machine without a display server. The screenshot helper loads the extension with Puppeteer's `enableExtensions` API in a temporary browser profile and uses dummy data, not a real Twitch login.
+
+The extension itself runs in Chrome, not Node.js. Keep the browser updated separately; updating CI does not update installed Chrome or verify Twitch OAuth. Use an isolated test profile for extension checks and retain the [preview OAuth verification steps](#preview-test-artifacts).
 
 ### Testing
 ```bash
