@@ -165,6 +165,10 @@ npm run lint:fix
 - Checks monitored channels every 1 minute
 - Survives Service Worker restarts and Chrome termination
 
+When the maximum tab count is enabled and reached, automatic status checks are skipped if their only purpose is opening ordinary stream tabs. The limit counts Twitch channel tabs across all windows, using the same rules as tab creation. The alarm stays active and checks capacity again at the next scheduled interval, so polling resumes after a slot becomes available.
+
+Checks continue when needed for desktop notifications (including per-channel notification overrides), auto-close, priority channels with auto-open enabled, or MultiTwitch. Manual refresh and context-menu channel additions still update status even at the limit. Skipped checks leave the last known channel status unchanged, and tab creation retains its own capacity check in case tabs were opened while API requests were in flight.
+
 ### Channel Checking
 1. Fetches channel status from Twitch Helix API (`/helix/streams`)
 2. Checks all channels in parallel (10+ channels complete in ~1-2 seconds)

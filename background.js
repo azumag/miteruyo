@@ -127,7 +127,7 @@ chrome.alarms.onAlarm.addListener(async function (alarm) {
   try {
     console.log('Alarm fired:', alarm.name);
     if (alarm.name === 'periodicalUpdate') {
-      await checkStreams();
+      await checkStreams({ automatic: true });
     }
     if (alarm.name === 'tabRotationAlarm') {
       await checkTabRotate();
