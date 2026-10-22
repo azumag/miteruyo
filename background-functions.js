@@ -230,6 +230,12 @@ function normalizeStoredChannels(channels) {
   return Array.isArray(channels) ? channels : [];
 }
 
+function shouldNotifyChannel(channel, isEnabledNotifications) {
+  if (!channel) return false;
+  const setting = channel.notificationSetting || 'global';
+  return setting === 'on' || (setting !== 'off' && Boolean(isEnabledNotifications));
+}
+
 function normalizeCategoryList(categories) {
   if (!Array.isArray(categories)) return [];
 
@@ -270,11 +276,14 @@ export async function restoreAuthExpiredBadge() {
   }
 }
 
-export async function checkStreams() {
+export async function checkStreams({ automatic = false } = {}) {
   console.log('checkStreams started at:', new Date().toISOString());
 
   try {
-    const data = await chrome.storage.local.get(['isEnabled', 'isEnabledNotifications', 'isOpenMultiTwitch', 'channels', 'oauth_token', 'isAuthExpired']);
+    const data = await chrome.storage.local.get([
+      'isEnabled', 'isEnabledNotifications', 'isOpenMultiTwitch', 'channels',
+      'oauth_token', 'isAuthExpired', 'isEnabledMaxTabs', 'maxTabCount', 'isEnabledAutoClose',
+    ]);
     console.log('checkStreams data:', {
       isEnabled: data.isEnabled,
       isEnabledNotifications: data.isEnabledNotifications,
@@ -282,12 +291,13 @@ export async function checkStreams() {
       hasToken: !!data.oauth_token
     });
 
-    if (!data.isEnabled && !data.isEnabledNotifications) {
+    const channels = normalizeStoredChannels(data.channels);
+    const hasNotifications = channels.some(channel => shouldNotifyChannel(channel, data.isEnabledNotifications));
+    if (!data.isEnabled && !data.isEnabledNotifications && !hasNotifications) {
       console.log('checkStreams: both extension and notifications are disabled');
       return;
     }
 
-    const channels = normalizeStoredChannels(data.channels);
     let oauth_token = migrateOAuthToken(data.oauth_token);
 
     if (!oauth_token || typeof oauth_token !== 'string') {
@@ -303,6 +313,18 @@ export async function checkStreams() {
     if (channels.length === 0) {
       console.log('checkStreams: no channels');
       return;
+    }
+
+    // Skip only automatic checks whose sole purpose is opening ordinary tabs.
+    // Notifications, auto-close and priority replacement still need fresh status.
+    if (automatic && data.isEnabled && data.isEnabledMaxTabs &&
+        !data.isOpenMultiTwitch && !data.isEnabledAutoClose && !hasNotifications &&
+        !channels.some(channel => channel?.isPriority && channel.onLiveOpen)) {
+      const currentTabCount = await countTwitchChannelTabs();
+      if (currentTabCount >= (data.maxTabCount || 5)) {
+        console.log('checkStreams: tab limit reached, skipping automatic status checks');
+        return;
+      }
     }
 
     // 並列でチャンネルをチェック（30秒制限対策）
@@ -401,19 +423,7 @@ export async function checkStreams() {
       // オフライン -> オンライン への移行を検知
       if (newStatus.onLive && (!oldStatus || !oldStatus.onLive)) {
         // 通知設定の確認
-        const notifySetting = newStatus.notificationSetting || 'global';
-        let shouldNotify = false;
-
-        if (notifySetting === 'on') {
-          shouldNotify = true;
-        } else if (notifySetting === 'off') {
-          shouldNotify = false;
-        } else {
-          // global settings
-          shouldNotify = isEnabledNotifications;
-        }
-
-        if (shouldNotify) {
+        if (shouldNotifyChannel(newStatus, isEnabledNotifications)) {
           console.log(`Triggering notification for ${newStatus.name}`);
           showNotification(newStatus);
         } else {

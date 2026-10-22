@@ -71,6 +71,19 @@ describe('background.js event handlers', () => {
       }],
     });
     expect(backgroundFunctionsMock.checkStreams).toHaveBeenCalledTimes(1);
+    expect(backgroundFunctionsMock.checkStreams).toHaveBeenCalledWith();
+  });
+
+  it('marks only periodic stream checks as automatic', async () => {
+    vi.resetModules();
+    await import('../background.js');
+    const handler = chromeMock.alarms.onAlarm.addListener.mock.calls[0][0];
+
+    await handler({ name: 'periodicalUpdate' });
+    await handler({ name: 'tabRotationAlarm' });
+
+    expect(backgroundFunctionsMock.checkStreams).toHaveBeenCalledExactlyOnceWith({ automatic: true });
+    expect(backgroundFunctionsMock.checkTabRotate).toHaveBeenCalledOnce();
   });
 
   it('keeps null filtering when appending a new context menu channel', async () => {
