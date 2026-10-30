@@ -103,11 +103,12 @@ describe('Background Script', () => {
           viewer_count: 100,
           tags: ['tag1'],
           user_id: '12345',
+          user_login: 'testchannel',
         }],
       };
 
       const mockChannelData = {
-        data: [{ is_branded_content: false }],
+        data: [{ broadcaster_id: '12345', is_branded_content: false }],
       };
 
       globalThis.fetch = vi.fn()
@@ -162,11 +163,12 @@ describe('Background Script', () => {
           viewer_count: 100,
           tags: ['tag1'],
           user_id: '12345',
+          user_login: 'testchannel',
         }],
       };
 
       const mockChannelData = {
-        data: [{ is_branded_content: false }],
+        data: [{ broadcaster_id: '12345', is_branded_content: false }],
       };
 
       globalThis.fetch = vi.fn()
@@ -209,6 +211,7 @@ describe('Background Script', () => {
           viewer_count: 100,
           tags: [],
           user_id: '12345',
+          user_login: 'testchannel',
         }],
       };
       globalThis.fetch = vi.fn()
@@ -218,7 +221,7 @@ describe('Background Script', () => {
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({ data: [{ is_branded_content: false }] }),
+          json: () => Promise.resolve({ data: [{ broadcaster_id: '12345', is_branded_content: false }] }),
         });
       chromeMock.storage.local.get.mockResolvedValue({
         isEnabled: true,
@@ -260,6 +263,7 @@ describe('Background Script', () => {
           viewer_count: 100,
           tags: [],
           user_id: '12345',
+          user_login: 'testchannel',
         }],
       };
       globalThis.fetch = vi.fn()
@@ -269,7 +273,7 @@ describe('Background Script', () => {
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({ data: [{ is_branded_content: false }] }),
+          json: () => Promise.resolve({ data: [{ broadcaster_id: '12345', is_branded_content: false }] }),
         });
       chromeMock.storage.local.get.mockResolvedValue({
         isEnabled: true,
@@ -310,6 +314,7 @@ describe('Background Script', () => {
           viewer_count: 100,
           tags: [],
           user_id: '12345',
+          user_login: 'testchannel',
         }],
       };
       globalThis.fetch = vi.fn()
@@ -319,7 +324,7 @@ describe('Background Script', () => {
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({ data: [{ is_branded_content: false }] }),
+          json: () => Promise.resolve({ data: [{ broadcaster_id: '12345', is_branded_content: false }] }),
         });
       chromeMock.tabs.query.mockResolvedValue([{
         id: 10,
@@ -362,6 +367,7 @@ describe('Background Script', () => {
           viewer_count: 100,
           tags: [],
           user_id: '12345',
+          user_login: 'testchannel',
         }],
       };
       globalThis.fetch = vi.fn()
@@ -371,7 +377,7 @@ describe('Background Script', () => {
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({ data: [{ is_branded_content: false }] }),
+          json: () => Promise.resolve({ data: [{ broadcaster_id: '12345', is_branded_content: false }] }),
         });
       chromeMock.storage.local.get.mockResolvedValue({
         isEnabled: true,
@@ -994,8 +1000,8 @@ describe('Background Script', () => {
       );
       expect(setCall).toBeDefined();
       expect(setCall[0].channels).toHaveLength(3);
-      // Each channel triggers one fetch (offline channels don't need 2nd fetch)
-      expect(globalThis.fetch).toHaveBeenCalledTimes(3);
+      // Batched Helix check: all channels in one request (Issue #155)
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
     });
 
     it('should handle errors gracefully in parallel processing', async () => {
@@ -1030,7 +1036,9 @@ describe('Background Script', () => {
       );
       expect(setCall).toBeDefined();
       expect(setCall[0].channels).toHaveLength(2);
-      expect(setCall[0].channels[0].status).toBe('offline');
+      // バッチはチャンク単位で失敗する（error_channel を含む要求が拒否される
+      // ため同チャンクの channel1 も error になる。Issue #155 の仕様）
+      expect(setCall[0].channels[0].status).toBe('error');
       expect(setCall[0].channels[1].status).toBe('error');
     });
   });
@@ -1262,10 +1270,11 @@ describe('Background Script', () => {
           viewer_count: 100,
           tags: ['tag1'],
           user_id: '12345',
+          user_login: 'testchannel',
         }],
       };
       const mockChannelData = {
-        data: [{ is_branded_content: false }],
+        data: [{ broadcaster_id: '12345', is_branded_content: false }],
       };
 
       globalThis.fetch = vi.fn()
@@ -2989,10 +2998,11 @@ describe('Background Script', () => {
           viewer_count: 100,
           tags: [],
           user_id: '12345',
+          user_login: 'testchannel',
         }],
       };
       const mockChannelData = {
-        data: [{ is_branded_content: false }],
+        data: [{ broadcaster_id: '12345', is_branded_content: false }],
       };
 
       globalThis.fetch = vi.fn()
@@ -3095,10 +3105,11 @@ describe('Background Script', () => {
           viewer_count: 100,
           tags: [],
           user_id: '12345',
+          user_login: 'testchannel',
         }],
       };
       const mockChannelData = {
-        data: [{ is_branded_content: false }],
+        data: [{ broadcaster_id: '12345', is_branded_content: false }],
       };
 
       globalThis.fetch = vi.fn()
@@ -3161,10 +3172,11 @@ describe('Background Script', () => {
           viewer_count: 100,
           tags: [],
           user_id: '12345',
+          user_login: 'testchannel',
         }],
       };
       const mockChannelData = {
-        data: [{ is_branded_content: true }],
+        data: [{ broadcaster_id: '12345', is_branded_content: true }],
       };
 
       globalThis.fetch = vi.fn()
@@ -3229,10 +3241,11 @@ describe('Background Script', () => {
           viewer_count: 100,
           tags: [],
           user_id: '12345',
+          user_login: 'testchannel',
         }],
       };
       const mockChannelData = {
-        data: [{ is_branded_content: false }],
+        data: [{ broadcaster_id: '12345', is_branded_content: false }],
       };
 
       globalThis.fetch = vi.fn()
@@ -3335,10 +3348,11 @@ describe('Background Script', () => {
           viewer_count: 100,
           tags: [],
           user_id: '12345',
+          user_login: 'testchannel',
         }],
       };
       const mockChannelData = {
-        data: [{ is_branded_content: false }],
+        data: [{ broadcaster_id: '12345', is_branded_content: false }],
       };
 
       globalThis.fetch = vi.fn()

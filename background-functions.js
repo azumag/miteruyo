@@ -305,19 +305,13 @@ export async function checkStreams() {
       return;
     }
 
-    // 並列でチャンネルをチェック（30秒制限対策）
-    console.log(`checkStreams: checking ${channels.length} channels in parallel`);
-    const updatedChannels = await Promise.all(
-      channels.map(channel =>
-        checkStream(channel, oauth_token)
-          .catch(error => {
-            const channelName = channel?.name || '(unknown channel)';
-            console.error(`Error checking channel ${channelName}:`, error);
-            // エラー時は既存のチャンネル情報を返す（statusをerrorに設定）
-            return { ...channel, status: 'error' };
-          })
-      )
-    );
+    // Helix のバッチ上限（100件）でまとめてチェック（Issue #155）
+    console.log(`checkStreams: checking ${channels.length} channels batched`);
+    const updatedChannels = await checkStreamsBatch(channels, oauth_token)
+      .catch(error => {
+        console.error('checkStreams: batch check failed:', error);
+        return channels.map(channel => ({ ...channel, status: 'error' }));
+      });
 
     // 新しい配信セッションでは「今回の配信だけ」の抑止状態をリセットする。
     // streamId も比較することで、短いオフラインをポーリングが見逃した場合にも対応する。
@@ -1044,33 +1038,17 @@ async function fetchWithRetry(url, options, maxRetries = 1) {
   }
 }
 
-async function checkStream(channel, oauth_token) {
-  if (!channel) return null;
+// Helix /streams・/channels は user_login / broadcaster_id を最大100件まで
+// 1リクエストへ束ねられる（Issue #155）。チャンネルごとの個別リクエストを
+// バッチへ集約し、API呼び出し数と Service Worker 内の所要時間を削減する。
+const HELIX_BATCH_MAX = 100;
 
-  const channelName = normalizeMultiTwitchChannelName(channel.name);
-  if (!channelName) {
-    return {
-      ...channel,
-      onLive: false,
-      status: 'error',
-      lastError: 'Invalid channel name',
-      lastChecked: Date.now()
-    };
-  }
-
-  const url = `https://api.twitch.tv/helix/streams?user_login=${channelName}`;
-  const options = {
-    headers: {
-      'Client-ID': clientId,
-      'Authorization': 'Bearer ' + oauth_token,
-    },
-  };
-
+// バッチ1回分の fetch + timeout + エラー分類。失敗時は呼出側が対象チャンク
+// 全員へ同じ error status を適用する（旧来の per-channel 失敗と同じ粒度）。
+async function _helixBatchFetch(url, options) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    // タイムアウト付きfetch（10秒）
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
     const response = await fetchWithRetry(url, {
       ...options,
       signal: controller.signal
@@ -1078,61 +1056,108 @@ async function checkStream(channel, oauth_token) {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      console.error(`checkStream: HTTP error ${response.status} for ${channelName}`);
-      const result = { ...channel, status: 'error', lastError: `HTTP ${response.status}` };
-      // 401はトークン期限切れの明示的シグナル（Issue #147）。checkStreams() が読み取った直後に
-      // 保存前に取り除く一時フィールドのため、成功時の { ...channel } スプレッドで古い値が
-      // 引き継がれて検知が固着する心配はない
-      if (response.status === 401) {
-        result.authError = true;
-      }
-      return result;
+      return { error: `HTTP ${response.status}`, authError: response.status === 401 };
     }
-
     let data;
     try {
       data = await response.json();
     } catch {
-      console.error(`checkStream: JSON parse error for ${channelName}`);
-      return { ...channel, status: 'error', lastError: 'JSON parse error' };
+      return { error: 'JSON parse error' };
     }
-
     if (data.data === undefined) {
-      console.error(`checkStream: Invalid response for ${channelName}`, data);
-      return { ...channel, status: 'error', lastError: 'Invalid response' };
+      return { error: 'Invalid response' };
     }
+    return { data: data.data };
+  } catch (error) {
+    return { error: error.name === 'AbortError' ? 'Timeout' : error.message };
+  }
+}
 
-    if (data.data.length > 0) {
-      const stream = data.data[0];
+// channels を最大 HELIX_BATCH_MAX 件ずつ /helix/streams へ問い合わせ、
+// live なものだけを /helix/channels のバッチで is_branded_content を補完する。
+// チャンク単位の失敗（HTTP/timeout/parse）はそのチャンクの全チャンネルを
+// error status にする。ライブ判定が付いたチャンネルだけが online/offline に確定する。
+async function checkStreamsBatch(channels, oauth_token) {
+  const options = {
+    headers: {
+      'Client-ID': clientId,
+      'Authorization': 'Bearer ' + oauth_token,
+    },
+  };
+  const results = new Array(channels.length);
+  const pending = [];
 
-      // /helix/channels から is_branded_content を取得
-      // (/helix/streams にはこのフィールドがないため)
-      let is_branded_content = false;
-      try {
-        const channelInfoUrl = `https://api.twitch.tv/helix/channels?broadcaster_id=${stream.user_id}`;
-        const channelResponse = await fetchWithRetry(channelInfoUrl, options);
-        if (channelResponse.ok) {
-          let channelData;
-          try {
-            channelData = await channelResponse.json();
-          } catch {
-            console.error(`checkStream: JSON parse error for channel info ${channelName}`);
-          }
-          if (channelData && channelData.data && channelData.data.length > 0) {
-            is_branded_content = channelData.data[0].is_branded_content === true;
-          }
-        }
-      } catch (error) {
-        console.error(`checkStream: Error fetching channel info for ${channelName}:`, error);
-      }
-
-      console.log('online', channelName, {
-        is_branded_content,
-        game_name: stream.game_name
-      });
-
-      return {
+  channels.forEach((channel, i) => {
+    if (!channel) {
+      // 旧実装（checkStream の null 返し）と同じく、null エントリはそのまま返す
+      results[i] = null;
+      return;
+    }
+    const channelName = normalizeMultiTwitchChannelName(channel?.name);
+    if (!channelName) {
+      results[i] = {
         ...channel,
+        onLive: false,
+        status: 'error',
+        lastError: 'Invalid channel name',
+        lastChecked: Date.now()
+      };
+    } else {
+      pending.push({ i, channel, channelName });
+    }
+  });
+
+  const liveByLogin = new Map();
+  const answered = [];
+  for (let start = 0; start < pending.length; start += HELIX_BATCH_MAX) {
+    const chunk = pending.slice(start, start + HELIX_BATCH_MAX);
+    const url = 'https://api.twitch.tv/helix/streams?' +
+      chunk.map(p => 'user_login=' + encodeURIComponent(p.channelName)).join('&');
+    const outcome = await _helixBatchFetch(url, options);
+    if (outcome.error) {
+      console.error(`checkStreamsBatch: ${outcome.error} for chunk of ${chunk.length}`);
+      for (const p of chunk) {
+        const result = { ...p.channel, status: 'error', lastError: outcome.error };
+        if (outcome.authError) result.authError = true;
+        results[p.i] = result;
+      }
+      continue;
+    }
+    answered.push(...chunk);
+    for (const stream of outcome.data) {
+      if (stream && stream.user_login) {
+        liveByLogin.set(stream.user_login.toLowerCase(), stream);
+      }
+    }
+  }
+
+  // is_branded_content は /helix/streams に無いため、live な user_id を
+  // /helix/channels へバッチで補完する（失敗時は false 維持＝従来のfallback）。
+  const brandedById = new Map();
+  const liveStreams = [...liveByLogin.values()];
+  for (let start = 0; start < liveStreams.length; start += HELIX_BATCH_MAX) {
+    const chunk = liveStreams.slice(start, start + HELIX_BATCH_MAX);
+    const url = 'https://api.twitch.tv/helix/channels?' +
+      chunk.map(s => 'broadcaster_id=' + encodeURIComponent(s.user_id)).join('&');
+    const outcome = await _helixBatchFetch(url, options);
+    if (outcome.error) {
+      console.error(`checkStreamsBatch: channel info ${outcome.error} for chunk of ${chunk.length}`);
+      continue;
+    }
+    for (const entry of outcome.data) {
+      if (entry && entry.broadcaster_id) {
+        brandedById.set(entry.broadcaster_id, entry.is_branded_content === true);
+      }
+    }
+  }
+
+  for (const p of answered) {
+    const stream = liveByLogin.get(p.channelName.toLowerCase());
+    if (stream) {
+      const is_branded_content = brandedById.get(stream.user_id) === true;
+      console.log('online', p.channelName, { is_branded_content, game_name: stream.game_name });
+      results[p.i] = {
+        ...p.channel,
         onLive: true,
         streamId: stream.id,
         game_name: stream.game_name,
@@ -1145,20 +1170,23 @@ async function checkStream(channel, oauth_token) {
         lastChecked: Date.now()
       };
     } else {
-      console.log('offline', channelName);
-      return {
-        ...channel,
+      console.log('offline', p.channelName);
+      results[p.i] = {
+        ...p.channel,
         onLive: false,
         status: 'offline',
         lastChecked: Date.now()
       };
     }
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      console.error(`checkStream: Timeout for ${channelName}`);
-      return { ...channel, status: 'error', lastError: 'Timeout' };
-    }
-    console.error(`checkStream: Error for ${channelName}:`, error);
-    return { ...channel, status: 'error', lastError: error.message };
   }
+  return results;
 }
+
+async function checkStream(channel, oauth_token) {
+  if (!channel) return null;
+  // 単一チャンネルも同じバッチ経路で処理する（呼出側の互換維持用）
+  const [result] = await checkStreamsBatch([channel], oauth_token);
+  return result ?? { ...channel, status: 'error' };
+}
+
+export { checkStream };
