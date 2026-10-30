@@ -1,3 +1,4 @@
+import { installHelixBatchFetch } from './helix-batch-fetch.js';
 import {
   ensureAlarmsExist,
   checkStreams,
@@ -14,6 +15,8 @@ import {
   onNotificationClicked,
   restoreAuthExpiredBadge,
 } from './background-functions.js';
+
+installHelixBatchFetch();
 
 function normalizeChannelName(name) {
   return typeof name === 'string' ? name.toLowerCase() : null;

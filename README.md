@@ -46,7 +46,8 @@ Twitch's in-player "Click to unmute" state is separate from Chrome's tab mute st
 - Persistent polling even if Chrome terminates the Service Worker
 
 ### Performance
-- Parallel channel checking (all channels checked simultaneously)
+- Concurrent channel checking with Twitch Helix stream lookups batched in groups of up to 100 logins
+- Branded-content channel lookups are batched in groups of up to 100 broadcaster IDs
 - Efficient batch storage updates
 - 10-second timeout protection for API calls
 
@@ -146,16 +147,18 @@ npm run lint:fix
 ```
 ├── manifest.json          # Extension configuration
 ├── background.js          # Service Worker (core logic)
-├── popup.js              # Popup UI logic
-├── popup.html            # Popup UI layout
-├── _locales/             # i18n translations
-├── tests/                # Unit tests
-│   ├── setup.js          # Test utilities and mocks
-│   └── background.test.js # Background service tests
+├── helix-batch-fetch.js   # Coalesces concurrent Helix lookups into <=100-item requests
+├── popup.js               # Popup UI logic
+├── popup.html             # Popup UI layout
+├── _locales/              # i18n translations
+├── tests/                 # Unit tests
+│   ├── setup.js           # Test utilities and mocks
+│   ├── background.test.js # Background service tests
+│   └── helix-batch-fetch.test.js # Helix batching tests
 ├── .github/
 │   └── workflows/
-│       └── test.yml      # GitHub Actions CI/CD
-└── package.json          # Dependencies and scripts
+│       └── test.yml       # GitHub Actions CI/CD
+└── package.json           # Dependencies and scripts
 ```
 
 ## How It Works
@@ -170,10 +173,10 @@ When the maximum tab count is enabled and reached, automatic status checks are s
 Checks continue when needed for desktop notifications (including per-channel notification overrides), auto-close, priority channels with auto-open enabled, or MultiTwitch. Manual refresh and context-menu channel additions still update status even at the limit. Skipped checks leave the last known channel status unchanged, and tab creation retains its own capacity check in case tabs were opened while API requests were in flight.
 
 ### Channel Checking
-1. Fetches channel status from Twitch Helix API (`/helix/streams`)
-2. Checks all channels in parallel (10+ channels complete in ~1-2 seconds)
-3. Updates storage with current status (online/offline/error)
-4. Triggers auto-open logic if configured
+1. Starts channel checks concurrently while a small fetch layer coalesces same-tick Helix requests.
+2. Requests `/helix/streams` with up to 100 repeated `user_login` values per request and `first=100`, then fans the response back out to each channel check.
+3. For live streams, requests `/helix/channels` with up to 100 repeated `broadcaster_id` values to obtain branded-content state.
+4. Updates storage with current status (online/offline/error) and triggers auto-open logic if configured.
 
 ### Auto-open Logic
 - Opens new tab/window when `onLive=true` and `onLiveOpen=true`
@@ -189,8 +192,9 @@ Checks continue when needed for desktop notifications (including per-channel not
 ## API Integration
 
 Uses Twitch Helix API with OAuth 2.0 authentication:
-- `GET /helix/streams?user_login={name}` - Check if channel is live
-- `GET /helix/users?login={name}` - Get user ID for stream queries
+- `GET /helix/streams?first=100&user_login={name}&user_login={name}...` - Check up to 100 monitored channel logins per request
+- `GET /helix/channels?broadcaster_id={id}&broadcaster_id={id}...` - Fetch branded-content metadata for up to 100 live broadcasters per request
+- `GET /helix/users?login={name}` - Get a user ID for tab-specific stream queries
 
 Requires valid OAuth token in extension storage.
 
@@ -232,6 +236,7 @@ npm test
 ### Test Coverage
 - Alarm initialization logic
 - Channel status checking (online/offline)
+- Helix stream/channel request batching and 100-item chunking
 - Parallel processing error handling
 - Extension disabled/configuration checks
 
