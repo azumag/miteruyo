@@ -696,7 +696,8 @@ describe('Popup Script', () => {
     expect(authUrl.searchParams.get('client_id')).toBe('test-client-id');
     expect(authUrl.searchParams.get('redirect_uri')).toBe('https://example.chromiumapp.org/');
     expect(authUrl.searchParams.get('response_type')).toBe('token');
-    expect(authUrl.searchParams.get('scope')).toBe('user:read:email');
+    // Issue #151: フォロー中チャンネル監視のため user:read:follows を追加
+    expect(authUrl.searchParams.get('scope')).toBe('user:read:email user:read:follows');
     expect(authUrl.searchParams.get('state')).toBe('state-1');
     expect(options.url).toContain('redirect_uri=https%3A%2F%2Fexample.chromiumapp.org%2F');
   });

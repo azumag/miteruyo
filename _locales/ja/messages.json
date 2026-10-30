@@ -1,398 +1,407 @@
 {
-	"channelAddPlaceholder": {
-		"message": "チャンネルを入力",
-		"description": "チャンネルを追加します。"
-	},
-	"channelAddBtn": {
-		"message": "追加",
-		"description": "チャンネルを追加します。"
-	},
-	"enableOpen": {
-		"message": "自動で開く",
-		"description": "自動で開くかどうかを設定します。"
-	},
-	"showOnlyLive": {
-		"message": "配信中のみ表示",
-		"description": "配信中のチャンネルのみを表示するオプションのラベル"
-	},
-	"settings": {
-		"message": "設定",
-		"description": ""
-	},
-	"openNewWindow": {
-		"message": "新しいウィンドウで開く",
-		"description": "新しいウィンドウで開くオプションのラベル"
-	},
-	"enableTabRotation": {
-		"message": "複数タブ自動切り替え",
-		"description": "複数タブを自動で切り替えるオプションのラベル"
-	},
-	"minutes": {
-		"message": "分",
-		"description": "時間の単位（分）"
-	},
-	"enableTabMute": {
-		"message": "非アクティブタブ自動ミュート",
-		"description": "非アクティブなタブを自動的にミュートするオプションのラベル"
-	},
-	"enableAutoClose": {
-		"message": "オフラインチャネル自動閉じ",
-		"description": "オフラインのチャネルを自動的に閉じるオプションのラベル"
-	},
-	"closeUnregisteredId": {
-		"message": "登録外のIDを閉じる",
-		"description": "フォーカス時に登録外の配信タブを閉じるオプションのラベル"
-	},
-	"pause": {
-		"message": "停止",
-		"description": "停止ボタンのラベル"
-	},
-	"openWithMiteruyo": {
-		"message": "Miteruyoで開く",
-		"description": "コンテキストメニューのラベル"
-	},
-	"skipBrandedContent": {
-		"message": "プロモーション配信を開かない",
-		"description": "プロモーション配信をスキップするオプションのラベル"
-	},
-	"allowedOnlyCategories": {
-		"message": "このカテゴリだけを開く",
-		"description": "カテゴリ設定を上書きし、指定したカテゴリだけを開く"
-	},
-	"allowedOnlyCategoriesHelp": {
-		"message": "カテゴリ設定を上書きし、指定したカテゴリだけを開く。除外カテゴリはこれが設定されている場合は無効",
-		"description": "このカテゴリだけを開くのツールチップ"
-	},
-	"blockedCategories": {
-		"message": "このカテゴリを除外",
-		"description": "ブロックするカテゴリ名のラベル"
-	},
-	"blockedCategoriesHelp": {
-		"message": "指定したカテゴリの配信は自動で開かない",
-		"description": "このカテゴリを除外のツールチップ（全体設定）"
-	},
-	"blockedCategoriesChannelHelp": {
-		"message": "全体設定に加えて除外したいカテゴリ",
-		"description": "このカテゴリを除外のツールチップ（個別設定）"
-	},
-	"allowedCategoriesException": {
-		"message": "全体除外の例外",
-		"description": "個別設定の全体除外例外ラベル"
-	},
-	"allowedCategoriesExceptionHelp": {
-		"message": "全体設定で除外したカテゴリのうち、このチャンネルでのみ開きたいカテゴリ",
-		"description": "全体除外の例外のツールチップ"
-	},
-	"categorySearchPlaceholder": {
-		"message": "カテゴリを検索して追加...",
-		"description": "カテゴリ検索のプレースホルダー"
-	},
-	"addPlaceholder": {
-		"message": "追加...",
-		"description": "追加ドロップダウンのプレースホルダー"
-	},
-	"confirmDelete": {
-		"message": "$channel$を削除してもよろしいですか？",
-		"description": "チャンネル削除の確認メッセージ",
-		"placeholders": {
-			"channel": {
-				"content": "$1"
-			}
-		}
-	},
-	"addToMiteruyo": {
-		"message": "Miteruyoに追加",
-		"description": "チャンネルをMiteruyoに追加するコンテキストメニュー項目"
-	},
-	"enableNotifications": {
-		"message": "配信開始時にデスクトップ通知",
-		"description": "全体設定のデスクトップ通知ラベル"
-	},
-	"notificationHelp": {
-		"message": "通知が出ない場合はOSとchromeの設定を確認してください",
-		"description": "通知設定のヘルプツールチップ"
-	},
-	"notificationTitle": {
-		"message": "配信開始！",
-		"description": "デスクトップ通知のタイトル"
-	},
-	"notificationBody": {
-		"message": "$channel$が配信を開始しました！",
-		"description": "デスクトップ通知の本文",
-		"placeholders": {
-			"channel": {
-				"content": "$1"
-			}
-		}
-	},
-	"notificationSetting": {
-		"message": "通知",
-		"description": "個別設定の通知設定ラベル"
-	},
-	"notificationGlobal": {
-		"message": "全体設定に従う",
-		"description": "個別設定の通知設定（全体）"
-	},
-	"notificationOn": {
-		"message": "出す",
-		"description": "個別設定の通知設定（オン）"
-	},
-	"notificationOff": {
-		"message": "出さない",
-		"description": "個別設定の通知設定（オフ）"
-	},
-	"authExpiredTitle": {
-		"message": "Twitchの認証が切れました",
-		"description": "認証切れ通知のタイトル"
-	},
-	"authExpiredBody": {
-		"message": "ポップアップを開いて再度ログインしてください",
-		"description": "認証切れ通知の本文"
-	},
-	"about": {
-		"message": "Miteruyoについて",
-		"description": "Aboutボタン/タイトル"
-	},
-	"version": {
-		"message": "バージョン",
-		"description": "バージョン情報ラベル"
-	},
-	"support": {
-		"message": "ご支援",
-		"description": "支援リンク用ラベル"
-	},
-	"supportDetailsSummary": {
-		"message": "開発支援について",
-		"description": "開発支援についての注釈を開閉する見出し"
-	},
-	"supportDetailsIntro": {
-		"message": "このソフトは、もともと作者自身の利用のために開発しているものを、希望があったため無料で公開しているものです。",
-		"description": "ソフトを無料公開している背景"
-	},
-	"supportDetailsRequests": {
-		"message": "開発継続の支援として、OFUSEの支援付きレターで不具合報告・改善案・機能要望を受け付けています。",
-		"description": "OFUSEで受け付ける内容"
-	},
-	"supportDetailsDisclaimer": {
-		"message": "いただいた内容は今後の開発の参考にしますが、採用・実装・返信・調査・修正・公開時期を保証するものではありません。個別の開発依頼、請負契約、有償サポートとしてお受けするものではありません。",
-		"description": "支援付きレターに関する免責事項"
-	},
-	"supportDetailsRights": {
-		"message": "採用した内容は、作者の判断で無料公開版や今後の関連ソフトに反映する場合があります。その場合でも、投稿者への個別報酬、権利付与、クレジット表記等は発生しません。",
-		"description": "採用内容の反映と権利に関する説明"
-	},
-	"supportDetailsPrivacy": {
-		"message": "個人情報、秘密情報、業務上の機密、第三者の著作物・コードなどは送信しないでください。",
-		"description": "送信してはいけない情報についての注意"
-	},
-	"githubLink": {
-		"message": "GitHubリポジトリ",
-		"description": "GitHubリンクのテキスト"
-	},
-	"mutedHelpTitle": {
-		"message": "配信が自動で開いた時にミュートになる場合",
-		"description": "自動ミュート問題のヘルプ見出し"
-	},
-	"mutedHelpBody": {
-		"message": "Twitchは、クリック等の操作なしで開かれたタブでは常にミュートで再生を開始します。そしてChromeは、このブラウザのプロファイルでtwitch.tvへの音声つき自動再生が許可されている場合にのみ、スクリプトによるミュート解除を許可します。Miteruyoが自動で開いた配信がミュートになる場合は、Twitchの音声設定を開いて「許可」に変更してから、もう一度お試しください。",
-		"description": "自動ミュート問題のヘルプ本文"
-	},
-	"openTwitchSoundSettingsLabel": {
-		"message": "Twitchの音声設定を開く",
-		"description": "Twitchの音声設定を開くボタンのラベル"
-	},
-	"categorySearchDefaultPlaceholder": {
-		"message": "カテゴリを検索...",
-		"description": "カテゴリ検索のデフォルトプレースホルダー"
-	},
-	"brandedContentLabel": {
-		"message": "PR配信",
-		"description": "個別設定のプロモーション配信ラベル"
-	},
-	"brandedOpen": {
-		"message": "開く",
-		"description": "プロモーション配信を開く選択肢"
-	},
-	"brandedBlock": {
-		"message": "開かない",
-		"description": "プロモーション配信を開かない選択肢"
-	},
-	"brandedGlobal": {
-		"message": "全体設定に従う",
-		"description": "プロモーション配信の全体設定に従う選択肢"
-	},
-	"categoryOverlapWarning": {
-		"message": "以下は全体設定で既に指定されています: $categories$",
-		"description": "カテゴリ重複警告メッセージ",
-		"placeholders": {
-			"categories": {
-				"content": "$1"
-			}
-		}
-	},
-	"noResults": {
-		"message": "見つかりません",
-		"description": "カテゴリ検索で結果がない場合のメッセージ"
-	},
-	"volumeLabel": {
-		"message": "音量",
-		"description": "個別チャンネルの音量設定ラベル"
-	},
-	"statusLive": {
-		"message": "LIVE",
-		"description": "チャンネルがライブ中のステータス表示"
-	},
-	"statusOffline": {
-		"message": "OFFLINE",
-		"description": "チャンネルがオフラインのステータス表示"
-	},
-	"statusNotFound": {
-		"message": "NOT FOUND",
-		"description": "チャンネルが見つからないステータス表示"
-	},
-	"channelInputLabel": {
-		"message": "チャンネル名",
-		"description": "チャンネル名入力のアクセシビリティラベル"
-	},
-	"invalidChannelName": {
-		"message": "チャンネル名は3〜25文字の英数字とアンダースコアのみ使用できます",
-		"description": "チャンネル名バリデーションエラーメッセージ"
-	},
-	"enableMaxTabs": {
-		"message": "開くタブ数を制限",
-		"description": "タブ数上限設定のチェックボックスラベル"
-	},
-	"maxTabUnit": {
-		"message": "タブ",
-		"description": "タブ数上限の単位ラベル"
-	},
-	"checkInterval": {
-		"message": "チェック間隔",
-		"description": "配信チェック間隔のラベル"
-	},
-	"autoOpenOnce": {
-		"message": "自動で開いたタブを閉じたら次の配信まで開かない",
-		"description": "自動で開いたタブを閉じた後は現在の配信中だけ再度開かず、次の配信では通常どおり開くオプション"
-	},
-	"snoozed": {
-		"message": "スヌーズ中",
-		"description": "スヌーズ中のステータス表示"
-	},
-	"openChannelButton": {
-		"message": "開く",
-		"description": "ライブ中ボタンをホバーまたはキーボードフォーカスしたときの短い操作ラベル"
-	},
-	"openChannel": {
-		"message": "チャンネルを開く",
-		"description": "ライブ中ステータスボタンのアクセシビリティラベル"
-	},
-	"autoOpenStateNormal": {
-		"message": "自動オープン中（クリックでスヌーズ）",
-		"description": "自動オープン切り替えボタンのツールチップ：通常状態"
-	},
-	"autoOpenStateSnoozed": {
-		"message": "スヌーズ中：今回の配信のみ自動オープンを止めます（クリックで停止に切り替え）",
-		"description": "自動オープン切り替えボタンのツールチップ：スヌーズ状態"
-	},
-	"autoOpenStatePaused": {
-		"message": "停止中：自動オープンしません（クリックで通常状態に戻す）",
-		"description": "自動オープン切り替えボタンのツールチップ：停止状態"
-	},
-	"priorityLabel": {
-		"message": "優先チャンネル",
-		"description": "優先チャンネル設定のラベル"
-	},
-	"priorityHelp": {
-		"message": "開くタブ数の上限に達した場合、優先チャンネルを優先的に開き、必要に応じて他のチャンネルのタブを自動的に閉じます。",
-		"description": "優先チャンネル設定の説明"
-	},
-	"priority": {
-		"message": "優先チャンネル",
-		"description": "優先チャンネルトグルのアクセシビリティラベル"
-	},
-	"channelActions": {
-		"message": "チャンネル操作",
-		"description": "チャンネル行の操作ボタングループのアクセシビリティラベル"
-	},
-	"channelSettings": {
-		"message": "個別設定",
-		"description": "チャンネル個別設定ボタンのアクセシビリティラベル"
-	},
-	"deleteChannel": {
-		"message": "チャンネルを削除",
-		"description": "チャンネル削除ボタンのアクセシビリティラベル"
-	},
-	"dynamicRotation": {
-		"message": "タブ数で分割",
-		"description": "タブ数に応じてローテーション間隔を動的に変化させるオプション"
-	},
-	"sortChannels": {
-		"message": "並び順"
-	},
-	"sortOptionsButton": {
-		"message": "並び順"
-	},
-	"sortOptionsShow": {
-		"message": "並び順を展開"
-	},
-	"sortOptionsHide": {
-		"message": "並び順を閉じる"
-	},
-	"sort_registered": {
-		"message": "登録順"
-	},
-	"sort_name": {
-		"message": "名前順"
-	},
-	"sort_started_newest": {
-		"message": "配信開始が新しい順"
-	},
-	"sort_started_oldest": {
-		"message": "配信開始が古い順"
-	},
-	"sort_registered_short": {
-		"message": "登録順"
-	},
-	"sort_name_short": {
-		"message": "名前順"
-	},
-	"sort_started_newest_short": {
-		"message": "開始・新"
-	},
-	"sort_started_oldest_short": {
-		"message": "開始・古"
-	},
-	"sort_registered_accessible": {
-		"message": "登録順で並べ替え"
-	},
-	"sort_name_accessible": {
-		"message": "チャンネル名で並べ替え"
-	},
-	"sort_started_newest_accessible": {
-		"message": "配信開始日時が新しい順に並べ替え"
-	},
-	"sort_started_oldest_accessible": {
-		"message": "配信開始日時が古い順に並べ替え"
-	},
-	"streamDetails": {
-		"message": "配信の詳細"
-	},
-	"notAvailable": {
-		"message": "未取得"
-	},
-	"streamDetailsUnavailable": {
-		"message": "配信情報を取得できませんでした"
-	},
-	"streamTitle": {
-		"message": "タイトル"
-	},
-	"streamCategory": {
-		"message": "カテゴリ"
-	},
-	"streamStarted": {
-		"message": "配信開始"
-	},
-	"closeDetails": {
-		"message": "閉じる"
-	}
+  "channelAddPlaceholder": {
+    "message": "チャンネルを入力",
+    "description": "チャンネルを追加します。"
+  },
+  "channelAddBtn": {
+    "message": "追加",
+    "description": "チャンネルを追加します。"
+  },
+  "enableOpen": {
+    "message": "自動で開く",
+    "description": "自動で開くかどうかを設定します。"
+  },
+  "showOnlyLive": {
+    "message": "配信中のみ表示",
+    "description": "配信中のチャンネルのみを表示するオプションのラベル"
+  },
+  "settings": {
+    "message": "設定",
+    "description": ""
+  },
+  "openNewWindow": {
+    "message": "新しいウィンドウで開く",
+    "description": "新しいウィンドウで開くオプションのラベル"
+  },
+  "enableTabRotation": {
+    "message": "複数タブ自動切り替え",
+    "description": "複数タブを自動で切り替えるオプションのラベル"
+  },
+  "minutes": {
+    "message": "分",
+    "description": "時間の単位（分）"
+  },
+  "enableTabMute": {
+    "message": "非アクティブタブ自動ミュート",
+    "description": "非アクティブなタブを自動的にミュートするオプションのラベル"
+  },
+  "enableAutoClose": {
+    "message": "オフラインチャネル自動閉じ",
+    "description": "オフラインのチャネルを自動的に閉じるオプションのラベル"
+  },
+  "closeUnregisteredId": {
+    "message": "登録外のIDを閉じる",
+    "description": "フォーカス時に登録外の配信タブを閉じるオプションのラベル"
+  },
+  "pause": {
+    "message": "停止",
+    "description": "停止ボタンのラベル"
+  },
+  "openWithMiteruyo": {
+    "message": "Miteruyoで開く",
+    "description": "コンテキストメニューのラベル"
+  },
+  "skipBrandedContent": {
+    "message": "プロモーション配信を開かない",
+    "description": "プロモーション配信をスキップするオプションのラベル"
+  },
+  "allowedOnlyCategories": {
+    "message": "このカテゴリだけを開く",
+    "description": "カテゴリ設定を上書きし、指定したカテゴリだけを開く"
+  },
+  "allowedOnlyCategoriesHelp": {
+    "message": "カテゴリ設定を上書きし、指定したカテゴリだけを開く。除外カテゴリはこれが設定されている場合は無効",
+    "description": "このカテゴリだけを開くのツールチップ"
+  },
+  "blockedCategories": {
+    "message": "このカテゴリを除外",
+    "description": "ブロックするカテゴリ名のラベル"
+  },
+  "blockedCategoriesHelp": {
+    "message": "指定したカテゴリの配信は自動で開かない",
+    "description": "このカテゴリを除外のツールチップ（全体設定）"
+  },
+  "blockedCategoriesChannelHelp": {
+    "message": "全体設定に加えて除外したいカテゴリ",
+    "description": "このカテゴリを除外のツールチップ（個別設定）"
+  },
+  "allowedCategoriesException": {
+    "message": "全体除外の例外",
+    "description": "個別設定の全体除外例外ラベル"
+  },
+  "allowedCategoriesExceptionHelp": {
+    "message": "全体設定で除外したカテゴリのうち、このチャンネルでのみ開きたいカテゴリ",
+    "description": "全体除外の例外のツールチップ"
+  },
+  "categorySearchPlaceholder": {
+    "message": "カテゴリを検索して追加...",
+    "description": "カテゴリ検索のプレースホルダー"
+  },
+  "addPlaceholder": {
+    "message": "追加...",
+    "description": "追加ドロップダウンのプレースホルダー"
+  },
+  "confirmDelete": {
+    "message": "$channel$を削除してもよろしいですか？",
+    "description": "チャンネル削除の確認メッセージ",
+    "placeholders": {
+      "channel": {
+        "content": "$1"
+      }
+    }
+  },
+  "addToMiteruyo": {
+    "message": "Miteruyoに追加",
+    "description": "チャンネルをMiteruyoに追加するコンテキストメニュー項目"
+  },
+  "enableNotifications": {
+    "message": "配信開始時にデスクトップ通知",
+    "description": "全体設定のデスクトップ通知ラベル"
+  },
+  "notificationHelp": {
+    "message": "通知が出ない場合はOSとchromeの設定を確認してください",
+    "description": "通知設定のヘルプツールチップ"
+  },
+  "notificationTitle": {
+    "message": "配信開始！",
+    "description": "デスクトップ通知のタイトル"
+  },
+  "notificationBody": {
+    "message": "$channel$が配信を開始しました！",
+    "description": "デスクトップ通知の本文",
+    "placeholders": {
+      "channel": {
+        "content": "$1"
+      }
+    }
+  },
+  "notificationSetting": {
+    "message": "通知",
+    "description": "個別設定の通知設定ラベル"
+  },
+  "notificationGlobal": {
+    "message": "全体設定に従う",
+    "description": "個別設定の通知設定（全体）"
+  },
+  "notificationOn": {
+    "message": "出す",
+    "description": "個別設定の通知設定（オン）"
+  },
+  "notificationOff": {
+    "message": "出さない",
+    "description": "個別設定の通知設定（オフ）"
+  },
+  "authExpiredTitle": {
+    "message": "Twitchの認証が切れました",
+    "description": "認証切れ通知のタイトル"
+  },
+  "authExpiredBody": {
+    "message": "ポップアップを開いて再度ログインしてください",
+    "description": "認証切れ通知の本文"
+  },
+  "about": {
+    "message": "Miteruyoについて",
+    "description": "Aboutボタン/タイトル"
+  },
+  "version": {
+    "message": "バージョン",
+    "description": "バージョン情報ラベル"
+  },
+  "support": {
+    "message": "ご支援",
+    "description": "支援リンク用ラベル"
+  },
+  "supportDetailsSummary": {
+    "message": "開発支援について",
+    "description": "開発支援についての注釈を開閉する見出し"
+  },
+  "supportDetailsIntro": {
+    "message": "このソフトは、もともと作者自身の利用のために開発しているものを、希望があったため無料で公開しているものです。",
+    "description": "ソフトを無料公開している背景"
+  },
+  "supportDetailsRequests": {
+    "message": "開発継続の支援として、OFUSEの支援付きレターで不具合報告・改善案・機能要望を受け付けています。",
+    "description": "OFUSEで受け付ける内容"
+  },
+  "supportDetailsDisclaimer": {
+    "message": "いただいた内容は今後の開発の参考にしますが、採用・実装・返信・調査・修正・公開時期を保証するものではありません。個別の開発依頼、請負契約、有償サポートとしてお受けするものではありません。",
+    "description": "支援付きレターに関する免責事項"
+  },
+  "supportDetailsRights": {
+    "message": "採用した内容は、作者の判断で無料公開版や今後の関連ソフトに反映する場合があります。その場合でも、投稿者への個別報酬、権利付与、クレジット表記等は発生しません。",
+    "description": "採用内容の反映と権利に関する説明"
+  },
+  "supportDetailsPrivacy": {
+    "message": "個人情報、秘密情報、業務上の機密、第三者の著作物・コードなどは送信しないでください。",
+    "description": "送信してはいけない情報についての注意"
+  },
+  "githubLink": {
+    "message": "GitHubリポジトリ",
+    "description": "GitHubリンクのテキスト"
+  },
+  "mutedHelpTitle": {
+    "message": "配信が自動で開いた時にミュートになる場合",
+    "description": "自動ミュート問題のヘルプ見出し"
+  },
+  "mutedHelpBody": {
+    "message": "Twitchは、クリック等の操作なしで開かれたタブでは常にミュートで再生を開始します。そしてChromeは、このブラウザのプロファイルでtwitch.tvへの音声つき自動再生が許可されている場合にのみ、スクリプトによるミュート解除を許可します。Miteruyoが自動で開いた配信がミュートになる場合は、Twitchの音声設定を開いて「許可」に変更してから、もう一度お試しください。",
+    "description": "自動ミュート問題のヘルプ本文"
+  },
+  "openTwitchSoundSettingsLabel": {
+    "message": "Twitchの音声設定を開く",
+    "description": "Twitchの音声設定を開くボタンのラベル"
+  },
+  "categorySearchDefaultPlaceholder": {
+    "message": "カテゴリを検索...",
+    "description": "カテゴリ検索のデフォルトプレースホルダー"
+  },
+  "brandedContentLabel": {
+    "message": "PR配信",
+    "description": "個別設定のプロモーション配信ラベル"
+  },
+  "brandedOpen": {
+    "message": "開く",
+    "description": "プロモーション配信を開く選択肢"
+  },
+  "brandedBlock": {
+    "message": "開かない",
+    "description": "プロモーション配信を開かない選択肢"
+  },
+  "brandedGlobal": {
+    "message": "全体設定に従う",
+    "description": "プロモーション配信の全体設定に従う選択肢"
+  },
+  "categoryOverlapWarning": {
+    "message": "以下は全体設定で既に指定されています: $categories$",
+    "description": "カテゴリ重複警告メッセージ",
+    "placeholders": {
+      "categories": {
+        "content": "$1"
+      }
+    }
+  },
+  "noResults": {
+    "message": "見つかりません",
+    "description": "カテゴリ検索で結果がない場合のメッセージ"
+  },
+  "volumeLabel": {
+    "message": "音量",
+    "description": "個別チャンネルの音量設定ラベル"
+  },
+  "statusLive": {
+    "message": "LIVE",
+    "description": "チャンネルがライブ中のステータス表示"
+  },
+  "statusOffline": {
+    "message": "OFFLINE",
+    "description": "チャンネルがオフラインのステータス表示"
+  },
+  "statusNotFound": {
+    "message": "NOT FOUND",
+    "description": "チャンネルが見つからないステータス表示"
+  },
+  "channelInputLabel": {
+    "message": "チャンネル名",
+    "description": "チャンネル名入力のアクセシビリティラベル"
+  },
+  "invalidChannelName": {
+    "message": "チャンネル名は3〜25文字の英数字とアンダースコアのみ使用できます",
+    "description": "チャンネル名バリデーションエラーメッセージ"
+  },
+  "enableMaxTabs": {
+    "message": "開くタブ数を制限",
+    "description": "タブ数上限設定のチェックボックスラベル"
+  },
+  "maxTabUnit": {
+    "message": "タブ",
+    "description": "タブ数上限の単位ラベル"
+  },
+  "checkInterval": {
+    "message": "チェック間隔",
+    "description": "配信チェック間隔のラベル"
+  },
+  "autoOpenOnce": {
+    "message": "自動で開いたタブを閉じたら次の配信まで開かない",
+    "description": "自動で開いたタブを閉じた後は現在の配信中だけ再度開かず、次の配信では通常どおり開くオプション"
+  },
+  "snoozed": {
+    "message": "スヌーズ中",
+    "description": "スヌーズ中のステータス表示"
+  },
+  "openChannelButton": {
+    "message": "開く",
+    "description": "ライブ中ボタンをホバーまたはキーボードフォーカスしたときの短い操作ラベル"
+  },
+  "openChannel": {
+    "message": "チャンネルを開く",
+    "description": "ライブ中ステータスボタンのアクセシビリティラベル"
+  },
+  "autoOpenStateNormal": {
+    "message": "自動オープン中（クリックでスヌーズ）",
+    "description": "自動オープン切り替えボタンのツールチップ：通常状態"
+  },
+  "autoOpenStateSnoozed": {
+    "message": "スヌーズ中：今回の配信のみ自動オープンを止めます（クリックで停止に切り替え）",
+    "description": "自動オープン切り替えボタンのツールチップ：スヌーズ状態"
+  },
+  "autoOpenStatePaused": {
+    "message": "停止中：自動オープンしません（クリックで通常状態に戻す）",
+    "description": "自動オープン切り替えボタンのツールチップ：停止状態"
+  },
+  "priorityLabel": {
+    "message": "優先チャンネル",
+    "description": "優先チャンネル設定のラベル"
+  },
+  "priorityHelp": {
+    "message": "開くタブ数の上限に達した場合、優先チャンネルを優先的に開き、必要に応じて他のチャンネルのタブを自動的に閉じます。",
+    "description": "優先チャンネル設定の説明"
+  },
+  "priority": {
+    "message": "優先チャンネル",
+    "description": "優先チャンネルトグルのアクセシビリティラベル"
+  },
+  "channelActions": {
+    "message": "チャンネル操作",
+    "description": "チャンネル行の操作ボタングループのアクセシビリティラベル"
+  },
+  "channelSettings": {
+    "message": "個別設定",
+    "description": "チャンネル個別設定ボタンのアクセシビリティラベル"
+  },
+  "deleteChannel": {
+    "message": "チャンネルを削除",
+    "description": "チャンネル削除ボタンのアクセシビリティラベル"
+  },
+  "dynamicRotation": {
+    "message": "タブ数で分割",
+    "description": "タブ数に応じてローテーション間隔を動的に変化させるオプション"
+  },
+  "sortChannels": {
+    "message": "並び順"
+  },
+  "sortOptionsButton": {
+    "message": "並び順"
+  },
+  "sortOptionsShow": {
+    "message": "並び順を展開"
+  },
+  "sortOptionsHide": {
+    "message": "並び順を閉じる"
+  },
+  "sort_registered": {
+    "message": "登録順"
+  },
+  "sort_name": {
+    "message": "名前順"
+  },
+  "sort_started_newest": {
+    "message": "配信開始が新しい順"
+  },
+  "sort_started_oldest": {
+    "message": "配信開始が古い順"
+  },
+  "sort_registered_short": {
+    "message": "登録順"
+  },
+  "sort_name_short": {
+    "message": "名前順"
+  },
+  "sort_started_newest_short": {
+    "message": "開始・新"
+  },
+  "sort_started_oldest_short": {
+    "message": "開始・古"
+  },
+  "sort_registered_accessible": {
+    "message": "登録順で並べ替え"
+  },
+  "sort_name_accessible": {
+    "message": "チャンネル名で並べ替え"
+  },
+  "sort_started_newest_accessible": {
+    "message": "配信開始日時が新しい順に並べ替え"
+  },
+  "sort_started_oldest_accessible": {
+    "message": "配信開始日時が古い順に並べ替え"
+  },
+  "streamDetails": {
+    "message": "配信の詳細"
+  },
+  "notAvailable": {
+    "message": "未取得"
+  },
+  "streamDetailsUnavailable": {
+    "message": "配信情報を取得できませんでした"
+  },
+  "streamTitle": {
+    "message": "タイトル"
+  },
+  "streamCategory": {
+    "message": "カテゴリ"
+  },
+  "streamStarted": {
+    "message": "配信開始"
+  },
+  "closeDetails": {
+    "message": "閉じる"
+  },
+  "monitorAllFollowedChannelsLabel": {
+    "message": "フォロー中のチャンネルすべてを対象にする"
+  },
+  "monitorAllFollowedChannelsHint": {
+    "message": "フォロー中のチャンネルを一覧には追加せず、負荷を抑えるため1件ずつ順番に確認します。手動追加済みチャンネルでは個別設定が優先されます。"
+  },
+  "followedScopeReauthNeeded": {
+    "message": "フォロー中チャンネルの監視には user:read:follows スコープが必要です。Twitch接続をやり直してください。"
+  }
 }

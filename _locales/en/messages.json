@@ -1,398 +1,407 @@
 {
-	"channelAddPlaceholder": {
-		"message": "Enter channel",
-		"description": "Add a channel."
-	},
-	"channelAddBtn": {
-		"message": "Add",
-		"description": "Add a channel."
-	},
-	"enableOpen": {
-		"message": "Open automatically",
-		"description": "Set whether to open automatically or not."
-	},
-	"showOnlyLive": {
-		"message": "Show only live",
-		"description": "Option label to display only channels that are currently live."
-	},
-	"settings": {
-		"message": "Settings",
-		"description": ""
-	},
-	"openNewWindow": {
-		"message": "Open in a new window",
-		"description": "Label for the option to open in a new window."
-	},
-	"enableTabRotation": {
-		"message": "Auto-switch between tabs",
-		"description": "Label for the option to auto-switch between multiple tabs."
-	},
-	"minutes": {
-		"message": "minutes",
-		"description": "Unit of time (minutes)."
-	},
-	"enableTabMute": {
-		"message": "Auto-mute inactive tabs",
-		"description": "Label for the option to automatically mute inactive tabs."
-	},
-	"enableAutoClose": {
-		"message": "Auto-close offline channels",
-		"description": "Label for the option to automatically close offline channels."
-	},
-	"closeUnregisteredId": {
-		"message": "Close unregistered streams on focus",
-		"description": "Label for closing an unregistered live Twitch channel tab when focused."
-	},
-	"pause": {
-		"message": "Pause",
-		"description": "Label for pause button."
-	},
-	"openWithMiteruyo": {
-		"message": "Open with Miteruyo",
-		"description": "Label for context menu."
-	},
-	"skipBrandedContent": {
-		"message": "Skip sponsored streams",
-		"description": "Label for option to skip branded/sponsored content."
-	},
-	"allowedOnlyCategories": {
-		"message": "Open only these categories",
-		"description": "Label for allowed-only categories setting"
-	},
-	"allowedOnlyCategoriesHelp": {
-		"message": "Override category settings and open only specified categories. Blocked categories are ignored when this is set.",
-		"description": "Tooltip for open only these categories"
-	},
-	"blockedCategories": {
-		"message": "Blocked categories",
-		"description": "Label for blocked category names input."
-	},
-	"blockedCategoriesHelp": {
-		"message": "Streams in specified categories will not auto-open",
-		"description": "Tooltip for blocked categories (global)"
-	},
-	"blockedCategoriesChannelHelp": {
-		"message": "Categories to block in addition to global settings",
-		"description": "Tooltip for blocked categories (per-channel)"
-	},
-	"allowedCategoriesException": {
-		"message": "Global block exceptions",
-		"description": "Per-channel label for global block exceptions"
-	},
-	"allowedCategoriesExceptionHelp": {
-		"message": "Categories from global blocked list that you want to open only for this channel",
-		"description": "Tooltip for global block exceptions"
-	},
-	"categorySearchPlaceholder": {
-		"message": "Search and add category...",
-		"description": "Placeholder for category search"
-	},
-	"addPlaceholder": {
-		"message": "Add...",
-		"description": "Placeholder for add dropdown"
-	},
-	"confirmDelete": {
-		"message": "Are you sure you want to delete $channel$?",
-		"description": "Confirmation message when deleting a channel",
-		"placeholders": {
-			"channel": {
-				"content": "$1"
-			}
-		}
-	},
-	"addToMiteruyo": {
-		"message": "Add to Miteruyo",
-		"description": "Context menu item to add a channel to Miteruyo"
-	},
-	"enableNotifications": {
-		"message": "Desktop notifications when streaming starts",
-		"description": "Global settings label for desktop notifications"
-	},
-	"notificationHelp": {
-		"message": "If notifications do not appear, please check your OS and Chrome settings.",
-		"description": "Help tooltip for notification settings"
-	},
-	"notificationTitle": {
-		"message": "Stream Live!",
-		"description": "Title for desktop notification"
-	},
-	"notificationBody": {
-		"message": "$channel$ is now live!",
-		"description": "Body for desktop notification",
-		"placeholders": {
-			"channel": {
-				"content": "$1"
-			}
-		}
-	},
-	"notificationSetting": {
-		"message": "Notifications",
-		"description": "Per-channel setting label for notifications"
-	},
-	"notificationGlobal": {
-		"message": "Global",
-		"description": "Per-channel setting option (Global)"
-	},
-	"notificationOn": {
-		"message": "On",
-		"description": "Per-channel setting option (On)"
-	},
-	"notificationOff": {
-		"message": "Off",
-		"description": "Per-channel notification setting (Off)"
-	},
-	"authExpiredTitle": {
-		"message": "Twitch login expired",
-		"description": "Title for the auth-expired notification"
-	},
-	"authExpiredBody": {
-		"message": "Open the popup and log in again",
-		"description": "Body for the auth-expired notification"
-	},
-	"about": {
-		"message": "About Miteruyo",
-		"description": "About button/title"
-	},
-	"version": {
-		"message": "Version",
-		"description": "Version info label"
-	},
-	"support": {
-		"message": "Support",
-		"description": "Support link label"
-	},
-	"supportDetailsSummary": {
-		"message": "About development support",
-		"description": "Summary that toggles the development support note"
-	},
-	"supportDetailsIntro": {
-		"message": "This software was originally developed for the author's own use and is available free of charge in response to requests from others.",
-		"description": "Background on why the software is available for free"
-	},
-	"supportDetailsRequests": {
-		"message": "To support continued development, bug reports, improvement ideas, and feature requests are accepted through OFUSE support letters.",
-		"description": "Types of feedback accepted through OFUSE"
-	},
-	"supportDetailsDisclaimer": {
-		"message": "Submissions may inform future development, but adoption, implementation, replies, investigation, fixes, and release dates are not guaranteed. They are not accepted as individual development commissions, work-for-hire contracts, or paid support.",
-		"description": "Disclaimer for support-letter submissions"
-	},
-	"supportDetailsRights": {
-		"message": "Accepted ideas may be incorporated, at the author's discretion, into the free public version or future related software. This does not entitle the submitter to individual compensation, rights, or credit.",
-		"description": "How accepted ideas may be used and associated rights"
-	},
-	"supportDetailsPrivacy": {
-		"message": "Do not submit personal information, confidential information, business secrets, or third-party copyrighted works or code.",
-		"description": "Warning about information that must not be submitted"
-	},
-	"githubLink": {
-		"message": "GitHub Repository",
-		"description": "GitHub link text"
-	},
-	"mutedHelpTitle": {
-		"message": "Stream opens muted?",
-		"description": "Heading for the auto-mute troubleshooting help"
-	},
-	"mutedHelpBody": {
-		"message": "Twitch always starts muted for tabs opened without a direct click, and Chrome only lets scripts unmute it if this browser profile is allowed to autoplay sound on twitch.tv. If a stream Miteruyo opens automatically is muted, open Twitch's sound setting and set it to Allow, then try again.",
-		"description": "Body text for the auto-mute troubleshooting help"
-	},
-	"openTwitchSoundSettingsLabel": {
-		"message": "Open Twitch sound setting",
-		"description": "Label for the button that opens Twitch's Chrome sound setting"
-	},
-	"categorySearchDefaultPlaceholder": {
-		"message": "Search categories...",
-		"description": "Default placeholder for category search"
-	},
-	"brandedContentLabel": {
-		"message": "Sponsored",
-		"description": "Per-channel branded content label"
-	},
-	"brandedOpen": {
-		"message": "Open",
-		"description": "Open branded content option"
-	},
-	"brandedBlock": {
-		"message": "Block",
-		"description": "Block branded content option"
-	},
-	"brandedGlobal": {
-		"message": "Global",
-		"description": "Follow global setting for branded content option"
-	},
-	"categoryOverlapWarning": {
-		"message": "Already set in global settings: $categories$",
-		"description": "Category overlap warning message",
-		"placeholders": {
-			"categories": {
-				"content": "$1"
-			}
-		}
-	},
-	"noResults": {
-		"message": "No results found",
-		"description": "Message when category search returns no results"
-	},
-	"volumeLabel": {
-		"message": "Volume",
-		"description": "Per-channel volume setting label"
-	},
-	"statusLive": {
-		"message": "LIVE",
-		"description": "Channel is live status display"
-	},
-	"statusOffline": {
-		"message": "OFFLINE",
-		"description": "Channel is offline status display"
-	},
-	"statusNotFound": {
-		"message": "NOT FOUND",
-		"description": "Channel not found status display"
-	},
-	"channelInputLabel": {
-		"message": "Channel name",
-		"description": "Accessibility label for channel name input"
-	},
-	"invalidChannelName": {
-		"message": "Channel name must be 3-25 characters (letters, numbers, underscore)",
-		"description": "Channel name validation error message"
-	},
-	"enableMaxTabs": {
-		"message": "Limit number of tabs",
-		"description": "Checkbox label for max tabs setting"
-	},
-	"maxTabUnit": {
-		"message": "tabs",
-		"description": "Unit label for max tab count"
-	},
-	"checkInterval": {
-		"message": "Check interval",
-		"description": "Label for stream check interval setting"
-	},
-	"autoOpenOnce": {
-		"message": "Closing an auto-opened tab snoozes until the next stream",
-		"description": "Option to prevent reopening a closed tab during the current stream while allowing it to open normally next stream"
-	},
-	"snoozed": {
-		"message": "Snoozed",
-		"description": "Status display when channel is snoozed"
-	},
-	"openChannelButton": {
-		"message": "Open",
-		"description": "Short action label shown on a live button while hovered or keyboard focused"
-	},
-	"openChannel": {
-		"message": "Open channel",
-		"description": "Accessibility label for the live status button"
-	},
-	"autoOpenStateNormal": {
-		"message": "Auto-open enabled (click to snooze)",
-		"description": "Tooltip for the auto-open toggle button: normal state"
-	},
-	"autoOpenStateSnoozed": {
-		"message": "Snoozed: auto-open suppressed for this stream only (click to pause)",
-		"description": "Tooltip for the auto-open toggle button: snoozed state"
-	},
-	"autoOpenStatePaused": {
-		"message": "Paused: auto-open disabled (click to reset)",
-		"description": "Tooltip for the auto-open toggle button: paused state"
-	},
-	"priorityLabel": {
-		"message": "Priority channel",
-		"description": "Label for the priority channel setting"
-	},
-	"priorityHelp": {
-		"message": "When the tab limit is reached, priority channels are opened first, closing other channels' tabs automatically if needed.",
-		"description": "Explanation for the priority channel setting"
-	},
-	"priority": {
-		"message": "Priority channel",
-		"description": "Accessibility label for the priority channel toggle"
-	},
-	"channelActions": {
-		"message": "Channel actions",
-		"description": "Accessibility label for the channel row action group"
-	},
-	"channelSettings": {
-		"message": "Channel settings",
-		"description": "Accessibility label for the per-channel settings button"
-	},
-	"deleteChannel": {
-		"message": "Delete channel",
-		"description": "Accessibility label for the delete channel button"
-	},
-	"dynamicRotation": {
-		"message": "Divide by tab count",
-		"description": "Dynamically adjust rotation interval based on number of open tabs"
-	},
-	"sortChannels": {
-		"message": "Sort by"
-	},
-	"sortOptionsButton": {
-		"message": "Sort"
-	},
-	"sortOptionsShow": {
-		"message": "Show sort options"
-	},
-	"sortOptionsHide": {
-		"message": "Hide sort options"
-	},
-	"sort_registered": {
-		"message": "Registered order"
-	},
-	"sort_name": {
-		"message": "Name"
-	},
-	"sort_started_newest": {
-		"message": "Recently started"
-	},
-	"sort_started_oldest": {
-		"message": "Oldest start first"
-	},
-	"sort_registered_short": {
-		"message": "Added"
-	},
-	"sort_name_short": {
-		"message": "Name"
-	},
-	"sort_started_newest_short": {
-		"message": "Start new"
-	},
-	"sort_started_oldest_short": {
-		"message": "Start old"
-	},
-	"sort_registered_accessible": {
-		"message": "Sort by registered order"
-	},
-	"sort_name_accessible": {
-		"message": "Sort by channel name"
-	},
-	"sort_started_newest_accessible": {
-		"message": "Sort by newest stream start time"
-	},
-	"sort_started_oldest_accessible": {
-		"message": "Sort by oldest stream start time"
-	},
-	"streamDetails": {
-		"message": "Stream details"
-	},
-	"notAvailable": {
-		"message": "Not available"
-	},
-	"streamDetailsUnavailable": {
-		"message": "Stream information unavailable"
-	},
-	"streamTitle": {
-		"message": "Title"
-	},
-	"streamCategory": {
-		"message": "Category"
-	},
-	"streamStarted": {
-		"message": "Started"
-	},
-	"closeDetails": {
-		"message": "Close"
-	}
+  "channelAddPlaceholder": {
+    "message": "Enter channel",
+    "description": "Add a channel."
+  },
+  "channelAddBtn": {
+    "message": "Add",
+    "description": "Add a channel."
+  },
+  "enableOpen": {
+    "message": "Open automatically",
+    "description": "Set whether to open automatically or not."
+  },
+  "showOnlyLive": {
+    "message": "Show only live",
+    "description": "Option label to display only channels that are currently live."
+  },
+  "settings": {
+    "message": "Settings",
+    "description": ""
+  },
+  "openNewWindow": {
+    "message": "Open in a new window",
+    "description": "Label for the option to open in a new window."
+  },
+  "enableTabRotation": {
+    "message": "Auto-switch between tabs",
+    "description": "Label for the option to auto-switch between multiple tabs."
+  },
+  "minutes": {
+    "message": "minutes",
+    "description": "Unit of time (minutes)."
+  },
+  "enableTabMute": {
+    "message": "Auto-mute inactive tabs",
+    "description": "Label for the option to automatically mute inactive tabs."
+  },
+  "enableAutoClose": {
+    "message": "Auto-close offline channels",
+    "description": "Label for the option to automatically close offline channels."
+  },
+  "closeUnregisteredId": {
+    "message": "Close unregistered streams on focus",
+    "description": "Label for closing an unregistered live Twitch channel tab when focused."
+  },
+  "pause": {
+    "message": "Pause",
+    "description": "Label for pause button."
+  },
+  "openWithMiteruyo": {
+    "message": "Open with Miteruyo",
+    "description": "Label for context menu."
+  },
+  "skipBrandedContent": {
+    "message": "Skip sponsored streams",
+    "description": "Label for option to skip branded/sponsored content."
+  },
+  "allowedOnlyCategories": {
+    "message": "Open only these categories",
+    "description": "Label for allowed-only categories setting"
+  },
+  "allowedOnlyCategoriesHelp": {
+    "message": "Override category settings and open only specified categories. Blocked categories are ignored when this is set.",
+    "description": "Tooltip for open only these categories"
+  },
+  "blockedCategories": {
+    "message": "Blocked categories",
+    "description": "Label for blocked category names input."
+  },
+  "blockedCategoriesHelp": {
+    "message": "Streams in specified categories will not auto-open",
+    "description": "Tooltip for blocked categories (global)"
+  },
+  "blockedCategoriesChannelHelp": {
+    "message": "Categories to block in addition to global settings",
+    "description": "Tooltip for blocked categories (per-channel)"
+  },
+  "allowedCategoriesException": {
+    "message": "Global block exceptions",
+    "description": "Per-channel label for global block exceptions"
+  },
+  "allowedCategoriesExceptionHelp": {
+    "message": "Categories from global blocked list that you want to open only for this channel",
+    "description": "Tooltip for global block exceptions"
+  },
+  "categorySearchPlaceholder": {
+    "message": "Search and add category...",
+    "description": "Placeholder for category search"
+  },
+  "addPlaceholder": {
+    "message": "Add...",
+    "description": "Placeholder for add dropdown"
+  },
+  "confirmDelete": {
+    "message": "Are you sure you want to delete $channel$?",
+    "description": "Confirmation message when deleting a channel",
+    "placeholders": {
+      "channel": {
+        "content": "$1"
+      }
+    }
+  },
+  "addToMiteruyo": {
+    "message": "Add to Miteruyo",
+    "description": "Context menu item to add a channel to Miteruyo"
+  },
+  "enableNotifications": {
+    "message": "Desktop notifications when streaming starts",
+    "description": "Global settings label for desktop notifications"
+  },
+  "notificationHelp": {
+    "message": "If notifications do not appear, please check your OS and Chrome settings.",
+    "description": "Help tooltip for notification settings"
+  },
+  "notificationTitle": {
+    "message": "Stream Live!",
+    "description": "Title for desktop notification"
+  },
+  "notificationBody": {
+    "message": "$channel$ is now live!",
+    "description": "Body for desktop notification",
+    "placeholders": {
+      "channel": {
+        "content": "$1"
+      }
+    }
+  },
+  "notificationSetting": {
+    "message": "Notifications",
+    "description": "Per-channel setting label for notifications"
+  },
+  "notificationGlobal": {
+    "message": "Global",
+    "description": "Per-channel setting option (Global)"
+  },
+  "notificationOn": {
+    "message": "On",
+    "description": "Per-channel setting option (On)"
+  },
+  "notificationOff": {
+    "message": "Off",
+    "description": "Per-channel notification setting (Off)"
+  },
+  "authExpiredTitle": {
+    "message": "Twitch login expired",
+    "description": "Title for the auth-expired notification"
+  },
+  "authExpiredBody": {
+    "message": "Open the popup and log in again",
+    "description": "Body for the auth-expired notification"
+  },
+  "about": {
+    "message": "About Miteruyo",
+    "description": "About button/title"
+  },
+  "version": {
+    "message": "Version",
+    "description": "Version info label"
+  },
+  "support": {
+    "message": "Support",
+    "description": "Support link label"
+  },
+  "supportDetailsSummary": {
+    "message": "About development support",
+    "description": "Summary that toggles the development support note"
+  },
+  "supportDetailsIntro": {
+    "message": "This software was originally developed for the author's own use and is available free of charge in response to requests from others.",
+    "description": "Background on why the software is available for free"
+  },
+  "supportDetailsRequests": {
+    "message": "To support continued development, bug reports, improvement ideas, and feature requests are accepted through OFUSE support letters.",
+    "description": "Types of feedback accepted through OFUSE"
+  },
+  "supportDetailsDisclaimer": {
+    "message": "Submissions may inform future development, but adoption, implementation, replies, investigation, fixes, and release dates are not guaranteed. They are not accepted as individual development commissions, work-for-hire contracts, or paid support.",
+    "description": "Disclaimer for support-letter submissions"
+  },
+  "supportDetailsRights": {
+    "message": "Accepted ideas may be incorporated, at the author's discretion, into the free public version or future related software. This does not entitle the submitter to individual compensation, rights, or credit.",
+    "description": "How accepted ideas may be used and associated rights"
+  },
+  "supportDetailsPrivacy": {
+    "message": "Do not submit personal information, confidential information, business secrets, or third-party copyrighted works or code.",
+    "description": "Warning about information that must not be submitted"
+  },
+  "githubLink": {
+    "message": "GitHub Repository",
+    "description": "GitHub link text"
+  },
+  "mutedHelpTitle": {
+    "message": "Stream opens muted?",
+    "description": "Heading for the auto-mute troubleshooting help"
+  },
+  "mutedHelpBody": {
+    "message": "Twitch always starts muted for tabs opened without a direct click, and Chrome only lets scripts unmute it if this browser profile is allowed to autoplay sound on twitch.tv. If a stream Miteruyo opens automatically is muted, open Twitch's sound setting and set it to Allow, then try again.",
+    "description": "Body text for the auto-mute troubleshooting help"
+  },
+  "openTwitchSoundSettingsLabel": {
+    "message": "Open Twitch sound setting",
+    "description": "Label for the button that opens Twitch's Chrome sound setting"
+  },
+  "categorySearchDefaultPlaceholder": {
+    "message": "Search categories...",
+    "description": "Default placeholder for category search"
+  },
+  "brandedContentLabel": {
+    "message": "Sponsored",
+    "description": "Per-channel branded content label"
+  },
+  "brandedOpen": {
+    "message": "Open",
+    "description": "Open branded content option"
+  },
+  "brandedBlock": {
+    "message": "Block",
+    "description": "Block branded content option"
+  },
+  "brandedGlobal": {
+    "message": "Global",
+    "description": "Follow global setting for branded content option"
+  },
+  "categoryOverlapWarning": {
+    "message": "Already set in global settings: $categories$",
+    "description": "Category overlap warning message",
+    "placeholders": {
+      "categories": {
+        "content": "$1"
+      }
+    }
+  },
+  "noResults": {
+    "message": "No results found",
+    "description": "Message when category search returns no results"
+  },
+  "volumeLabel": {
+    "message": "Volume",
+    "description": "Per-channel volume setting label"
+  },
+  "statusLive": {
+    "message": "LIVE",
+    "description": "Channel is live status display"
+  },
+  "statusOffline": {
+    "message": "OFFLINE",
+    "description": "Channel is offline status display"
+  },
+  "statusNotFound": {
+    "message": "NOT FOUND",
+    "description": "Channel not found status display"
+  },
+  "channelInputLabel": {
+    "message": "Channel name",
+    "description": "Accessibility label for channel name input"
+  },
+  "invalidChannelName": {
+    "message": "Channel name must be 3-25 characters (letters, numbers, underscore)",
+    "description": "Channel name validation error message"
+  },
+  "enableMaxTabs": {
+    "message": "Limit number of tabs",
+    "description": "Checkbox label for max tabs setting"
+  },
+  "maxTabUnit": {
+    "message": "tabs",
+    "description": "Unit label for max tab count"
+  },
+  "checkInterval": {
+    "message": "Check interval",
+    "description": "Label for stream check interval setting"
+  },
+  "autoOpenOnce": {
+    "message": "Closing an auto-opened tab snoozes until the next stream",
+    "description": "Option to prevent reopening a closed tab during the current stream while allowing it to open normally next stream"
+  },
+  "snoozed": {
+    "message": "Snoozed",
+    "description": "Status display when channel is snoozed"
+  },
+  "openChannelButton": {
+    "message": "Open",
+    "description": "Short action label shown on a live button while hovered or keyboard focused"
+  },
+  "openChannel": {
+    "message": "Open channel",
+    "description": "Accessibility label for the live status button"
+  },
+  "autoOpenStateNormal": {
+    "message": "Auto-open enabled (click to snooze)",
+    "description": "Tooltip for the auto-open toggle button: normal state"
+  },
+  "autoOpenStateSnoozed": {
+    "message": "Snoozed: auto-open suppressed for this stream only (click to pause)",
+    "description": "Tooltip for the auto-open toggle button: snoozed state"
+  },
+  "autoOpenStatePaused": {
+    "message": "Paused: auto-open disabled (click to reset)",
+    "description": "Tooltip for the auto-open toggle button: paused state"
+  },
+  "priorityLabel": {
+    "message": "Priority channel",
+    "description": "Label for the priority channel setting"
+  },
+  "priorityHelp": {
+    "message": "When the tab limit is reached, priority channels are opened first, closing other channels' tabs automatically if needed.",
+    "description": "Explanation for the priority channel setting"
+  },
+  "priority": {
+    "message": "Priority channel",
+    "description": "Accessibility label for the priority channel toggle"
+  },
+  "channelActions": {
+    "message": "Channel actions",
+    "description": "Accessibility label for the channel row action group"
+  },
+  "channelSettings": {
+    "message": "Channel settings",
+    "description": "Accessibility label for the per-channel settings button"
+  },
+  "deleteChannel": {
+    "message": "Delete channel",
+    "description": "Accessibility label for the delete channel button"
+  },
+  "dynamicRotation": {
+    "message": "Divide by tab count",
+    "description": "Dynamically adjust rotation interval based on number of open tabs"
+  },
+  "sortChannels": {
+    "message": "Sort by"
+  },
+  "sortOptionsButton": {
+    "message": "Sort"
+  },
+  "sortOptionsShow": {
+    "message": "Show sort options"
+  },
+  "sortOptionsHide": {
+    "message": "Hide sort options"
+  },
+  "sort_registered": {
+    "message": "Registered order"
+  },
+  "sort_name": {
+    "message": "Name"
+  },
+  "sort_started_newest": {
+    "message": "Recently started"
+  },
+  "sort_started_oldest": {
+    "message": "Oldest start first"
+  },
+  "sort_registered_short": {
+    "message": "Added"
+  },
+  "sort_name_short": {
+    "message": "Name"
+  },
+  "sort_started_newest_short": {
+    "message": "Start new"
+  },
+  "sort_started_oldest_short": {
+    "message": "Start old"
+  },
+  "sort_registered_accessible": {
+    "message": "Sort by registered order"
+  },
+  "sort_name_accessible": {
+    "message": "Sort by channel name"
+  },
+  "sort_started_newest_accessible": {
+    "message": "Sort by newest stream start time"
+  },
+  "sort_started_oldest_accessible": {
+    "message": "Sort by oldest stream start time"
+  },
+  "streamDetails": {
+    "message": "Stream details"
+  },
+  "notAvailable": {
+    "message": "Not available"
+  },
+  "streamDetailsUnavailable": {
+    "message": "Stream information unavailable"
+  },
+  "streamTitle": {
+    "message": "Title"
+  },
+  "streamCategory": {
+    "message": "Category"
+  },
+  "streamStarted": {
+    "message": "Started"
+  },
+  "closeDetails": {
+    "message": "Close"
+  },
+  "monitorAllFollowedChannelsLabel": {
+    "message": "Monitor all followed channels"
+  },
+  "monitorAllFollowedChannelsHint": {
+    "message": "Followed channels are checked one at a time to limit load and are not added to the list. Per-channel settings take priority for manually added channels."
+  },
+  "followedScopeReauthNeeded": {
+    "message": "Monitoring followed channels requires the user:read:follows scope. Please reconnect your Twitch account."
+  }
 }
