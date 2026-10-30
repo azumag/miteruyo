@@ -41,7 +41,7 @@ export default [
     },
   },
   {
-    files: ['background.js', 'background-functions.js'],
+    files: ['background.js', 'background-functions.js', 'helix-batch-fetch.js'],
     languageOptions: {
       sourceType: 'module',
     },
