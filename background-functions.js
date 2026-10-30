@@ -1249,3 +1249,321 @@ async function checkStream(channel, oauth_token) {
     return { ...channel, status: 'error', lastError: error.message };
   }
 }
+
+//==== フォロー中チャンネル監視（Issue #151）====
+// 手動追加 channels とは分離した専用ランタイム状態 followedMonitorState で
+// 1分に1チャンネルだけ巡回する分散チェック。フォロー対象を一覧・channels へ
+// 一切追加しない。
+
+export const FOLLOWED_CHECK_ALARM = 'followedChannelCheck';
+export const FOLLOWED_RECHECK_MAX_HOURS = 6;
+export const FOLLOWED_RECHECK_MIN_MS = 60 * 1000;
+export const FOLLOWED_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
+export const FOLLOWED_BACKOFF_MS = [60 * 1000, 5 * 60 * 1000, 15 * 60 * 1000];
+export const FOLLOWED_STATE_KEY = 'followedMonitorState';
+
+let _followedTickRunning = false;
+
+function _defaultFollowedMonitorState() {
+  return { lastFollowListRefreshAt: 0, entries: {} };
+}
+
+async function _getFollowedState() {
+  const data = await chrome.storage.local.get(FOLLOWED_STATE_KEY);
+  const state = data[FOLLOWED_STATE_KEY];
+  return state && typeof state === 'object' ? state : _defaultFollowedMonitorState();
+}
+
+async function _saveFollowedState(state) {
+  await chrome.storage.local.set({ [FOLLOWED_STATE_KEY]: state });
+}
+
+function _randomBetween(min, max) {
+  return min + Math.floor(Math.random() * Math.max(1, max - min));
+}
+
+function _staggeredDelay(index) {
+  // 初回巡回は1分ずつずらして一斉実行を避ける
+  return (index + 1) * 60 * 1000;
+}
+
+function _nextCheckDelay() {
+  return _randomBetween(FOLLOWED_RECHECK_MIN_MS, FOLLOWED_RECHECK_MAX_HOURS * 60 * 60 * 1000);
+}
+
+function _backoffDelay(entry) {
+  const fails = (entry.consecutiveFailures || 0) + 1;
+  entry.consecutiveFailures = fails;
+  const idx = Math.min(fails - 1, FOLLOWED_BACKOFF_MS.length - 1);
+  return FOLLOWED_BACKOFF_MS[idx];
+}
+
+async function _manualChannelNames() {
+  const data = await chrome.storage.local.get('channels');
+  return new Set((data.channels || [])
+    .filter(c => c && c.name)
+    .map(c => normalizeChannelName(c.name).toLowerCase()));
+}
+
+// GET /helix/channels/followed の全ページ取得（user:read:follows scope）
+export async function fetchFollowedChannels(oauthToken, userId) {
+  const options = {
+    headers: { 'Client-ID': clientId, 'Authorization': 'Bearer ' + oauthToken },
+  };
+  const channels = [];
+  let cursor = '';
+  // フォロー総数は無限でないためページ上限を設ける（10件×100=1000上限相当を超えない安全弁）
+  for (let page = 0; page < 100; page++) {
+    const url = `https://api.twitch.tv/helix/channels/followed?user_id=${encodeURIComponent(userId)}&first=100${cursor ? `&after=${encodeURIComponent(cursor)}` : ''}`;
+    const response = await fetchWithRetry(url, options);
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+    const data = await response.json();
+    if (!Array.isArray(data.data)) break;
+    channels.push(...data.data);
+    cursor = data.pagination?.cursor || '';
+    if (!cursor) break;
+  }
+  return channels;
+}
+
+// /oauth2/validate で user_id と scopes を取得する
+export async function validateTokenScopes(oauthToken) {
+  const response = await fetch('https://id.twitch.tv/oauth2/validate', {
+    headers: { 'Authorization': 'OAuth ' + oauthToken },
+  });
+  if (!response.ok) return null;
+  const data = await response.json();
+  return {
+    userId: data.user_id || data.login,
+    scopes: Array.isArray(data.scopes) ? data.scopes : [],
+  };
+}
+
+// フォロー一覧を専用状態へ差分同期する。手動追加済みは除外。
+export async function syncFollowedChannels() {
+  const data = await chrome.storage.local.get(['isMonitorAllFollowedChannels', 'oauth_token', 'channels']);
+  if (!data.isMonitorAllFollowedChannels) return { skipped: 'disabled' };
+  const token = migrateOAuthToken(data.oauth_token);
+  if (!token) return { skipped: 'no_token' };
+
+  const validation = await validateTokenScopes(token);
+  if (!validation) return { skipped: 'invalid_token' };
+  if (!validation.scopes.includes('user:read:follows')) {
+    return { needScope: 'user:read:follows' };
+  }
+
+  const followed = await fetchFollowedChannels(token, validation.userId);
+  const state = await _getFollowedState();
+  const manualNames = await _manualChannelNames();
+  const seenIds = new Set();
+  let added = 0;
+  let removed = 0;
+
+  followed.forEach((c, index) => {
+    const id = String(c.broadcaster_id || '');
+    const login = c.broadcaster_login || c.broadcaster_name || '';
+    if (!id || !login) return;
+    seenIds.add(id);
+    if (manualNames.has(login.toLowerCase())) {
+      // 手動追加済みはフォロー巡回の対象外（手動設定を優先）
+      if (state.entries[id]) {
+        delete state.entries[id];
+        removed++;
+      }
+      return;
+    }
+    if (!state.entries[id]) {
+      state.entries[id] = {
+        login,
+        nextCheckAt: Date.now() + _staggeredDelay(index),
+        lastStreamId: null,
+        isLive: false,
+        hasBeenOpened: false,
+        snoozedForCurrentStream: false,
+        consecutiveFailures: 0,
+      };
+      added++;
+    }
+  });
+
+  for (const id of Object.keys(state.entries)) {
+    if (!seenIds.has(id)) {
+      delete state.entries[id];
+      removed++;
+    }
+  }
+
+  state.lastFollowListRefreshAt = Date.now();
+  await _saveFollowedState(state);
+  await _ensureFollowedAlarm();
+  return { total: Object.keys(state.entries).length, added, removed };
+}
+
+async function _ensureFollowedAlarm() {
+  const data = await chrome.storage.local.get('isMonitorAllFollowedChannels');
+  const existing = await chrome.alarms.get(FOLLOWED_CHECK_ALARM);
+  if (data.isMonitorAllFollowedChannels) {
+    if (!existing) {
+      chrome.alarms.create(FOLLOWED_CHECK_ALARM, { periodInMinutes: 1 });
+    }
+  } else if (existing) {
+    await chrome.alarms.clear(FOLLOWED_CHECK_ALARM);
+  }
+}
+
+export async function ensureFollowedCheckAlarm() {
+  await _ensureFollowedAlarm();
+}
+
+// 巡回直前の重複確認を含む1件だけのチェック。サービスワーカー重複実行はロックで抑止。
+export async function followedChannelTick() {
+  if (_followedTickRunning) return { skipped: 'locked' };
+  _followedTickRunning = true;
+  try {
+    return await _followedChannelTickInner();
+  } finally {
+    _followedTickRunning = false;
+  }
+}
+
+async function _followedChannelTickInner() {
+  const data = await chrome.storage.local.get([
+    'isMonitorAllFollowedChannels', 'oauth_token', 'isEnabled',
+    'isEnabledNotifications', 'isEnabledMaxTabs', 'maxTabCount',
+    'isEnabledAutoClose',
+  ]);
+  if (!data.isMonitorAllFollowedChannels) return { skipped: 'disabled' };
+  const token = migrateOAuthToken(data.oauth_token);
+  if (!token) return { skipped: 'no_token' };
+
+  const state = await _getFollowedState();
+  const now = Date.now();
+  const entryId = Object.keys(state.entries)
+    .filter(id => (state.entries[id].nextCheckAt || 0) <= now)
+    .sort((a, b) => state.entries[a].nextCheckAt - state.entries[b].nextCheckAt)[0];
+  if (!entryId) return { skipped: 'none_due' };
+
+  const entry = state.entries[entryId];
+  const login = entry.login;
+  const manualNames = await _manualChannelNames();
+  if (manualNames.has(login.toLowerCase())) {
+    // 巡回直前の再確認: 手動登録済みに昇格したらフォロー側から外す
+    delete state.entries[entryId];
+    await _saveFollowedState(state);
+    return { skipped: 'manual' };
+  }
+
+  // 個別設定を持たない仮想チャンネル（全体設定に従う）
+  const virtualChannel = {
+    name: login,
+    broadcasterId: entryId,
+    onLive: false,
+    onLiveOpen: true,
+    notificationSetting: 'global',
+    isPriority: false,
+    blockedCategoryList: [],
+    allowedCategoryList: [],
+    allowedOnlyCategoryList: [],
+    brandedContentSetting: 'global',
+    snoozed: false,
+    hasBeenOpened: false,
+  };
+
+  const checked = await checkStream(virtualChannel, token);
+  if (!checked) {
+    entry.nextCheckAt = now + _backoffDelay(entry);
+    await _saveFollowedState(state);
+    return { checked: login, error: 'no_result' };
+  }
+
+  const newLive = checked.onLive === true;
+  const newStreamId = checked.streamId || null;
+  const streamChanged = newStreamId && newStreamId !== entry.lastStreamId;
+
+  if (checked.status === 'error') {
+    entry.nextCheckAt = now + _backoffDelay(entry);
+    entry.isLive = false;
+    await _saveFollowedState(state);
+    return { checked: login, error: checked.lastError || 'error' };
+  }
+  entry.consecutiveFailures = 0;
+
+  // 通知判定（同一配信で1回のみ）
+  if (newLive && data.isEnabledNotifications && !entry.isLive && !streamChanged) {
+    // オフライン→オンライン移行で通知（entry.isLive が false の間だけ）
+    if (!entry.notifiedForStreamId || entry.notifiedForStreamId !== newStreamId) {
+      showNotification({ ...checked, notificationSetting: 'global' });
+      entry.notifiedForStreamId = newStreamId;
+    }
+  } else if (newLive && streamChanged) {
+    entry.notifiedForStreamId = null;
+    if (data.isEnabledNotifications) {
+      showNotification({ ...checked, notificationSetting: 'global' });
+      entry.notifiedForStreamId = newStreamId;
+    }
+  }
+
+  // 自動オープン判定
+  let opened = false;
+  if (newLive && data.isEnabled) {
+    const openCandidate = { ...checked, onLiveOpen: true };
+    if (streamChanged) {
+      entry.hasBeenOpened = false;
+      entry.snoozedForCurrentStream = false;
+    }
+    if (await shouldOpenChannel(openCandidate) && !entry.hasBeenOpened && !entry.snoozedForCurrentStream) {
+      const withinLimit = !data.isEnabledMaxTabs || (await countTwitchChannelTabs()) < (data.maxTabCount || 5);
+      if (withinLimit) {
+        const tabs = await chrome.tabs.query({ url: `*://*.twitch.tv/${login.toLowerCase()}*` });
+        const already = tabs.some(t => {
+          const tabName = parseTwitchChannelUrl(t.url);
+          return tabName && tabName.toLowerCase() === login.toLowerCase();
+        });
+        if (!already) {
+          await openInManagedWindow(login);
+          opened = true;
+          entry.hasBeenOpened = true;
+        }
+      }
+    }
+  }
+
+  // 自動クローズ判定（フォロー側から開いたタブも対象）
+  if (!newLive && data.isEnabledAutoClose && entry.isLive) {
+    try {
+      const tabs = await chrome.tabs.query({});
+      for (const tab of tabs) {
+        if (!tab.url) continue;
+        const tabName = parseTwitchChannelUrl(tab.url);
+        if (tabName && tabName.toLowerCase() === login.toLowerCase()) {
+          chrome.tabs.remove(tab.id).catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.error('followedChannelTick auto-close error:', e);
+    }
+  }
+
+  entry.isLive = newLive;
+  if (newStreamId) entry.lastStreamId = newStreamId;
+  entry.nextCheckAt = now + _nextCheckDelay();
+  await _saveFollowedState(state);
+  return { checked: login, live: newLive, opened };
+}
+
+// ユーザーが開いたタブを閉じたときに呼ぶ（同一配信の再オープン抑止）
+export async function markFollowedChannelClosed(login) {
+  if (!login) return;
+  const state = await _getFollowedState();
+  const normalized = login.toLowerCase();
+  const id = Object.keys(state.entries).find(
+    k => state.entries[k].login?.toLowerCase() === normalized);
+  if (id) {
+    state.entries[id].snoozedForCurrentStream = true;
+    await _saveFollowedState(state);
+  }
+}

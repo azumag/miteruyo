@@ -21,6 +21,10 @@ const backgroundFunctionsMock = vi.hoisted(() => ({
   onStorageChangedForTabRotation: vi.fn().mockResolvedValue(undefined),
   onStorageChangedForCheckInterval: vi.fn().mockResolvedValue(undefined),
   onNotificationClicked: vi.fn().mockResolvedValue(undefined),
+  FOLLOWED_CHECK_ALARM: 'followedChannelCheck',
+  followedChannelTick: vi.fn().mockResolvedValue(undefined),
+  syncFollowedChannels: vi.fn().mockResolvedValue(undefined),
+  ensureFollowedCheckAlarm: vi.fn().mockResolvedValue(undefined),
   restoreAuthExpiredBadge: vi.fn().mockResolvedValue(undefined),
 }));
 

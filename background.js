@@ -14,6 +14,10 @@ import {
   onStorageChangedForCheckInterval,
   onNotificationClicked,
   restoreAuthExpiredBadge,
+  FOLLOWED_CHECK_ALARM,
+  followedChannelTick,
+  syncFollowedChannels,
+  ensureFollowedCheckAlarm,
 } from './background-functions.js';
 
 installHelixBatchFetch();
@@ -32,6 +36,9 @@ chrome.runtime.onStartup.addListener(async () => {
     console.log('onStartup event');
     await ensureAlarmsExist();
     await restoreAuthExpiredBadge();
+    // Service Worker再起動後のフォロー巡回復帰（Issue #151）
+    await ensureFollowedCheckAlarm();
+    syncFollowedChannels().catch(e => console.error('syncFollowedChannels error:', e));
   } catch (e) {
     console.error('onStartup error:', e);
   }
@@ -135,6 +142,9 @@ chrome.alarms.onAlarm.addListener(async function (alarm) {
     if (alarm.name === 'tabRotationAlarm') {
       await checkTabRotate();
     }
+    if (alarm.name === FOLLOWED_CHECK_ALARM) {
+      await followedChannelTick();
+    }
   } catch (e) {
     console.error('onAlarm error:', e);
   }
@@ -145,6 +155,13 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
   try {
     await onStorageChangedForTabRotation(changes, area);
     await onStorageChangedForCheckInterval(changes, area);
+    // フォロー監視設定の変化に応じて専用アラームを作成/停止し、ON時は同期する
+    if (area === 'local' && changes.isMonitorAllFollowedChannels) {
+      await ensureFollowedCheckAlarm();
+      if (changes.isMonitorAllFollowedChannels.newValue === true) {
+        syncFollowedChannels().catch(e => console.error('syncFollowedChannels error:', e));
+      }
+    }
   } catch (e) {
     console.error('onStorageChanged error:', e);
   }

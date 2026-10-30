@@ -12,6 +12,7 @@ const autoOpenOnce = document.getElementById('autoOpenOnce');
 const tabRotationInterval = document.getElementById('tabRotationInterval');
 const checkInterval = document.getElementById('checkInterval');
 const enableMaxTabs = document.getElementById('enableMaxTabs');
+const monitorAllFollowedChannels = document.getElementById('monitorAllFollowedChannels');
 const maxTabCount = document.getElementById('maxTabCount');
 const skipBrandedContent = document.getElementById('skipBrandedContent');
 const dynamicRotation = document.getElementById('dynamicRotation');
@@ -331,6 +332,11 @@ document.addEventListener('DOMContentLoaded', function () {
   document.querySelector('label[for="enableMaxTabs"]').textContent = enableMaxTabsMessage;
   const maxTabUnitMessage = chrome.i18n.getMessage('maxTabUnit');
   document.getElementById('maxTabUnit').textContent = maxTabUnitMessage;
+  // フォロー中のチャンネルすべてを対象にする（Issue #151）
+  document.querySelector('label[for="monitorAllFollowedChannels"]').textContent =
+    chrome.i18n.getMessage('monitorAllFollowedChannelsLabel');
+  document.querySelector('[data-i18n="monitorAllFollowedChannelsHint"]').textContent =
+    chrome.i18n.getMessage('monitorAllFollowedChannelsHint');
   // 複数タブ自動切り替え
   const enableTabRotationMessage = chrome.i18n.getMessage('enableTabRotation');
   document.querySelector('label[for="enableTabRotation"]').textContent = enableTabRotationMessage;
@@ -613,6 +619,7 @@ chrome.storage.local.get(
     isSkipBrandedContent: false,
     isDynamicRotation: false,
     isEnabledNotifications: false, // Added this line
+    isMonitorAllFollowedChannels: false,
   },
   async (data) => {
     loading.hidden = false;
@@ -633,6 +640,7 @@ chrome.storage.local.get(
     skipBrandedContent.checked = data.isSkipBrandedContent;
     dynamicRotation.checked = data.isDynamicRotation;
     enableNotifications.checked = data.isEnabledNotifications; // Added this line
+    monitorAllFollowedChannels.checked = data.isMonitorAllFollowedChannels;
 
     // Initialize global allowed-only categories
     globalAllowedOnlyCategories = await migrateAllowedOnlyCategories();
@@ -1707,6 +1715,30 @@ enableTabRotation.addEventListener('change', () => {
   chrome.storage.local.set({ isEnabledTabRotation: enableTabRotation.checked });
 });
 
+// フォロー中チャンネル監視 (Issue #151): ON 時に scope 不足なら再認証を案内
+monitorAllFollowedChannels.addEventListener('change', async () => {
+  chrome.storage.local.set({ isMonitorAllFollowedChannels: monitorAllFollowedChannels.checked });
+  if (!monitorAllFollowedChannels.checked) return;
+  const data = await chrome.storage.local.get('oauth_token');
+  const token = migrateOAuthToken(data.oauth_token);
+  if (!token) return;
+  try {
+    const res = await fetch('https://id.twitch.tv/oauth2/validate', {
+      headers: { 'Authorization': 'OAuth ' + token },
+    });
+    if (!res.ok) return;
+    const info = await res.json();
+    const scopes = info.scopes || [];
+    if (!scopes.includes('user:read:follows')) {
+      alert(chrome.i18n.getMessage('followedScopeReauthNeeded') ||
+        'フォロー中チャンネルの監視には再認証が必要です。Twitch接続をやり直してください。');
+      document.getElementById('connectTwitch')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  } catch (e) {
+    console.error('scope check error:', e);
+  }
+});
+
 enableMaxTabs.addEventListener('change', () => {
   chrome.storage.local.set({ isEnabledMaxTabs: enableMaxTabs.checked });
 });
@@ -1819,7 +1851,7 @@ function startTwitchAuthFlow() {
     client_id: clientId,
     redirect_uri: chrome.identity.getRedirectURL(),
     response_type: 'token',
-    scope: 'user:read:email',
+    scope: 'user:read:email user:read:follows',
     state,
   }).toString();
 
