@@ -1,0 +1,44 @@
+name: Preview Package
+
+# previewブランチ push で手動導入用のテストZIPを生成する（Issue #160）。
+# 本番 v*タグの release.yml（Client ID置換・Store向け）とは分離し、
+# 開発用 Client ID のまま許可ファイル集合のみを artifact として保存する。
+on:
+  push:
+    branches: [preview]
+
+permissions:
+  contents: read
+
+jobs:
+  preview-package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build preview ZIP
+        run: node scripts/package-preview.mjs
+
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: miteruyo-preview-${{ github.sha }}
+          path: dist/miteruyo-preview-*.zip
+          retention-days: 30
+          if-no-files-found: error

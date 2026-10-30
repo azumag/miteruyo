@@ -2,7 +2,7 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['node_modules/**', 'bootstrap/**', 'coverage/**', '**/._*'],
+    ignores: ['node_modules/**', 'bootstrap/**', 'coverage/**', 'dist/**', '**/._*'],
   },
   {
     files: ['**/*.js'],

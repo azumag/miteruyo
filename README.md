@@ -249,6 +249,15 @@ Checks run:
 - ESLint (code quality)
 - Vitest (unit tests)
 
+### Preview test package
+`preview` ブランチへの push で、手動導入用のテスト ZIP が GitHub Actions artifact として生成されます（Issue #160）。本番の `v*` タグ Release とは別物で、開発用 Client ID のままです。
+
+- 取得: Actions の `Preview Package` 実行結果 → Artifacts の `miteruyo-preview-<short SHA>.zip`
+- 導入: 解凍して `chrome://extensions` → デベロッパーモード → 「パッケージ化されていない拡張機能を読み込む」
+- `manifest.json` の `version_name` に `preview.<SHA>` が付き、本番 ZIP と区別できます
+- 秘密情報は同梱されません（許可ファイル集合のみ、秘密マーカー検査で失敗化）
+- Twitch OAuth の実ログインは別の受入確認です。手動導入では拡張 ID が変わる可能性があり、`chrome.identity.getRedirectURL()` の値と Twitch アプリ登録の redirect URI 照合が必要です
+
 ## Contributing
 
 Pull requests welcome! Please:
